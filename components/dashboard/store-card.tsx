@@ -1,9 +1,9 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { MapPin, Zap, Activity } from 'lucide-react'
+import { Zap, Activity, MapPin } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from './status-badge'
-import { Button } from '@/components/ui/button'
+import { buttonVariants } from '@/components/ui/button'
 
 interface StoreCardProps {
   store: Store
@@ -54,7 +54,7 @@ export function StoreCard({ store }: StoreCardProps) {
             <div className="flex flex-col">
               <span className="text-xs text-muted-foreground">kWh Total</span>
               <span className="mt-0.5 font-semibold text-foreground">
-                {store.kwhTotal.toLocaleString()}
+                {store.kwhTotal.toLocaleString('id-ID')}
               </span>
             </div>
             <div className="flex flex-col border-l">
@@ -72,11 +72,12 @@ export function StoreCard({ store }: StoreCardProps) {
           </div>
         ) : (
           <div className="mt-auto pt-4">
-            <Button
-              variant="outline"
-              className="w-full"
-              render={<Link href="#">Assign Devices</Link>}
-            />
+            <Link
+              href="#"
+              className={buttonVariants({ variant: 'outline', className: 'w-full' })}
+            >
+              Assign Devices
+            </Link>
           </div>
         )}
       </div>
@@ -84,16 +85,13 @@ export function StoreCard({ store }: StoreCardProps) {
       {/* Hover Overlay */}
       {!isUnassigned && (
         <div className="absolute inset-0 z-30 flex items-center justify-center bg-background/60 opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100">
-          <Button
-            variant="default"
-            className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            render={
-              <Link href={`/monitoring/${store.id}`}>
-                <Activity className="mr-2 size-4" />
-                View Monitoring
-              </Link>
-            }
-          />
+          <Link
+            href={`/monitoring/${store.id}`}
+            className={buttonVariants({ variant: 'default', className: 'bg-emerald-600 hover:bg-emerald-700 text-white' })}
+          >
+            <Activity className="mr-2 size-4" />
+            View Monitoring
+          </Link>
         </div>
       )}
     </div>

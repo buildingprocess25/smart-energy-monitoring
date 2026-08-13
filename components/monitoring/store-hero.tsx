@@ -35,7 +35,7 @@ export function StoreHero({ store }: StoreHeroProps) {
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Total Energi</span>
             <span className="font-bold leading-none tracking-tight">
-              {store.kwhTotal.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">kWh</span>
+              {store.kwhTotal.toLocaleString('id-ID')} <span className="text-xs font-normal text-muted-foreground">kWh</span>
             </span>
           </div>
         </div>
@@ -50,7 +50,7 @@ export function StoreHero({ store }: StoreHeroProps) {
                 Beban Saat Ini
               </span>
               <span className="font-bold leading-none tracking-tight text-emerald-700 dark:text-emerald-400">
-                {currentTotalW.toLocaleString()} <span className="text-xs font-normal">W</span>
+                {currentTotalW.toLocaleString('id-ID')} <span className="text-xs font-normal">W</span>
               </span>
             </div>
           </div>
