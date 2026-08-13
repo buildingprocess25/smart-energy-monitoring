@@ -1,7 +1,5 @@
+import { StoreGallery } from '@/components/dashboard/store-gallery'
+
 export default function DashboardPage() {
-  return (
-    <div className="text-muted-foreground text-sm">
-      Loading overview...
-    </div>
-  )
+  return <StoreGallery />
 }
