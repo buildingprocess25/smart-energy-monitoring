@@ -11,9 +11,12 @@ export interface PhaseData {
 
 export interface Store {
   id: string
-  name: string
-  address: string
-  photoUrl: string
+  code: string // Kode Toko (e.g. TK001, AHO1)
+  name: string // Nama Toko
+  branch: string // Cabang (e.g. Tangerang 1, Head Office)
+  photoUrl?: string
+  latitude?: number
+  longitude?: number
   status: StoreStatus
   kwhTotal: number
   deviceCount: number

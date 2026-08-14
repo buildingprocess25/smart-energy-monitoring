@@ -1,4 +1,4 @@
-import { MapPin, Zap, Hash, Activity } from 'lucide-react'
+import { Building2, Zap, Hash, Activity } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 
@@ -13,16 +13,19 @@ export function StoreHero({ store }: StoreHeroProps) {
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
       {/* Kiri: Info Toko */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-bold text-muted-foreground">
+            {store.code}
+          </span>
           <StatusBadge status={store.status} className="h-6 px-2 text-[10px]" />
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             {store.name}
           </h1>
         </div>
         <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <MapPin className="size-4 shrink-0" />
-          {store.address}
+          <Building2 className="size-4 shrink-0 text-muted-foreground/70" />
+          Cabang {store.branch}
         </p>
       </div>
 

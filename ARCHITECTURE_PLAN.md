@@ -76,6 +76,45 @@ Proyek 3 (`smart-energy-monitoring`) dirancang sebagai **Stateless Presentation 
    - **Data Telemetri IoT & Log Historis:** Diambil dari Proyek 2 (`Smart-Energy-Meter-Vps`) via REST API / WebSocket (Live Gauge saat audit berlangsung, grafik historis riwayat audit, status sensor, alert).
    - **Data User & Metadata Toko:** Diambil dari Proyek 1 (`sparta-energy`) (Hak akses user, nama toko/cabang, target kuota energi, riwayat audit manual).
 
+### 📌 2.1. Desain Skema & Logika Sesi IoT Portabel (`IotAuditSession`)
+
+#### Latar Belakang Masalah:
+- Perangkat keras ESP32 bersifat portabel (dipindahkan antar toko saat jadwal audit).
+- Firmware ESP32 hanya memancarkan `device_id` (misal `ESP32_01`), `timestamp`, dan metrik listrik ($V, A, W, PF$).
+- Di VPS, penamaan toko sebelumnya belum terikat foreign key database master toko (`stores.id` / `stores.code`).
+
+#### Usulan Skema Tabel `IotAuditSession` (Database PostgreSQL):
+```prisma
+model IotAuditSession {
+  id          String    @id @default(uuid()) @db.Uuid
+  storeId     String    @map("store_id") @db.Uuid
+  deviceId    String    @map("device_id") // ID alat ESP32 (misal: "ESP32_01")
+  sessionName String?   @map("session_name") // Label sesi (misal: "Audit Periode 10-12 Juli 2026")
+  startTime   DateTime  @map("start_time")
+  endTime     DateTime? @map("end_time") // NULL = Sesi Sedang Berlangsung (LIVE)
+  status      String    @default("ACTIVE") // ACTIVE, COMPLETED, INTERRUPTED
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  store       Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([deviceId, startTime, endTime])
+  @@map("iot_audit_sessions")
+}
+```
+
+#### Alur Operasional (SOP Penugasan):
+1. **Mulai Sesi Audit (Start Session)**:
+   - Teknisi memasang alat di panel toko -> Buka Dashboard -> Pilih Toko (`store_id`) & Device ID (`device_id`) -> Klik "Mulai Sesi".
+   - Record `IotAuditSession` tercatat dengan `endTime: null` (Status toko otomatis menjadi 🟢 LIVE).
+2. **Penanganan Multi-Sesi & Interupsi**:
+   - Jika 1 toko diaudit berulang kali atau alat sempat terputus/mati listrik, setiap sesi memiliki `id` (Session ID) unik.
+   - Di halaman Detail Toko (`/monitoring/[storeId]`), seluruh riwayat sesi tampil dalam dropdown `SessionSelector`, memungkinkan pengguna berpindah antar-sesi lampau tanpa data saling menimpa.
+3. **Selesai Audit (Stop Session)**:
+   - Teknisi klik "Selesaikan Audit" -> `endTime` terisi waktu saat ini -> Status toko beralih menjadi 🔵 HISTORICAL.
+
 ---
 
 ## 📋 3. Rencana Langkah Pengembangan (Tahapan / Phased Roadmap)

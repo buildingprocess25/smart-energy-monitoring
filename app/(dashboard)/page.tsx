@@ -1,5 +1,6 @@
-import { StoreGallery } from '@/components/dashboard/store-gallery'
+import { DashboardOverview } from '@/components/dashboard/dashboard-overview'
 
 export default function DashboardPage() {
-  return <StoreGallery />
+  return <DashboardOverview />
 }
+
