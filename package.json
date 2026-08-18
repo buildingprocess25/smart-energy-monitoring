@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "copy:assets": "node scripts/copy-assets.mjs",
-    "dev": "node scripts/copy-assets.mjs && next dev",
-    "build": "node scripts/copy-assets.mjs && next build",
+    "dev": "next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",

@@ -1,3 +1,5 @@
+'use client'
+
 import { Search, Building2, LayoutGrid, List } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
@@ -51,7 +53,12 @@ export function GalleryToolbar({
       {/* Filter Controls & View Switcher */}
       <div className="flex flex-wrap items-center gap-2.5">
         {/* Branch Filter */}
-        <Select value={branchFilter} onValueChange={onBranchFilter}>
+        <Select
+          value={branchFilter}
+          onValueChange={(val) => {
+            if (val !== null) onBranchFilter(val)
+          }}
+        >
           <SelectTrigger className="h-9 w-full text-xs sm:w-[170px]">
             <Building2 className="mr-1.5 size-3.5 text-muted-foreground" />
             <SelectValue placeholder="Semua Cabang" />
@@ -69,7 +76,9 @@ export function GalleryToolbar({
         {/* Status Filter */}
         <Select
           value={statusFilter}
-          onValueChange={(val) => onStatusFilter(val as StoreStatus | 'all')}
+          onValueChange={(val) => {
+            if (val !== null) onStatusFilter(val as StoreStatus | 'all')
+          }}
         >
           <SelectTrigger className="h-9 w-full text-xs sm:w-[160px]">
             <SelectValue placeholder="Semua Status" />
