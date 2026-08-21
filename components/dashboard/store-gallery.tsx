@@ -1,30 +1,35 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { MOCK_STORES } from '@/lib/mock-data'
-import { StoreStatus } from '@/lib/types'
+import { Store, StoreStatus } from '@/lib/types'
 import { DashboardKpiSummary } from './dashboard-kpi-summary'
 import { GalleryToolbar } from './gallery-toolbar'
 import { StoreCard } from './store-card'
 import { StoreTable } from './store-table'
 
-export function StoreGallery() {
+interface StoreGalleryProps {
+  initialStores?: Store[]
+}
+
+export function StoreGallery({ initialStores = [] }: StoreGalleryProps) {
   const [search, setSearch] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<StoreStatus | 'all'>('all')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
 
+  const stores = initialStores
+
   // Extract unique branches dynamically
   const uniqueBranches = useMemo(() => {
     const branchSet = new Set<string>()
-    MOCK_STORES.forEach((s) => {
+    stores.forEach((s) => {
       if (s.branch) branchSet.add(s.branch)
     })
     return Array.from(branchSet).sort()
-  }, [])
+  }, [stores])
 
   const filteredStores = useMemo(() => {
-    return MOCK_STORES.filter((store) => {
+    return stores.filter((store) => {
       // Filter by branch
       if (branchFilter !== 'all' && store.branch !== branchFilter) {
         return false
@@ -48,7 +53,7 @@ export function StoreGallery() {
 
       return true
     })
-  }, [search, branchFilter, statusFilter])
+  }, [stores, search, branchFilter, statusFilter])
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,16 +61,16 @@ export function StoreGallery() {
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Dashboard &amp; Monitoring Energi
+            Monitoring Energi Toko
           </h1>
           <p className="text-sm text-muted-foreground">
-            Rekapan konsumsi energi telemetri dan status operasional seluruh cabang Alfamart.
+            Daftar toko aktif IoT dan riwayat audit konsumsi energi di seluruh cabang.
           </p>
         </div>
       </div>
 
       {/* KPI Stats Summary Cards */}
-      <DashboardKpiSummary stores={MOCK_STORES} />
+      <DashboardKpiSummary stores={stores} />
 
       {/* Filter Toolbar */}
       <div className="flex flex-col gap-4 border-t pt-4">

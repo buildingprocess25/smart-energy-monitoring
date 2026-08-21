@@ -20,8 +20,12 @@ interface StoreTableProps {
 function formatRelativeTime(isoString: string) {
   if (!isoString) return '-'
   const date = new Date(isoString)
+  if (isNaN(date.getTime())) {
+    return isoString
+  }
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
+  if (diffMs < 0) return 'Baru saja'
   const diffMins = Math.floor(diffMs / 60000)
 
   if (diffMins < 1) return 'Baru saja'

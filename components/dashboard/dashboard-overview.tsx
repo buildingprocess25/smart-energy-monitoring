@@ -21,77 +21,46 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { MOCK_STORES } from '@/lib/mock-data'
+import { Store } from '@/lib/types'
 import { buttonVariants } from '@/components/ui/button'
 import { NetworkMapWidget } from './network-map-widget'
 import { cn } from '@/lib/utils'
 
-// Data Tren Konsumsi 7 Hari Terakhir (kWh)
-const CONSUMPTION_TREND_DATA = [
-  { day: 'Sen', kwh: 1240, cost: 1791428 },
-  { day: 'Sel', kwh: 1480, cost: 2138156 },
-  { day: 'Rab', kwh: 1390, cost: 2008133 },
-  { day: 'Kam', kwh: 1560, cost: 2253732 },
-  { day: 'Jum', kwh: 1620, cost: 2340414 },
-  { day: 'Sab', kwh: 1840, cost: 2658248 },
-  { day: 'Min', kwh: 1910, cost: 2759377 },
-]
-
-// Data Toko Konsumsi Tertinggi (High Consumption)
-const TOP_CONSUMING_STORES = [
-  {
-    code: 'TK003',
-    name: 'Alfamart BSD Sektor 7',
-    branch: 'Tangerang 2',
-    kwh: 3456.2,
-    spike: '+24%',
-    status: 'warning',
-  },
-  {
-    code: 'TK002',
-    name: 'Alfamart Exit Tol Jelupang',
-    branch: 'Tangerang 1',
-    kwh: 2103.7,
-    spike: '+12%',
-    status: 'normal',
-  },
-  {
-    code: 'TK004',
-    name: 'Alfamart Ciputat Timur',
-    branch: 'Jakarta Selatan',
-    kwh: 1928.4,
-    spike: '+8%',
-    status: 'normal',
-  },
-  {
-    code: 'TK001',
-    name: 'Alfamart Pondok Kacang 3',
-    branch: 'Tangerang 1',
-    kwh: 1842.5,
-    spike: '+4%',
-    status: 'normal',
-  },
-]
-
+// Estimasi PLN Tariff
 const PLN_TARIFF_PER_KWH = 1444.7
 
-export function DashboardOverview() {
+export interface DailyConsumption {
+  day: string
+  dayDate: string
+  kwh: number
+  cost: number
+}
+
+interface DashboardOverviewProps {
+  stores?: Store[]
+  initialConsumptionTrend?: DailyConsumption[]
+}
+
+export function DashboardOverview({
+  stores = [],
+  initialConsumptionTrend = [],
+}: DashboardOverviewProps) {
   // Hitung total energi
-  const totalKwh = MOCK_STORES.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
+  const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
   const totalCost = totalKwh * PLN_TARIFF_PER_KWH
-  const liveCount = MOCK_STORES.filter((s) => s.status === 'live').length
-  const totalCount = MOCK_STORES.length
+  const liveCount = stores.filter((s) => s.status === 'live').length
+  const totalCount = stores.length || 1
   const livePercentage = (liveCount / totalCount) * 100
-  const activeDevices = MOCK_STORES.filter((s) => s.status === 'live').reduce(
-    (acc, s) => acc + s.deviceCount,
+  const activeDevices = stores.filter((s) => s.status === 'live').reduce(
+    (acc, s) => acc + (s.deviceCount || 1),
     0
   )
 
   // Hitung konsumsi per cabang
   const branchMap: Record<string, number> = {}
-  MOCK_STORES.forEach((s) => {
+  stores.forEach((s) => {
     if (s.branch) {
-      branchMap[s.branch] = (branchMap[s.branch] || 0) + s.kwhTotal
+      branchMap[s.branch] = (branchMap[s.branch] || 0) + (s.kwhTotal || 0)
     }
   })
 
@@ -99,7 +68,28 @@ export function DashboardOverview() {
     name,
     kwh,
     percentage: totalKwh > 0 ? (kwh / totalKwh) * 100 : 0,
-  }))
+  })).sort((a, b) => b.kwh - a.kwh).slice(0, 5)
+
+  // Toko konsumsi tertinggi
+  const topStores = stores
+    .slice()
+    .sort((a, b) => (b.kwhTotal || 0) - (a.kwhTotal || 0))
+    .slice(0, 5)
+
+  // Tren konsumsi harian (gunakan data riil jika ada, atau hitung dari agregat total)
+  const consumptionTrend =
+    initialConsumptionTrend.length > 0
+      ? initialConsumptionTrend
+      : ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day, idx) => {
+        const factor = [0.88, 0.95, 0.92, 1.02, 1.05, 1.15, 1.18][idx]
+        const kwh = Math.round((totalKwh / 7) * factor * 10) / 10
+        return {
+          day,
+          dayDate: '',
+          kwh,
+          cost: Math.round(kwh * PLN_TARIFF_PER_KWH),
+        }
+      })
 
   return (
     <div className="flex flex-col gap-6">
@@ -107,7 +97,7 @@ export function DashboardOverview() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            Dashboard Eksekutif Energi
+            Dashboard Monitoring Energi
           </h1>
           <p className="text-sm text-muted-foreground">
             Ringkasan performa energi, status perangkat IoT, dan konsumsi seluruh cabang Alfamart.
@@ -249,7 +239,7 @@ export function DashboardOverview() {
           <div className="mt-4 h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={CONSUMPTION_TREND_DATA}
+                data={consumptionTrend}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <CartesianGrid
@@ -348,7 +338,7 @@ export function DashboardOverview() {
 
         {/* Peta Sebaran Alat IoT Aktif (Col 12) */}
         <div className="lg:col-span-12">
-          <NetworkMapWidget />
+          <NetworkMapWidget stores={stores} />
         </div>
 
         {/* Toko Konsumsi Tertinggi (Col 12) */}
@@ -356,10 +346,10 @@ export function DashboardOverview() {
           <div className="flex items-center justify-between border-b p-5">
             <div>
               <h2 className="text-base font-semibold text-foreground">
-                Toko dengan Beban Konsumsi Terbesar
+                Toko Terpantau &amp; Beban Konsumsi
               </h2>
               <p className="text-xs text-muted-foreground">
-                Daftar toko dengan total kWh tertinggi yang memerlukan perhatian efisiensi.
+                Daftar toko dengan data telemetri aktif dan riwayat audit energi.
               </p>
             </div>
             <Link
@@ -378,14 +368,14 @@ export function DashboardOverview() {
                   <th className="p-4">Nama Toko</th>
                   <th className="p-4">Cabang</th>
                   <th className="p-4 text-right">Total Energi</th>
-                  <th className="p-4 text-center">Lonjakan</th>
+                  <th className="p-4 text-center">Status</th>
                   <th className="p-4 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {TOP_CONSUMING_STORES.map((store) => (
+                {topStores.map((store) => (
                   <tr
-                    key={store.code}
+                    key={store.id}
                     className="transition-colors hover:bg-muted/30"
                   >
                     <td className="p-4 font-mono text-xs font-bold text-muted-foreground">
@@ -398,26 +388,26 @@ export function DashboardOverview() {
                       Cabang {store.branch}
                     </td>
                     <td className="p-4 text-right font-bold text-foreground">
-                      {store.kwh.toLocaleString('id-ID')} kWh
+                      {(store.kwhTotal || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
                     </td>
                     <td className="p-4 text-center">
                       <span
                         className={cn(
                           'inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold',
-                          store.status === 'warning'
-                            ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
-                            : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                          store.status === 'live'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                         )}
                       >
-                        {store.status === 'warning' && (
-                          <AlertTriangle className="size-3" />
+                        {store.status === 'live' && (
+                          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
                         )}
-                        {store.spike}
+                        {store.status === 'live' ? 'Live Telemetry' : 'Historical Audit'}
                       </span>
                     </td>
                     <td className="p-4 text-right">
                       <Link
-                        href="/monitoring"
+                        href={`/monitoring/${store.id}`}
                         className={cn(
                           buttonVariants({ variant: 'ghost', size: 'sm' }),
                           'h-7 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400'

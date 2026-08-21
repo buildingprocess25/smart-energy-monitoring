@@ -8,7 +8,7 @@ interface StoreHeroProps {
 
 export function StoreHero({ store }: StoreHeroProps) {
   // Hitung total W saat ini (jika ada fase)
-  const currentTotalW = store.phases.reduce((acc, p) => acc + p.power, 0)
+  const currentTotalW = store.phases ? store.phases.reduce((acc, p) => acc + (p.power || 0), 0) : 0
 
   return (
     <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">

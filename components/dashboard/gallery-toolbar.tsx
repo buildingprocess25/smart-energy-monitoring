@@ -43,7 +43,7 @@ export function GalleryToolbar({
         <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Cari nama atau kode toko (cth: TK001, Pondok Kacang)..."
+          placeholder="Cari nama atau kode toko (cth: 2JC2, DC CIANJUR)..."
           className="h-9 pl-9 text-sm"
           value={search}
           onChange={(e) => onSearch(e.target.value)}

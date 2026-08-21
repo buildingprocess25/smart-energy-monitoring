@@ -11,8 +11,13 @@ interface StoreCardProps {
 function formatRelativeTime(isoString: string) {
   if (!isoString) return 'Belum ada data'
   const date = new Date(isoString)
+  if (isNaN(date.getTime())) {
+    // If it's already a formatted string like "10:15:30", just return it
+    return isoString
+  }
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
+  if (diffMs < 0) return 'Baru saja'
   const diffMins = Math.floor(diffMs / 60000)
 
   if (diffMins < 1) return 'Baru saja'

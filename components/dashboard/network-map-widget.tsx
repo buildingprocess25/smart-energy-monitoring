@@ -11,50 +11,68 @@ import {
   Building2,
   Filter,
 } from 'lucide-react'
-import { MOCK_STORES } from '@/lib/mock-data'
 import { Store } from '@/lib/types'
 import { StatusBadge } from './status-badge'
 import { cn } from '@/lib/utils'
 
-// Bounding box koordinat Jabodetabek untuk normalisasi posisi pin (SVG canvas)
-// Lat: -6.20 to -6.36, Long: 106.63 to 106.77
-const MAP_BOUNDS = {
-  minLat: -6.36,
-  maxLat: -6.21,
-  minLng: 106.63,
-  maxLng: 106.77,
-}
+function getDynamicBounds(stores: Store[]) {
+  const validStores = stores.filter((s) => s.latitude && s.longitude)
+  if (validStores.length === 0) {
+    return { minLat: -8.0, maxLat: -5.5, minLng: 105.0, maxLng: 115.0 }
+  }
 
-function projectCoordinates(lat?: number, lng?: number) {
-  if (!lat || !lng) return { x: 50, y: 50 }
+  const lats = validStores.map((s) => s.latitude!)
+  const lngs = validStores.map((s) => s.longitude!)
+  const minLat = Math.min(...lats)
+  const maxLat = Math.max(...lats)
+  const minLng = Math.min(...lngs)
+  const maxLng = Math.max(...lngs)
 
-  const x =
-    ((lng - MAP_BOUNDS.minLng) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng)) * 100
-  // Invert Y axis because latitude decreases southward
-  const y =
-    ((MAP_BOUNDS.maxLat - lat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * 100
+  const latSpan = maxLat - minLat || 1
+  const lngSpan = maxLng - minLng || 1
+  const latPadding = latSpan * 0.12
+  const lngPadding = lngSpan * 0.12
 
-  // Clamped between 10% and 90% for safe margin
   return {
-    x: Math.min(Math.max(x, 10), 90),
-    y: Math.min(Math.max(y, 10), 90),
+    minLat: minLat - latPadding,
+    maxLat: maxLat + latPadding,
+    minLng: minLng - lngPadding,
+    maxLng: maxLng + lngPadding,
   }
 }
 
-export function NetworkMapWidget() {
+function projectCoordinates(lat: number | undefined, lng: number | undefined, bounds: ReturnType<typeof getDynamicBounds>) {
+  if (!lat || !lng) return { x: 50, y: 50 }
+
+  const x = ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * 100
+  const y = ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * 100
+
+  return {
+    x: Math.min(Math.max(x, 8), 92),
+    y: Math.min(Math.max(y, 8), 92),
+  }
+}
+
+interface NetworkMapWidgetProps {
+  stores?: Store[]
+}
+
+export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
   const [filterLiveOnly, setFilterLiveOnly] = useState(false)
   const [selectedStore, setSelectedStore] = useState<Store | null>(
-    MOCK_STORES.find((s) => s.status === 'live') ?? MOCK_STORES[0]
+    stores.find((s) => s.status === 'live') ?? stores[0] ?? null
   )
+
+  const bounds = useMemo(() => getDynamicBounds(stores), [stores])
 
   const displayedStores = useMemo(() => {
     if (filterLiveOnly) {
-      return MOCK_STORES.filter((s) => s.status === 'live')
+      return stores.filter((s) => s.status === 'live')
     }
-    return MOCK_STORES
-  }, [filterLiveOnly])
+    return stores
+  }, [filterLiveOnly, stores])
 
-  const liveStoresCount = MOCK_STORES.filter((s) => s.status === 'live').length
+  const liveStoresCount = stores.filter((s) => s.status === 'live').length
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs">
@@ -71,11 +89,11 @@ export function NetworkMapWidget() {
             </span>
           </div>
           <p className="text-xs text-muted-foreground">
-            Titik koordinat GPS toko yang sedang terpasang perangkat Smart Energy Meter.
+            Titik koordinat GPS toko yang sedang terpasang perangkat Smart Energy Meter dan riwayat audit.
           </p>
         </div>
 
-        {/* Filter Controls & Legend */}
+        {/* Filter Controls */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterLiveOnly(!filterLiveOnly)}
@@ -111,168 +129,198 @@ export function NetworkMapWidget() {
               Wilayah Operasional
             </span>
             <span className="text-xs font-semibold text-slate-200">
-              Jabodetabek Retail Network
+              Alfamart Retail &amp; DC Network
             </span>
           </div>
 
           {/* Map Legend Overlay */}
           <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex items-center gap-3 rounded-lg border border-slate-700/60 bg-slate-900/80 px-3 py-1.5 text-[11px] text-slate-300 backdrop-blur-md">
             <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              <span>Live Aktif</span>
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span>Live Telemetry</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-blue-400" />
-              <span>Riwayat</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-slate-500" />
-              <span>Belum Terpasang</span>
+              <span className="size-2 rounded-full bg-blue-500" />
+              <span>Audit Historis</span>
             </div>
           </div>
 
-          {/* Interactive Store Pins */}
+          {/* Simulated Inter-Store Mesh Lines */}
+          <svg className="pointer-events-none absolute inset-0 size-full stroke-slate-700/30 stroke-dashed [stroke-dasharray:4_4]">
+            {displayedStores.map((store, i) => {
+              if (i === 0) return null
+              const prevPos = projectCoordinates(displayedStores[i - 1]?.latitude, displayedStores[i - 1]?.longitude, bounds)
+              const curPos = projectCoordinates(store.latitude, store.longitude, bounds)
+              return (
+                <line
+                  key={`line-${store.id}`}
+                  x1={`${prevPos.x}%`}
+                  y1={`${prevPos.y}%`}
+                  x2={`${curPos.x}%`}
+                  y2={`${curPos.y}%`}
+                />
+              )
+            })}
+          </svg>
+
+          {/* Interactive Pins on Canvas */}
           {displayedStores.map((store) => {
-            const { x, y } = projectCoordinates(store.latitude, store.longitude)
-            const isLive = store.status === 'live'
+            const pos = projectCoordinates(store.latitude, store.longitude, bounds)
             const isSelected = selectedStore?.id === store.id
+            const isLive = store.status === 'live'
 
             return (
               <button
                 key={store.id}
                 onClick={() => setSelectedStore(store)}
-                style={{ left: `${x}%`, top: `${y}%` }}
+                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
                 className={cn(
-                  'group absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform duration-200 hover:scale-125 focus:outline-hidden',
-                  isSelected && 'scale-125 z-20'
+                  'group absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-300 focus:outline-hidden',
+                  isSelected ? 'z-30 scale-125' : 'z-20 hover:scale-115'
                 )}
-                title={`${store.name} (${store.code})`}
+                aria-label={`Pilih toko ${store.name}`}
               >
-                {/* Live Pulsing Beacon Wave */}
+                {/* Radar Ping for Live Device */}
                 {isLive && (
-                  <>
-                    <span className="absolute -inset-2 animate-ping rounded-full bg-emerald-400 opacity-60 duration-1000" />
-                    <span className="absolute -inset-4 animate-pulse rounded-full bg-emerald-500/20" />
-                  </>
+                  <span className="absolute -inset-2.5 animate-ping rounded-full bg-emerald-400/40 opacity-75 duration-1000" />
                 )}
 
-                {/* Marker Pin Outer Ring */}
+                {/* Outer Pin Body */}
                 <div
                   className={cn(
-                    'relative flex size-8 items-center justify-center rounded-full border shadow-lg transition-all',
+                    'relative flex size-7 items-center justify-center rounded-full border-2 shadow-lg transition-all',
                     isLive
                       ? 'border-emerald-300 bg-emerald-600 text-white shadow-emerald-500/50'
-                      : store.status === 'historical'
-                        ? 'border-blue-300 bg-blue-600 text-white shadow-blue-500/30'
-                        : 'border-slate-600 bg-slate-700 text-slate-300',
-                    isSelected && 'ring-2 ring-white ring-offset-2 ring-offset-slate-900'
+                      : 'border-blue-300 bg-blue-600 text-white shadow-blue-500/50',
+                    isSelected && 'ring-4 ring-white/40'
                   )}
                 >
-                  {isLive ? (
-                    <Activity className="size-4 animate-pulse" />
-                  ) : (
-                    <MapPin className="size-4" />
-                  )}
+                  <MapPin className="size-3.5 fill-current" />
                 </div>
 
-                {/* Hover / Active Badge Label */}
+                {/* Floating Store Code Label */}
                 <div
                   className={cn(
-                    'pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-700/80 bg-slate-900/90 px-2 py-0.5 text-[10px] font-semibold text-slate-200 shadow-md backdrop-blur-sm transition-opacity duration-150',
-                    isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    'absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold font-mono tracking-tight shadow-md transition-opacity',
+                    isSelected
+                      ? 'bg-slate-900 text-emerald-400 border border-emerald-500/40 opacity-100'
+                      : 'bg-slate-950/80 text-slate-300 opacity-70 group-hover:opacity-100'
                   )}
                 >
-                  {store.name}
+                  {store.code}
                 </div>
               </button>
             )
           })}
         </div>
 
-        {/* Selected Store Inspector Card (Col 4) */}
-        <div className="flex flex-col justify-between border-t p-5 lg:col-span-4 lg:border-l lg:border-t-0 bg-card">
+        {/* Side Inspector Card for Selected Store (Col 4) */}
+        <div className="flex flex-col justify-between border-t p-5 bg-card lg:col-span-4 lg:border-t-0 lg:border-l">
           {selectedStore ? (
             <div className="flex flex-col gap-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-bold text-muted-foreground">
-                    {selectedStore.code}
-                  </span>
-                  <h3 className="mt-1.5 font-bold text-base text-foreground leading-snug">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold text-muted-foreground">
+                      {selectedStore.code}
+                    </span>
+                    <StatusBadge status={selectedStore.status} />
+                  </div>
+                  <h3 className="mt-1 font-bold text-base text-foreground leading-tight">
                     {selectedStore.name}
                   </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
-                    <Building2 className="size-3 text-muted-foreground/70" />
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Cabang {selectedStore.branch}
                   </p>
                 </div>
-                <StatusBadge status={selectedStore.status} />
               </div>
 
-              {/* GPS Coordinates Info */}
-              <div className="rounded-lg border bg-muted/40 p-3 text-xs">
-                <div className="flex items-center justify-between text-muted-foreground">
-                  <span className="flex items-center gap-1 font-medium">
-                    <Crosshair className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                    Koordinat GPS Toko
+              {/* Quick Specs Grid */}
+              <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/30 p-3 text-xs">
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">
+                    Total Energi
                   </span>
-                  <span className="font-mono font-semibold text-foreground">
-                    {selectedStore.latitude?.toFixed(4)},{' '}
-                    {selectedStore.longitude?.toFixed(4)}
+                  <span className="text-sm font-bold text-foreground mt-0.5">
+                    {(selectedStore.kwhTotal || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}{' '}
+                    <span className="text-[10px] font-normal text-muted-foreground">
+                      kWh
+                    </span>
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">
+                    Daya Terpasang
+                  </span>
+                  <span className="text-sm font-bold text-foreground mt-0.5">
+                    {selectedStore.plnPowerVa ? `${selectedStore.plnPowerVa.toLocaleString('id-ID')} VA` : 'Standar Toko'}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">
+                    Koordinat GPS
+                  </span>
+                  <span className="font-mono text-[11px] font-medium text-foreground mt-0.5 truncate">
+                    {selectedStore.latitude?.toFixed(4)}, {selectedStore.longitude?.toFixed(4)}
+                  </span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-muted-foreground text-[10px] uppercase font-semibold">
+                    Status IoT
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-1">
+                    {selectedStore.status === 'live' ? (
+                      <>
+                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Online ({selectedStore.deviceId})
+                      </>
+                    ) : (
+                      'Tersimpan di Audit'
+                    )}
                   </span>
                 </div>
               </div>
 
-              {/* Telemetry Metrics */}
-              {selectedStore.status !== 'unassigned' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <span className="text-[11px] text-muted-foreground">
-                      Total Energi
+              {/* 3-Phase Live Preview if available */}
+              {selectedStore.phases && selectedStore.phases.length > 0 && selectedStore.status === 'live' && (
+                <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
+                    <span className="flex items-center gap-1">
+                      <Activity className="size-3 text-emerald-500" />
+                      Beban Fasa Saat Ini
                     </span>
-                    <p className="mt-1 font-bold text-base text-foreground flex items-center gap-1">
-                      <Zap className="size-4 text-emerald-600 dark:text-emerald-400" />
-                      {selectedStore.kwhTotal.toLocaleString('id-ID')} kWh
-                    </p>
-                  </div>
-                  <div className="rounded-lg border bg-muted/20 p-3">
-                    <span className="text-[11px] text-muted-foreground">
-                      Sensor Terpasang
+                    <span className="font-mono">
+                      {Math.round(
+                        selectedStore.phases.reduce((acc, p) => acc + (p.power || 0), 0)
+                      )}{' '}
+                      W
                     </span>
-                    <p className="mt-1 font-bold text-base text-foreground">
-                      {selectedStore.deviceCount} Perangkat
-                    </p>
                   </div>
-                </div>
-              ) : (
-                <div className="rounded-lg border border-dashed p-4 text-center">
-                  <p className="text-xs italic text-muted-foreground">
-                    Belum ada sesi audit IoT yang terpasang di toko ini.
-                  </p>
+                  <div className="grid grid-cols-3 gap-1 pt-1 text-center font-mono text-[10px]">
+                    {selectedStore.phases.map((p) => (
+                      <div key={p.phase} className="rounded bg-background/80 p-1 border">
+                        <div className="text-muted-foreground font-semibold">{p.phase}</div>
+                        <div className="font-bold text-foreground">{Math.round(p.power)} W</div>
+                        <div className="text-[9px] text-muted-foreground">{p.voltage.toFixed(0)}V</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {/* Action Button */}
-              {selectedStore.status !== 'unassigned' ? (
-                <Link
-                  href={`/monitoring/${selectedStore.id}`}
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-xs font-semibold text-white shadow-xs transition-colors hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                >
-                  Buka Monitoring Toko Ini
-                  <ArrowRight className="size-3.5" />
-                </Link>
-              ) : (
-                <Link
-                  href="/monitoring"
-                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted"
-                >
-                  Lihat di Daftar Toko
-                </Link>
-              )}
+              {/* Action Link to Store Detail */}
+              <Link
+                href={`/monitoring/${selectedStore.id}`}
+                className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors"
+              >
+                Buka Live Monitoring Toko
+                <ArrowRight className="size-3.5" />
+              </Link>
             </div>
           ) : (
-            <div className="flex h-full items-center justify-center text-center text-xs text-muted-foreground">
-              Klik salah satu titik pin di peta untuk melihat detail status toko.
+            <div className="flex flex-col items-center justify-center h-full text-center py-10 text-muted-foreground">
+              <Crosshair className="size-8 text-muted-foreground/40 mb-2" />
+              <p className="text-xs">Pilih salah satu pin toko pada peta untuk melihat detail spesifikasi.</p>
             </div>
           )}
         </div>
