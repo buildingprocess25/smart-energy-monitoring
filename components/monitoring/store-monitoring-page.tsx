@@ -315,18 +315,27 @@ export function StoreMonitoringPage({
                   <div className="flex items-center gap-1.5 rounded-lg border bg-background px-2 py-1 shadow-xs">
                     <button
                       onClick={() => handleSessionPageShift('prev')}
-                      title="Halaman Sebelumnya"
+                      title="Waktu Lebih Baru"
                       disabled={pagination.page <= 1}
                       className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                     >
                       <ChevronLeft className="size-4" />
                     </button>
-                    <span className="text-[11px] font-mono font-semibold px-1 text-foreground">
-                      Hal {pagination.page} / {pagination.totalPages}
-                    </span>
+                    <div className="flex items-center gap-1 text-[11px] font-mono font-semibold px-1 text-foreground">
+                      <span>Hal {pagination.page} / {pagination.totalPages}</span>
+                      {pagination.page === 1 ? (
+                        <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-sans font-bold px-1.5 py-0.5 rounded">
+                          Terbaru
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground font-sans font-normal">
+                          (Mundur)
+                        </span>
+                      )}
+                    </div>
                     <button
                       onClick={() => handleSessionPageShift('next')}
-                      title="Halaman Berikutnya"
+                      title="Waktu Sebelumnya (Mundur)"
                       disabled={pagination.page >= pagination.totalPages}
                       className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
                     >
@@ -403,10 +412,21 @@ export function StoreMonitoringPage({
                     `Harian (${formattedDisplayDate}): Rata-rata per 1 Jam (24 Titik)`}
                   {rangeType === 'week' &&
                     `Mingguan (7 Hari s/d ${formattedDisplayDate}): Rata-rata per 1 Hari (7 Titik)`}
-                  {rangeType === 'session' &&
-                    `Sesi Audit: ${activeSession?.label || 'Rekaman'} (Detail 15 Menit ${
-                      pagination ? `— Hal ${pagination.page}/${pagination.totalPages}` : ''
-                    })`}
+                  {rangeType === 'session' && (
+                    <>
+                      Sesi: {activeSession?.label || 'Rekaman'} (Detail 15 Menit)
+                      {points && points.length > 0 && (
+                        <span className="ml-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                          &bull; Rentang: {points[0].timestamp} s/d {points[points.length - 1].timestamp}
+                        </span>
+                      )}
+                      {pagination && (
+                        <span className="ml-1 font-mono text-[11px] text-muted-foreground">
+                          — Hal {pagination.page}/{pagination.totalPages}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </span>
               </p>
             </div>

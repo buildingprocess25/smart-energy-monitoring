@@ -1,57 +1,44 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import {
   MapPin,
-  Zap,
   Activity,
   ArrowRight,
   Crosshair,
-  Building2,
   Filter,
+  Navigation,
+  Building2,
 } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from './status-badge'
 import { cn } from '@/lib/utils'
 
-function getDynamicBounds(stores: Store[]) {
-  const validStores = stores.filter((s) => s.latitude && s.longitude)
-  if (validStores.length === 0) {
-    return { minLat: -8.0, maxLat: -5.5, minLng: 105.0, maxLng: 115.0 }
+// Dynamic import for Leaflet (SSR is disabled because Leaflet uses browser APIs)
+const NetworkMapLeaflet = dynamic(
+  () =>
+    import('./network-map-leaflet').then((mod) => mod.NetworkMapLeaflet),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-[400px] w-full flex-col items-center justify-center gap-3 bg-muted/20 text-muted-foreground">
+        <div className="flex size-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+          <MapPin className="size-5 animate-bounce" />
+        </div>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <span className="text-xs font-semibold text-foreground">
+            Memuat Peta Lokasi Toko...
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            Menghubungkan ke OpenStreetMap
+          </span>
+        </div>
+      </div>
+    ),
   }
-
-  const lats = validStores.map((s) => s.latitude!)
-  const lngs = validStores.map((s) => s.longitude!)
-  const minLat = Math.min(...lats)
-  const maxLat = Math.max(...lats)
-  const minLng = Math.min(...lngs)
-  const maxLng = Math.max(...lngs)
-
-  const latSpan = maxLat - minLat || 1
-  const lngSpan = maxLng - minLng || 1
-  const latPadding = latSpan * 0.12
-  const lngPadding = lngSpan * 0.12
-
-  return {
-    minLat: minLat - latPadding,
-    maxLat: maxLat + latPadding,
-    minLng: minLng - lngPadding,
-    maxLng: maxLng + lngPadding,
-  }
-}
-
-function projectCoordinates(lat: number | undefined, lng: number | undefined, bounds: ReturnType<typeof getDynamicBounds>) {
-  if (!lat || !lng) return { x: 50, y: 50 }
-
-  const x = ((lng - bounds.minLng) / (bounds.maxLng - bounds.minLng)) * 100
-  const y = ((bounds.maxLat - lat) / (bounds.maxLat - bounds.minLat)) * 100
-
-  return {
-    x: Math.min(Math.max(x, 8), 92),
-    y: Math.min(Math.max(y, 8), 92),
-  }
-}
+)
 
 interface NetworkMapWidgetProps {
   stores?: Store[]
@@ -62,8 +49,7 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
   const [selectedStore, setSelectedStore] = useState<Store | null>(
     stores.find((s) => s.status === 'live') ?? stores[0] ?? null
   )
-
-  const bounds = useMemo(() => getDynamicBounds(stores), [stores])
+  const [focusCount, setFocusCount] = useState(0)
 
   const displayedStores = useMemo(() => {
     if (filterLiveOnly) {
@@ -73,6 +59,11 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
   }, [filterLiveOnly, stores])
 
   const liveStoresCount = stores.filter((s) => s.status === 'live').length
+
+  const handleSelectAndFocus = (store: Store) => {
+    setSelectedStore(store)
+    setFocusCount((c) => c + 1)
+  }
 
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs">
@@ -93,12 +84,12 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
           </p>
         </div>
 
-        {/* Filter Controls */}
+        {/* Filter Controls & Store Count */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setFilterLiveOnly(!filterLiveOnly)}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer',
               filterLiveOnly
                 ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
                 : 'bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -110,108 +101,75 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
         </div>
       </div>
 
+      {/* Quick Store Shortcut Chips (if multiple stores exist) */}
+      {displayedStores.length > 1 && (
+        <div className="flex items-center gap-2 overflow-x-auto border-b bg-muted/20 px-4 py-2 text-xs scrollbar-none">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
+            Lompat ke Toko:
+          </span>
+          {displayedStores.map((s) => {
+            const isSelected = selectedStore?.id === s.id
+            const isLive = s.status === 'live'
+            return (
+              <button
+                key={s.id}
+                onClick={() => handleSelectAndFocus(s)}
+                className={cn(
+                  'flex items-center gap-1.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer',
+                  isSelected
+                    ? 'bg-slate-900 text-white shadow-xs dark:bg-emerald-600'
+                    : 'bg-background border text-muted-foreground hover:text-foreground hover:border-slate-300'
+                )}
+              >
+                <span
+                  className={cn(
+                    'size-1.5 rounded-full',
+                    isLive ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400'
+                  )}
+                />
+                <span>{s.code}</span>
+                <span className="text-[10px] opacity-75 truncate max-w-[100px]">
+                  {s.name}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {/* Map Area */}
       <div className="grid grid-cols-1 lg:grid-cols-12">
-        {/* Visual Map Canvas (Col 8) */}
-        <div className="relative min-h-[380px] bg-slate-950/90 lg:col-span-8 overflow-hidden">
-          {/* High-Tech Grid & Roads Aesthetic Background */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-20 [background-image:radial-gradient(#10b981_1px,transparent_1px),linear-gradient(to_right,#334155_1px,transparent_1px),linear-gradient(to_bottom,#334155_1px,transparent_1px)] [background-size:24px_24px,48px_48px,48px_48px]"
-          />
-
-          {/* Glowing Ambient Radial in background */}
-          <div className="pointer-events-none absolute left-1/3 top-1/2 -translate-x-1/2 -translate-y-1/2 size-96 rounded-full bg-emerald-500/10 blur-3xl" />
-
-          {/* Regional Territory Indicator Watermark */}
-          <div className="pointer-events-none absolute left-4 top-4 z-10 flex flex-col gap-1 rounded-lg border border-slate-700/60 bg-slate-900/80 p-2.5 backdrop-blur-md">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Wilayah Operasional
+        {/* Real Interactive Leaflet Map (Col 8) */}
+        <div className="relative min-h-[400px] lg:col-span-8 overflow-hidden bg-slate-100">
+          {/* Top-Right Info Badge */}
+          <div className="pointer-events-none absolute right-3 top-3 z-1000 flex flex-col gap-0.5 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 backdrop-blur-md shadow-xs text-slate-800">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Peta Monitoring IoT
             </span>
-            <span className="text-xs font-semibold text-slate-200">
-              Alfamart Retail &amp; DC Network
+            <span className="text-xs font-semibold text-slate-900">
+              Titik Toko &amp; DC Terintegrasi
             </span>
           </div>
 
           {/* Map Legend Overlay */}
-          <div className="pointer-events-none absolute bottom-4 left-4 z-10 flex items-center gap-3 rounded-lg border border-slate-700/60 bg-slate-900/80 px-3 py-1.5 text-[11px] text-slate-300 backdrop-blur-md">
+          <div className="pointer-events-none absolute bottom-3 left-3 z-1000 flex items-center gap-3 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 text-[11px] text-slate-700 backdrop-blur-md shadow-xs">
             <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span>Live Telemetry</span>
+              <span className="size-2 rounded-full bg-emerald-500 shadow-xs" />
+              <span>Telemetri Real-time</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-blue-500" />
-              <span>Audit Historis</span>
+              <span className="size-2 rounded-full bg-blue-500 shadow-xs" />
+              <span>Data Historis</span>
             </div>
           </div>
 
-          {/* Simulated Inter-Store Mesh Lines */}
-          <svg className="pointer-events-none absolute inset-0 size-full stroke-slate-700/30 stroke-dashed [stroke-dasharray:4_4]">
-            {displayedStores.map((store, i) => {
-              if (i === 0) return null
-              const prevPos = projectCoordinates(displayedStores[i - 1]?.latitude, displayedStores[i - 1]?.longitude, bounds)
-              const curPos = projectCoordinates(store.latitude, store.longitude, bounds)
-              return (
-                <line
-                  key={`line-${store.id}`}
-                  x1={`${prevPos.x}%`}
-                  y1={`${prevPos.y}%`}
-                  x2={`${curPos.x}%`}
-                  y2={`${curPos.y}%`}
-                />
-              )
-            })}
-          </svg>
-
-          {/* Interactive Pins on Canvas */}
-          {displayedStores.map((store) => {
-            const pos = projectCoordinates(store.latitude, store.longitude, bounds)
-            const isSelected = selectedStore?.id === store.id
-            const isLive = store.status === 'live'
-
-            return (
-              <button
-                key={store.id}
-                onClick={() => setSelectedStore(store)}
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
-                className={cn(
-                  'group absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-300 focus:outline-hidden',
-                  isSelected ? 'z-30 scale-125' : 'z-20 hover:scale-115'
-                )}
-                aria-label={`Pilih toko ${store.name}`}
-              >
-                {/* Radar Ping for Live Device */}
-                {isLive && (
-                  <span className="absolute -inset-2.5 animate-ping rounded-full bg-emerald-400/40 opacity-75 duration-1000" />
-                )}
-
-                {/* Outer Pin Body */}
-                <div
-                  className={cn(
-                    'relative flex size-7 items-center justify-center rounded-full border-2 shadow-lg transition-all',
-                    isLive
-                      ? 'border-emerald-300 bg-emerald-600 text-white shadow-emerald-500/50'
-                      : 'border-blue-300 bg-blue-600 text-white shadow-blue-500/50',
-                    isSelected && 'ring-4 ring-white/40'
-                  )}
-                >
-                  <MapPin className="size-3.5 fill-current" />
-                </div>
-
-                {/* Floating Store Code Label */}
-                <div
-                  className={cn(
-                    'absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-bold font-mono tracking-tight shadow-md transition-opacity',
-                    isSelected
-                      ? 'bg-slate-900 text-emerald-400 border border-emerald-500/40 opacity-100'
-                      : 'bg-slate-950/80 text-slate-300 opacity-70 group-hover:opacity-100'
-                  )}
-                >
-                  {store.code}
-                </div>
-              </button>
-            )
-          })}
+          {/* Leaflet Dynamic Component */}
+          <NetworkMapLeaflet
+            stores={displayedStores}
+            selectedStore={selectedStore}
+            focusCount={focusCount}
+            onSelectStore={(store) => setSelectedStore(store)}
+          />
         </div>
 
         {/* Side Inspector Card for Selected Store (Col 4) */}
@@ -233,6 +191,16 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                     Cabang {selectedStore.branch}
                   </p>
                 </div>
+
+                {/* Focus Shortcut Button */}
+                <button
+                  onClick={() => setFocusCount((c) => c + 1)}
+                  title="Pusatkan Peta ke Lokasi Toko Ini"
+                  className="flex items-center gap-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                >
+                  <Crosshair className="size-3.5" />
+                  <span>Fokuskan</span>
+                </button>
               </div>
 
               {/* Quick Specs Grid */}
@@ -261,7 +229,7 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                     Koordinat GPS
                   </span>
                   <span className="font-mono text-[11px] font-medium text-foreground mt-0.5 truncate">
-                    {selectedStore.latitude?.toFixed(4)}, {selectedStore.longitude?.toFixed(4)}
+                    {selectedStore.latitude ? selectedStore.latitude.toFixed(4) : '-'}, {selectedStore.longitude ? selectedStore.longitude.toFixed(4) : '-'}
                   </span>
                 </div>
                 <div className="flex flex-col">
@@ -281,7 +249,7 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                 </div>
               </div>
 
-              {/* 3-Phase Live Preview if available */}
+              {/* Live Phases Preview if available */}
               {selectedStore.phases && selectedStore.phases.length > 0 && selectedStore.status === 'live' && (
                 <div className="flex flex-col gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3">
                   <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-800 dark:text-emerald-300">
@@ -291,26 +259,32 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                     </span>
                     <span className="font-mono">
                       {Math.round(
-                        selectedStore.phases.reduce((acc, p) => acc + (p.power || 0), 0)
+                        selectedStore.phases
+                          .filter((p) => !(p.phaseName || '').toLowerCase().includes('dummy'))
+                          .reduce((acc, p) => acc + (p.power || 0), 0)
                       )}{' '}
                       W
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-1 pt-1 text-center font-mono text-[10px]">
-                    {selectedStore.phases.map((p) => (
-                      <div key={p.phase} className="rounded bg-background/80 p-1 border">
-                        <div className="text-muted-foreground font-semibold">{p.phase}</div>
-                        <div className="font-bold text-foreground">{Math.round(p.power)} W</div>
-                        <div className="text-[9px] text-muted-foreground">{p.voltage.toFixed(0)}V</div>
-                      </div>
-                    ))}
+                    {selectedStore.phases
+                      .filter((p) => !(p.phaseName || '').toLowerCase().includes('dummy'))
+                      .map((p) => (
+                        <div key={p.phase} className="rounded bg-background/80 p-1 border">
+                          <div className="text-muted-foreground font-semibold truncate">
+                            {p.phaseName || p.phase}
+                          </div>
+                          <div className="font-bold text-foreground">{Math.round(p.power)} W</div>
+                          <div className="text-[9px] text-muted-foreground">{p.voltage.toFixed(0)}V</div>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
 
               {/* Action Link to Store Detail */}
               <Link
-                href={`/monitoring/${selectedStore.id}`}
+                href={`/monitoring/${selectedStore.code || selectedStore.id}`}
                 className="mt-2 flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500 transition-colors"
               >
                 Buka Live Monitoring Toko

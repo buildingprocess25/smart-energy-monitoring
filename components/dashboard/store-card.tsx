@@ -28,7 +28,7 @@ function formatRelativeTime(isoString: string) {
 
 export function StoreCard({ store }: StoreCardProps) {
   const isUnassigned = store.status === 'unassigned'
-  const href = !isUnassigned ? `/monitoring/${store.id}` : '#'
+  const href = !isUnassigned ? `/monitoring/${store.code || store.id}` : '#'
 
   return (
     <Link

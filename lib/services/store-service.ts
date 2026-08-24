@@ -52,6 +52,12 @@ interface IotDeviceData {
 }
 
 // Fetch latest metrics from Aiven IoT Database
+interface SensorConfig {
+  name: string
+  phase: string
+  enabled?: boolean
+}
+
 export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
   const aiven = getAivenPool()
   try {
@@ -65,6 +71,28 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
     for (const dev of devRes.rows) {
       const storeCode = extractStoreCode(dev.name)
 
+      // Parse sensors config from devices table
+      const sensorMap = new Map<string, { name: string; enabled: boolean }>()
+      let sensorsList: SensorConfig[] = []
+      if (Array.isArray(dev.sensors)) {
+        sensorsList = dev.sensors
+      } else if (typeof dev.sensors === 'string') {
+        try {
+          sensorsList = JSON.parse(dev.sensors)
+        } catch {
+          sensorsList = []
+        }
+      }
+
+      sensorsList.forEach((s) => {
+        if (s.phase) {
+          sensorMap.set(s.phase, {
+            name: s.name || s.phase,
+            enabled: s.enabled !== false,
+          })
+        }
+      })
+
       // Fetch latest telemetry for each phase of this device
       const telemRes = await aiven.query(
         `
@@ -76,11 +104,7 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
         [dev.id]
       )
 
-      // Map sensors to L1, L2, L3
-      // By default: L12 = Fase R (L1), L13 = Fase S (L2), L14 = Fase T (L3)
-      let phaseL1: PhaseData = { phase: 'L1', voltage: 0, current: 0, power: 0, powerFactor: 1.0 }
-      let phaseL2: PhaseData = { phase: 'L2', voltage: 0, current: 0, power: 0, powerFactor: 1.0 }
-      let phaseL3: PhaseData = { phase: 'L3', voltage: 0, current: 0, power: 0, powerFactor: 1.0 }
+      const phases: PhaseData[] = []
       let totalEnergy = 0
 
       for (const row of telemRes.rows) {
@@ -90,16 +114,40 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
         const pf = parseFloat(row.power_factor) || 0
         const kwh = parseFloat(row.energy) || 0
 
-        totalEnergy += kwh
+        const sInfo = sensorMap.get(row.phase)
+        let sensorName = sInfo?.name
 
-        if (row.phase === 'L12' || row.phase === 'L1') {
-          phaseL1 = { phase: 'L1', voltage: v, current: a, power: w, powerFactor: pf }
-        } else if (row.phase === 'L13' || row.phase === 'L2') {
-          phaseL2 = { phase: 'L2', voltage: v, current: a, power: w, powerFactor: pf }
-        } else if (row.phase === 'L14' || row.phase === 'L3') {
-          phaseL3 = { phase: 'L3', voltage: v, current: a, power: w, powerFactor: pf }
+        // Smart fallback if not defined in sensors JSON
+        if (!sensorName) {
+          if (row.phase === 'L12' || row.phase === 'L1') sensorName = 'Fase R'
+          else if (row.phase === 'L13' || row.phase === 'L2') sensorName = 'Fase S'
+          else if (row.phase === 'L14' || row.phase === 'L3') sensorName = 'Fase T'
+          else sensorName = `Sensor ${row.phase}`
         }
+
+        const isDummy = sensorName.toLowerCase().includes('dummy')
+        if (!isDummy) {
+          totalEnergy += kwh
+        }
+
+        phases.push({
+          phase: row.phase,
+          phaseName: sensorName,
+          voltage: v,
+          current: a,
+          power: w,
+          powerFactor: pf,
+        })
       }
+
+      // Sort phases: Non-dummy (Fase R, S, T) first, dummy last
+      phases.sort((a, b) => {
+        const aDummy = (a.phaseName || '').toLowerCase().includes('dummy')
+        const bDummy = (b.phaseName || '').toLowerCase().includes('dummy')
+        if (aDummy && !bDummy) return 1
+        if (!aDummy && bDummy) return -1
+        return a.phase.localeCompare(b.phase, undefined, { numeric: true })
+      })
 
       results.push({
         deviceId: dev.id,
@@ -107,7 +155,11 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
         storeCode,
         online: dev.online ?? true,
         lastSeen: parseLastSeenToIso(dev.last_seen),
-        phases: [phaseL1, phaseL2, phaseL3],
+        phases: phases.length > 0 ? phases : [
+          { phase: 'L1', phaseName: 'Fase R', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
+          { phase: 'L2', phaseName: 'Fase S', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
+          { phase: 'L3', phaseName: 'Fase T', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
+        ],
         kwhTotal: Math.round(totalEnergy * 10) / 10,
       })
     }

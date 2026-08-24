@@ -2,7 +2,8 @@
 export type StoreStatus = 'live' | 'historical' | 'unassigned'
 
 export interface PhaseData {
-  phase: string
+  phase: string // e.g. "L12", "L13", "L14", "L1"
+  phaseName?: string // e.g. "Fase R", "Fase S", "Fase T"
   voltage: number // Volt
   current: number // Ampere
   power: number // Watt

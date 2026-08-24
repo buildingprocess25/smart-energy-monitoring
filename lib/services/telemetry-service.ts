@@ -32,9 +32,9 @@ function getSensorColor(phase: string, name: string, index: number): string {
   const p = phase.toUpperCase()
   const n = name.toLowerCase()
 
-  if (p === 'L12' || n.includes('fase r')) return '#10b981' // Green (R)
-  if (p === 'L13' || n.includes('fase s')) return '#3b82f6' // Blue (S)
-  if (p === 'L14' || n.includes('fase t')) return '#f59e0b' // Amber/Yellow (T)
+  if (n.includes('fase r') || n.includes('phase r') || p === 'L1' || p === 'L12') return '#10b981' // Green (R)
+  if (n.includes('fase s') || n.includes('phase s') || p === 'L2' || p === 'L13') return '#3b82f6' // Blue (S)
+  if (n.includes('fase t') || n.includes('phase t') || p === 'L3' || p === 'L14') return '#f59e0b' // Amber/Yellow (T)
   if (n.includes('dummy') || p === 'L6') return '#94a3b8' // Slate (Dummy)
 
   return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]
@@ -133,6 +133,17 @@ export interface TelemetryQueryOptions {
   pageSize?: number
 }
 
+interface CachedHistoryPayload {
+  sensors: SensorMeta[]
+  points: TelemetryPoint[]
+  availableDates: string[]
+  timestamp: number
+}
+
+// In-memory cache for aggregated telemetry history (TTL: 30 minutes)
+const _historyCache = new Map<string, CachedHistoryPayload>()
+const CACHE_TTL_MS = 30 * 60 * 1000
+
 // Fetch dynamic telemetry history points for day (1-hr), week (1-day), or session (15-min paginated)
 export async function getTelemetryHistory(
   storeId: string,
@@ -164,6 +175,40 @@ export async function getTelemetryHistory(
     pageSize = options.pageSize && options.pageSize > 0 ? options.pageSize : 96
   }
 
+  // Generate cache key
+  const cacheKey = `${deviceId}_${rangeType}_${targetSessionId || targetDate || 'default'}`
+  const cached = _historyCache.get(cacheKey)
+
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    let returnPoints = cached.points
+    let paginationMeta: PaginationMeta | undefined = undefined
+
+    if (rangeType === 'session') {
+      const totalPoints = cached.points.length
+      const totalPages = Math.max(Math.ceil(totalPoints / pageSize), 1)
+      const validPage = Math.min(Math.max(page, 1), totalPages)
+
+      // Page 1 = Latest window (paling baru), Page 2+ = Mundur ke waktu sebelumnya
+      const endIndex = Math.max(totalPoints - (validPage - 1) * pageSize, 0)
+      const startIndex = Math.max(endIndex - pageSize, 0)
+
+      returnPoints = cached.points.slice(startIndex, endIndex)
+      paginationMeta = {
+        page: validPage,
+        totalPages,
+        totalPoints,
+        pageSize,
+      }
+    }
+
+    return {
+      sensors: cached.sensors,
+      points: returnPoints,
+      availableDates: cached.availableDates,
+      pagination: paginationMeta,
+    }
+  }
+
   try {
     // 1. Get available dates sorted from newest (DESC)
     const datesRes = await aiven.query(
@@ -183,23 +228,78 @@ export async function getTelemetryHistory(
       targetDate = availableDates[0] // e.g. '2026-08-18'
     }
 
-    // 2. Fetch distinct sensors
-    const sensorRes = await aiven.query(
-      `
+    // 2. Fetch distinct sensors SCOPED to the active query (session, day, or week)
+    let sensorSql = `
       SELECT phase, COALESCE(NULLIF(MAX(phase_name), ''), phase) as name, COUNT(*) as count
       FROM history
       WHERE device_id = $1
-      GROUP BY phase
-      ORDER BY phase ASC
-    `,
+    `
+    const sensorParams: any[] = [deviceId]
+
+    if (rangeType === 'session' && targetSessionId) {
+      sensorSql += ` AND session_id = $2`
+      sensorParams.push(targetSessionId)
+    } else if (rangeType === 'day' && targetDate) {
+      sensorSql += ` AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2`
+      sensorParams.push(targetDate)
+    } else if (rangeType === 'week' && targetDate) {
+      sensorSql += ` AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') <= $2 
+                     AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') >= TO_CHAR(TO_DATE($2, 'YYYY-MM-DD') - INTERVAL '6 days', 'YYYY-MM-DD')`
+      sensorParams.push(targetDate)
+    }
+
+    sensorSql += ` GROUP BY phase ORDER BY phase ASC`
+
+    let sensorRes = await aiven.query(sensorSql, sensorParams)
+
+    // Fallback if no records in that specific scope: query all device history
+    if (sensorRes.rows.length === 0) {
+      sensorRes = await aiven.query(
+        `
+        SELECT phase, COALESCE(NULLIF(MAX(phase_name), ''), phase) as name, COUNT(*) as count
+        FROM history
+        WHERE device_id = $1
+        GROUP BY phase
+        ORDER BY phase ASC
+      `,
+        [deviceId]
+      )
+    }
+
+    // Get device sensor config from devices table to resolve human-readable names if needed
+    const devSensorRes = await aiven.query(
+      `SELECT sensors FROM devices WHERE id = $1`,
       [deviceId]
     )
+    const deviceSensorsMap = new Map<string, string>()
+    if (devSensorRes.rows.length > 0 && devSensorRes.rows[0].sensors) {
+      let slist = devSensorRes.rows[0].sensors
+      if (typeof slist === 'string') {
+        try {
+          slist = JSON.parse(slist)
+        } catch {
+          slist = []
+        }
+      }
+      if (Array.isArray(slist)) {
+        slist.forEach((s: any) => {
+          if (s.phase && s.name) deviceSensorsMap.set(s.phase, s.name)
+        })
+      }
+    }
 
-    const sensors: SensorMeta[] = sensorRes.rows.map((r, index) => ({
-      phase: r.phase,
-      name: r.name,
-      color: getSensorColor(r.phase, r.name, index),
-    }))
+    const sensors: SensorMeta[] = sensorRes.rows.map((r, index) => {
+      let name = r.name
+      // If history name is just raw phase code or generic "Sensor XX", try device sensor config
+      if ((name === r.phase || name.startsWith('Sensor ')) && deviceSensorsMap.has(r.phase)) {
+        name = deviceSensorsMap.get(r.phase)!
+      }
+      return {
+        phase: r.phase,
+        name,
+        color: getSensorColor(r.phase, name, index),
+      }
+    })
 
     let pointsQuery = ''
     let queryParams: any[] = [deviceId]
@@ -277,7 +377,7 @@ export async function getTelemetryHistory(
         ORDER BY day_key ASC
       `
     } else {
-      // Sesi Audit: Detail per 15 menit dengan pagination (windowing)
+      // Sesi Audit: Fast integer aggregation
       if (!targetSessionId) {
         const latestSessRes = await aiven.query(
           `SELECT session_id FROM history WHERE device_id = $1 ORDER BY epoch DESC LIMIT 1`,
@@ -290,34 +390,27 @@ export async function getTelemetryHistory(
 
       queryParams.push(targetSessionId || '')
       pointsQuery = `
-        WITH buckets AS (
+        WITH agg AS (
           SELECT 
-            (epoch / (1000 * 60 * 15)) as bucket_id,
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'DD/MM HH24:MI') as time_str,
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD HH24:MI') as full_time,
+            (epoch / 900000) as bucket_id,
             phase,
-            power,
-            voltage,
-            current,
-            energy,
-            power_factor,
-            frequency
+            ROUND(AVG(power)::numeric, 1) as power,
+            ROUND(AVG(voltage)::numeric, 1) as voltage,
+            ROUND(AVG(current)::numeric, 2) as current,
+            ROUND(AVG(energy)::numeric, 3) as energy,
+            ROUND(AVG(power_factor)::numeric, 2) as power_factor,
+            ROUND(AVG(frequency)::numeric, 1) as frequency
           FROM history
           WHERE device_id = $1 AND session_id = $2
+          GROUP BY (epoch / 900000), phase
         )
         SELECT 
           bucket_id,
-          time_str,
-          full_time,
           phase,
-          ROUND(AVG(power)::numeric, 1) as power,
-          ROUND(AVG(voltage)::numeric, 1) as voltage,
-          ROUND(AVG(current)::numeric, 2) as current,
-          ROUND(AVG(energy)::numeric, 3) as energy,
-          ROUND(AVG(power_factor)::numeric, 2) as power_factor,
-          ROUND(AVG(frequency)::numeric, 1) as frequency
-        FROM buckets
-        GROUP BY bucket_id, time_str, full_time, phase
+          TO_CHAR(TO_TIMESTAMP(bucket_id * 900), 'DD/MM HH24:MI') as time_str,
+          TO_CHAR(TO_TIMESTAMP(bucket_id * 900), 'YYYY-MM-DD HH24:MI') as full_time,
+          power, voltage, current, energy, power_factor, frequency
+        FROM agg
         ORDER BY bucket_id ASC
       `
     }
@@ -358,15 +451,25 @@ export async function getTelemetryHistory(
       }
     }
 
-    let points = Array.from(bucketMap.values())
+    const allPoints = Array.from(bucketMap.values())
 
-    // For session mode: apply pagination
+    // Save to in-memory cache for blazing fast subsequent pagination & metric switching
+    _historyCache.set(cacheKey, {
+      sensors,
+      points: allPoints,
+      availableDates,
+      timestamp: Date.now(),
+    })
+
+    let points = allPoints
+
+    // For session mode: apply pagination (Page 1 = Latest window, Page 2+ = Mundur ke waktu sebelumnya)
     if (rangeType === 'session') {
       const totalPoints = points.length
       const totalPages = Math.max(Math.ceil(totalPoints / pageSize), 1)
       const validPage = Math.min(Math.max(page, 1), totalPages)
-      const startIndex = (validPage - 1) * pageSize
-      const endIndex = startIndex + pageSize
+      const endIndex = Math.max(totalPoints - (validPage - 1) * pageSize, 0)
+      const startIndex = Math.max(endIndex - pageSize, 0)
 
       points = points.slice(startIndex, endIndex)
       paginationMeta = {

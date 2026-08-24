@@ -52,7 +52,7 @@ export function StoreTable({ stores }: StoreTableProps) {
       <TableBody>
         {stores.map((store) => {
           const isUnassigned = store.status === 'unassigned'
-          const href = !isUnassigned ? `/monitoring/${store.id}` : '#'
+          const href = !isUnassigned ? `/monitoring/${store.code || store.id}` : '#'
 
           return (
             <TableRow key={store.id} className="group">

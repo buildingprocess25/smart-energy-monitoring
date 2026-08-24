@@ -407,7 +407,7 @@ export function DashboardOverview({
                     </td>
                     <td className="p-4 text-right">
                       <Link
-                        href={`/monitoring/${store.id}`}
+                        href={`/monitoring/${store.code || store.id}`}
                         className={cn(
                           buttonVariants({ variant: 'ghost', size: 'sm' }),
                           'h-7 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400'
