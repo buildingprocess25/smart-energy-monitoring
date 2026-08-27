@@ -1,5 +1,37 @@
-// lib/types.ts
 export type StoreStatus = 'live' | 'historical' | 'unassigned'
+
+export interface DailyConsumption {
+  day: string
+  dayDate: string
+  dayLabel?: string
+  dayFullDate?: string
+  kwh: number
+  cost: number
+}
+
+export interface LoadProfilePoint {
+  time: string // "00:00", "01:00", ...
+  fullTime?: string // "14:00 WIB"
+  powerWatts: number
+  powerKw: number
+}
+
+export interface StoreAnalyticsResult {
+  storeId: string
+  storeCode: string
+  storeName: string
+  branch: string
+  status: StoreStatus
+  deviceId?: string
+  anchorDate: string // "YYYY-MM-DD"
+  anchorDateLabel: string // "18 Agu 2026"
+  isLive: boolean
+  peakPowerWatts: number
+  avgPowerWatts: number
+  basePowerWatts: number
+  loadProfile24h: LoadProfilePoint[]
+  dailyConsumption: DailyConsumption[]
+}
 
 export interface PhaseData {
   phase: string // e.g. "L12", "L13", "L14", "L1"

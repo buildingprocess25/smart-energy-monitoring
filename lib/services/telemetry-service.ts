@@ -1,5 +1,6 @@
 import { getAivenPool } from '@/lib/db/pools'
 import {
+  Store,
   AuditSession,
   TelemetryPoint,
   PhaseData,
@@ -7,15 +8,11 @@ import {
   TelemetryHistoryResult,
   TimeRangeType,
   PaginationMeta,
+  DailyConsumption,
+  StoreAnalyticsResult,
+  LoadProfilePoint,
 } from '@/lib/types'
-import { getStoreById } from './store-service'
-
-export interface DailyConsumption {
-  day: string
-  dayDate: string
-  kwh: number
-  cost: number
-}
+import { getStoreById, getStores } from './store-service'
 
 const DEFAULT_PALETTE = [
   '#10b981', // emerald-500
@@ -40,25 +37,53 @@ function getSensorColor(phase: string, name: string, index: number): string {
   return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]
 }
 
-// Fetch real daily energy consumption trend over the last recorded days
+// Fetch real daily energy consumption trend across recorded days
 export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
   const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
 
   try {
+    // Query combined daily delta energy across telemetry & history sources
     const res = await aiven.query(`
+      WITH daily_source AS (
+        SELECT 
+          device_id,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
+          energy
+        FROM telemetry
+        WHERE energy > 0
+        
+        UNION ALL
+        
+        SELECT 
+          device_id,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
+          energy
+        FROM history
+        WHERE energy > 0
+      ),
+      per_device_day AS (
+        SELECT 
+          device_id,
+          day_date,
+          day_name,
+          (MAX(energy) - MIN(energy)) as delta_kwh
+        FROM daily_source
+        GROUP BY device_id, day_date, day_name
+      )
       SELECT 
-        TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
-        TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
-        ROUND((MAX(energy) - MIN(energy))::numeric, 1) as delta_kwh
-      FROM history
-      WHERE device_id = 'MC1 :'
+        day_date,
+        day_name,
+        ROUND(COALESCE(SUM(delta_kwh), 0)::numeric, 1) as delta_kwh
+      FROM per_device_day
       GROUP BY day_date, day_name
-      ORDER BY day_date DESC
-      LIMIT 7
+      ORDER BY day_date ASC
     `)
 
-    if (res.rows.length === 0) return []
+    const rows = res.rows
+    if (rows.length === 0) return []
 
     const dayNameMap: Record<string, string> = {
       Mon: 'Sen',
@@ -70,11 +95,46 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
       Sun: 'Min',
     }
 
-    return res.rows.reverse().map((r) => {
-      const kwh = parseFloat(r.delta_kwh) || 0
+    const dayFullMap: Record<string, string> = {
+      Mon: 'Senin',
+      Tue: 'Selasa',
+      Wed: 'Rabu',
+      Thu: 'Kamis',
+      Fri: 'Jumat',
+      Sat: 'Sabtu',
+      Sun: 'Minggu',
+    }
+
+    const monthNames = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ]
+
+    return rows.map((r) => {
+      const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
+      const shortDay = dayNameMap[r.day_name] || r.day_name
+      const fullDay = dayFullMap[r.day_name] || r.day_name
+      
+      let dayLabel = shortDay
+      let dayFullDate = `${fullDay}, ${r.day_date}`
+      if (r.day_date) {
+        const parts = r.day_date.split('-')
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10)
+          const m = parseInt(parts[1], 10) - 1
+          const d = parseInt(parts[2], 10)
+          const dd = String(d).padStart(2, '0')
+          const mm = String(m + 1).padStart(2, '0')
+          dayLabel = `${shortDay} (${dd}/${mm})`
+          dayFullDate = `${fullDay}, ${d} ${monthNames[m]} ${y}`
+        }
+      }
+
       return {
-        day: dayNameMap[r.day_name] || r.day_name,
+        day: shortDay,
         dayDate: r.day_date,
+        dayLabel,
+        dayFullDate,
         kwh,
         cost: Math.round(kwh * PLN_TARIFF),
       }
@@ -82,6 +142,216 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
   } catch (error) {
     console.error('Error in getDailyConsumptionTrend:', error)
     return []
+  }
+}
+
+// Fetch store-specific analytics: 24h load profile on latest recorded date & daily consumption
+export async function getStoreAnalyticsData(
+  storeCodeOrId?: string
+): Promise<StoreAnalyticsResult | null> {
+  const aiven = getAivenPool()
+  const PLN_TARIFF = 1444.7
+
+  // 1. Dapatkan data store
+  let store: Store | null = null
+  if (storeCodeOrId) {
+    store = await getStoreById(storeCodeOrId)
+  }
+  if (!store) {
+    const stores = await getStores()
+    store = stores.find((s) => s.status === 'live') || stores[0] || null
+  }
+
+  if (!store) return null
+
+  const deviceId = store.deviceId || 'MC1 :'
+  const storeCode = store.code || '2JC2'
+  const storeName = store.name || 'DC Cianjur'
+  const branch = store.branch || 'CIANJUR'
+  const isLive = store.status === 'live'
+
+  const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ]
+  const dayNameMap: Record<string, string> = {
+    Mon: 'Sen', Tue: 'Sel', Wed: 'Rab', Thu: 'Kam', Fri: 'Jum', Sat: 'Sab', Sun: 'Min',
+  }
+  const dayFullMap: Record<string, string> = {
+    Mon: 'Senin', Tue: 'Selasa', Wed: 'Rabu', Thu: 'Kamis', Fri: 'Jumat', Sat: 'Sabtu', Sun: 'Minggu',
+  }
+
+  try {
+    // 2. Cari tanggal-tanggal rekaman yang tersedia untuk device ini
+    const datesRes = await aiven.query(`
+      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date
+      FROM (
+        SELECT epoch FROM history WHERE device_id = $1
+        UNION ALL
+        SELECT epoch FROM telemetry WHERE device_id = $1
+      ) sub
+      ORDER BY day_date DESC
+    `, [deviceId])
+
+    const availableDates: string[] = datesRes.rows.map((r) => r.day_date)
+
+    // Tentukan anchor date: Jika live, prioritaskan tanggal kemarin jika ada data, atau tanggal terbaru
+    let anchorDate = availableDates[0] || '2026-08-26'
+    if (isLive) {
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      const yIso = yesterday.toISOString().split('T')[0]
+      if (availableDates.includes(yIso)) {
+        anchorDate = yIso
+      } else if (availableDates.length > 0) {
+        anchorDate = availableDates[0]
+      }
+    }
+
+    let anchorDateLabel = anchorDate
+    if (anchorDate) {
+      const parts = anchorDate.split('-')
+      if (parts.length === 3) {
+        const y = parseInt(parts[0], 10)
+        const m = parseInt(parts[1], 10) - 1
+        const d = parseInt(parts[2], 10)
+        anchorDateLabel = `${d} ${monthNamesShort[m]} ${y}`
+      }
+    }
+
+    // 3. Query Profil Beban 24 Jam pada anchorDate (Agregasi per jam 00:00 - 23:00)
+    const loadRes = await aiven.query(`
+      SELECT 
+        TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'HH24:00') as hour_str,
+        ROUND(AVG(total_power)::numeric, 1) as avg_power
+      FROM (
+        SELECT 
+          epoch,
+          SUM(power) as total_power
+        FROM (
+          SELECT epoch, phase, power FROM history 
+          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2 AND phase != 'L6'
+          UNION ALL
+          SELECT epoch, phase, power FROM telemetry 
+          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2 AND phase != 'L6'
+        ) p
+        GROUP BY epoch
+      ) grouped_epoch
+      GROUP BY hour_str
+      ORDER BY hour_str ASC
+    `, [deviceId, anchorDate])
+
+    const loadMap = new Map<string, number>()
+    loadRes.rows.forEach((r) => {
+      loadMap.set(r.hour_str, parseFloat(r.avg_power) || 0)
+    })
+
+    const loadProfile24h: LoadProfilePoint[] = []
+    let peakPowerWatts = 0
+    let minPowerWatts = Infinity
+    let totalLoadSum = 0
+    let validLoadCount = 0
+
+    for (let h = 0; h < 24; h++) {
+      const hourStr = `${String(h).padStart(2, '0')}:00`
+      let pWatts = loadMap.get(hourStr) || 0
+      
+      if (pWatts > 0) {
+        peakPowerWatts = Math.max(peakPowerWatts, pWatts)
+        minPowerWatts = Math.min(minPowerWatts, pWatts)
+        totalLoadSum += pWatts
+        validLoadCount++
+      }
+
+      loadProfile24h.push({
+        time: hourStr,
+        fullTime: `${hourStr} WIB`,
+        powerWatts: Math.round(pWatts),
+        powerKw: Math.round((pWatts / 1000) * 10) / 10,
+      })
+    }
+
+    const avgPowerWatts = validLoadCount > 0 ? Math.round(totalLoadSum / validLoadCount) : 0
+    const basePowerWatts = minPowerWatts !== Infinity ? Math.round(minPowerWatts) : 0
+
+    // 4. Query Daily Consumption Trend khusus untuk device ini
+    const dailyRes = await aiven.query(`
+      WITH daily_source AS (
+        SELECT 
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
+          energy
+        FROM telemetry
+        WHERE device_id = $1 AND energy > 0
+        
+        UNION ALL
+        
+        SELECT 
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
+          energy
+        FROM history
+        WHERE device_id = $1 AND energy > 0
+      )
+      SELECT 
+        day_date,
+        day_name,
+        ROUND((MAX(energy) - MIN(energy))::numeric, 1) as delta_kwh
+      FROM daily_source
+      GROUP BY day_date, day_name
+      ORDER BY day_date ASC
+    `, [deviceId])
+
+    const dailyConsumption: DailyConsumption[] = dailyRes.rows.map((r) => {
+      const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
+      const shortDay = dayNameMap[r.day_name] || r.day_name
+      const fullDay = dayFullMap[r.day_name] || r.day_name
+      
+      let dayLabel = shortDay
+      let dayFullDate = `${fullDay}, ${r.day_date}`
+      if (r.day_date) {
+        const parts = r.day_date.split('-')
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10)
+          const m = parseInt(parts[1], 10) - 1
+          const d = parseInt(parts[2], 10)
+          const dd = String(d).padStart(2, '0')
+          const mm = String(m + 1).padStart(2, '0')
+          dayLabel = `${shortDay} (${dd}/${mm})`
+          dayFullDate = `${fullDay}, ${d} ${monthNames[m]} ${y}`
+        }
+      }
+
+      return {
+        day: shortDay,
+        dayDate: r.day_date,
+        dayLabel,
+        dayFullDate,
+        kwh,
+        cost: Math.round(kwh * PLN_TARIFF),
+      }
+    })
+
+    return {
+      storeId: store.id,
+      storeCode,
+      storeName,
+      branch,
+      status: store.status,
+      deviceId,
+      anchorDate,
+      anchorDateLabel,
+      isLive,
+      peakPowerWatts,
+      avgPowerWatts,
+      basePowerWatts,
+      loadProfile24h,
+      dailyConsumption,
+    }
+  } catch (error) {
+    console.error('Error in getStoreAnalyticsData:', error)
+    return null
   }
 }
 

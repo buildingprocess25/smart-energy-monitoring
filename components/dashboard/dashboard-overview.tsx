@@ -8,42 +8,26 @@ import {
   Cpu,
   TrendingUp,
   ArrowRight,
-  AlertTriangle,
   Building2,
   CheckCircle2,
 } from 'lucide-react'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
-import { Store } from '@/lib/types'
+import { Store, StoreAnalyticsResult } from '@/lib/types'
 import { buttonVariants } from '@/components/ui/button'
 import { NetworkMapWidget } from './network-map-widget'
+import { StoreAnalyticsWidget } from './store-analytics-widget'
 import { cn } from '@/lib/utils'
 
 // Estimasi PLN Tariff
 const PLN_TARIFF_PER_KWH = 1444.7
 
-export interface DailyConsumption {
-  day: string
-  dayDate: string
-  kwh: number
-  cost: number
-}
-
 interface DashboardOverviewProps {
   stores?: Store[]
-  initialConsumptionTrend?: DailyConsumption[]
+  initialStoreAnalytics?: StoreAnalyticsResult | null
 }
 
 export function DashboardOverview({
   stores = [],
-  initialConsumptionTrend = [],
+  initialStoreAnalytics = null,
 }: DashboardOverviewProps) {
   // Hitung total energi
   const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
@@ -75,21 +59,6 @@ export function DashboardOverview({
     .slice()
     .sort((a, b) => (b.kwhTotal || 0) - (a.kwhTotal || 0))
     .slice(0, 5)
-
-  // Tren konsumsi harian (gunakan data riil jika ada, atau hitung dari agregat total)
-  const consumptionTrend =
-    initialConsumptionTrend.length > 0
-      ? initialConsumptionTrend
-      : ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day, idx) => {
-        const factor = [0.88, 0.95, 0.92, 1.02, 1.05, 1.15, 1.18][idx]
-        const kwh = Math.round((totalKwh / 7) * factor * 10) / 10
-        return {
-          day,
-          dayDate: '',
-          kwh,
-          cost: Math.round(kwh * PLN_TARIFF_PER_KWH),
-        }
-      })
 
   return (
     <div className="flex flex-col gap-6">
@@ -220,79 +189,11 @@ export function DashboardOverview({
 
       {/* Bento Grid: Charts & Analytics */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {/* Tren Konsumsi Energi 7 Hari (Col 8) */}
-        <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs lg:col-span-8">
-          <div className="flex items-center justify-between border-b pb-4">
-            <div>
-              <h2 className="text-base font-semibold text-foreground">
-                Tren Konsumsi Energi Harian
-              </h2>
-              <p className="text-xs text-muted-foreground">
-                Akumulasi konsumsi listrik seluruh cabang selama 7 hari terakhir.
-              </p>
-            </div>
-            <span className="rounded-md bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground">
-              7 Hari Terakhir
-            </span>
-          </div>
-
-          <div className="mt-4 h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={consumptionTrend}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="currentColor"
-                  className="text-border/40"
-                />
-                <XAxis
-                  dataKey="day"
-                  tickLine={false}
-                  axisLine={false}
-                  stroke="currentColor"
-                  className="text-xs text-muted-foreground"
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  stroke="currentColor"
-                  className="text-xs text-muted-foreground"
-                  tickFormatter={(val) => `${val}`}
-                />
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      const data = payload[0].payload
-                      return (
-                        <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
-                          <p className="font-semibold text-xs text-muted-foreground">
-                            Hari: {data.day}
-                          </p>
-                          <p className="mt-1 font-bold text-sm text-emerald-600 dark:text-emerald-400">
-                            {data.kwh} kWh
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Est. Biaya: Rp {data.cost.toLocaleString('id-ID')}
-                          </p>
-                        </div>
-                      )
-                    }
-                    return null
-                  }}
-                />
-                <Bar
-                  dataKey="kwh"
-                  fill="currentColor"
-                  className="fill-emerald-600 hover:fill-emerald-500 dark:fill-emerald-500"
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        {/* Widget Analisis Toko Terpilih (Profil 24 Jam & Tren 7 Hari) */}
+        <StoreAnalyticsWidget
+          stores={stores}
+          initialAnalytics={initialStoreAnalytics}
+        />
 
         {/* Status Perangkat & Distribusi Wilayah (Col 4) */}
         <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs lg:col-span-4">
