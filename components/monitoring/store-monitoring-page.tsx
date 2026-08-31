@@ -13,6 +13,7 @@ import {
 import { StoreHero } from './store-hero'
 import { TelemetryChart, METRIC_CONFIG } from './telemetry-chart'
 import { SessionSelector } from './session-selector'
+import { TelemetryDatePicker } from './telemetry-date-picker'
 import { Separator } from '@/components/ui/separator'
 import {
   Zap,
@@ -259,42 +260,17 @@ export function StoreMonitoringPage({
               })}
             </div>
 
-            {/* Date Navigator (for Day & Week mode) */}
+            {/* Date Navigator with Calendar Popover (for Day & Week mode) */}
             {rangeType !== 'session' ? (
-              <div className="flex items-center gap-1.5 rounded-lg border bg-background px-2 py-1 shadow-xs">
-                <button
-                  onClick={() => handleDateShift('prev')}
-                  title="Tanggal Sebelumnya (Lebih Lama)"
-                  disabled={availableDates.indexOf(selectedDate) >= availableDates.length - 1}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                >
-                  <ChevronLeft className="size-4" />
-                </button>
-
-                <div className="flex items-center gap-1.5 px-1.5">
-                  <Calendar className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <select
-                    value={selectedDate}
-                    onChange={(e) => handleDateSelect(e.target.value)}
-                    className="bg-transparent text-xs font-semibold font-mono text-foreground focus:outline-hidden cursor-pointer"
-                  >
-                    {availableDates.map((d) => (
-                      <option key={d} value={d} className="bg-popover text-popover-foreground">
-                        {rangeType === 'week' ? `7 Hari s/d ${d}` : d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  onClick={() => handleDateShift('next')}
-                  title="Tanggal Berikutnya (Terbaru)"
-                  disabled={availableDates.indexOf(selectedDate) <= 0}
-                  className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
-                >
-                  <ChevronRight className="size-4" />
-                </button>
-              </div>
+              <TelemetryDatePicker
+                selectedDate={selectedDate}
+                onDateSelect={handleDateSelect}
+                availableDates={availableDates}
+                rangeType={rangeType as 'day' | 'week'}
+                onDateShift={handleDateShift}
+                canShiftPrev={availableDates.indexOf(selectedDate) < availableDates.length - 1}
+                canShiftNext={availableDates.indexOf(selectedDate) > 0}
+              />
             ) : (
               /* Session Selector & Page Navigator (for Session mode) */
               <div className="flex flex-wrap items-center gap-2">
