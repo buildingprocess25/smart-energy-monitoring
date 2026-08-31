@@ -312,15 +312,22 @@ export function TelemetryDatePicker({
           </div>
 
           {/* Mode Indicator & Tip */}
-          <div className="mb-2 flex items-center justify-between rounded-lg bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground">
-            <span>
-              Mode: <strong className="text-foreground font-semibold">{rangeType === 'week' ? 'Mingguan (7 Hari)' : 'Harian (24 Jam)'}</strong>
-            </span>
-            {availableDates.length > 0 && (
-              <span className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {availableDates.length} Hari Ada Data
+          <div className="mb-2.5 flex flex-col gap-1 rounded-xl bg-muted/70 p-2 text-[11px] text-muted-foreground border border-border/50">
+            <div className="flex items-center justify-between">
+              <span>
+                Mode: <strong className="text-foreground font-semibold">{rangeType === 'week' ? 'Mingguan (7 Hari)' : 'Harian (24 Jam)'}</strong>
               </span>
+              {availableDates.length > 0 && (
+                <span className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-100/80 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
+                  <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                  {availableDates.length} Hari Ada Data
+                </span>
+              )}
+            </div>
+            {rangeType === 'week' && (
+              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
+                Pilih tanggal akhir untuk melihat 7 hari ke belakang.
+              </div>
             )}
           </div>
 
@@ -347,10 +354,10 @@ export function TelemetryDatePicker({
                 <div
                   key={idx}
                   className={cn(
-                    'relative flex items-center justify-center p-0.5',
-                    rangeType === 'week' && inRange && 'bg-emerald-50 dark:bg-emerald-950/40',
-                    rangeType === 'week' && rangeStart && 'rounded-l-lg',
-                    rangeType === 'week' && rangeEnd && 'rounded-r-lg'
+                    'relative flex items-center justify-center p-0.5 transition-colors',
+                    rangeType === 'week' && inRange && 'bg-emerald-100/90 dark:bg-emerald-900/40',
+                    rangeType === 'week' && rangeStart && 'rounded-l-xl',
+                    rangeType === 'week' && rangeEnd && 'rounded-r-xl'
                   )}
                   onMouseEnter={() => {
                     if (rangeType === 'week' && isCurrentMonth) {
@@ -369,10 +376,11 @@ export function TelemetryDatePicker({
                     className={cn(
                       'relative flex size-8 items-center justify-center rounded-lg font-mono text-xs transition-all cursor-pointer',
                       !isCurrentMonth && 'text-muted-foreground/30 hover:text-muted-foreground',
-                      isCurrentMonth && !selected && !rangeEnd && 'text-foreground hover:bg-muted',
+                      isCurrentMonth && !selected && !rangeEnd && !inRange && 'text-foreground hover:bg-muted',
+                      rangeType === 'week' && inRange && !rangeEnd && 'text-emerald-950 dark:text-emerald-100 font-bold bg-emerald-200/60 dark:bg-emerald-800/50',
+                      rangeType === 'week' && rangeStart && !rangeEnd && 'ring-1.5 ring-emerald-600/40 font-black',
                       (selected || rangeEnd) &&
-                        'bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30 scale-105 z-10',
-                      rangeType === 'week' && inRange && !rangeEnd && 'text-emerald-800 dark:text-emerald-200 font-semibold'
+                        'bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30 scale-105 z-10 ring-2 ring-emerald-400/40'
                     )}
                   >
                     {dayNum}
