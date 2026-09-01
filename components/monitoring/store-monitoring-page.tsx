@@ -461,6 +461,7 @@ export function StoreMonitoringPage({
               sensors={sensors}
               metric={selectedMetric}
               selectedSensorPhase={selectedSensorPhase}
+              rangeType={rangeType}
               className="h-[420px] w-full"
             />
           </div>

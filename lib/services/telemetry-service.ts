@@ -43,20 +43,33 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
   const PLN_TARIFF = 1444.7
 
   try {
-    // Query combined daily delta energy per phase across telemetry & history sources
+    // Query combined daily delta energy per phase across telemetry & history sources with phase normalization
     const res = await aiven.query(`
-      WITH per_phase_day AS (
+      WITH raw_combined AS (
         SELECT 
           device_id,
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+          CASE
+            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+            ELSE phase
+          END as phase,
+          epoch,
+          energy
         FROM (
           SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
           UNION ALL
           SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
         ) combined
+      ),
+      per_phase_day AS (
+        SELECT 
+          device_id,
+          phase,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
+          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+        FROM raw_combined
         GROUP BY device_id, phase, day_date, day_name
       ),
       per_device_day AS (
@@ -270,19 +283,31 @@ export async function getStoreAnalyticsData(
     const avgPowerWatts = validLoadCount > 0 ? Math.round(totalLoadSum / validLoadCount) : 0
     const basePowerWatts = minPowerWatts !== Infinity ? Math.round(minPowerWatts) : 0
 
-    // 4. Query Daily Consumption Trend khusus untuk device ini (per-phase calculation)
+    // 4. Query Daily Consumption Trend khusus untuk device ini (per-phase calculation with phase normalization)
     const dailyRes = await aiven.query(`
-      WITH per_phase_day AS (
+      WITH raw_combined AS (
         SELECT 
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy') as day_name,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+          CASE
+            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+            ELSE phase
+          END as phase,
+          epoch,
+          energy
         FROM (
           SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
           UNION ALL
           SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
         ) combined
+      ),
+      per_phase_day AS (
+        SELECT 
+          phase,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
+          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+        FROM raw_combined
         GROUP BY phase, day_date, day_name
       )
       SELECT 
@@ -474,7 +499,7 @@ export async function getTelemetryHistory(
     // 1. Get available dates sorted from newest (DESC) across history & telemetry
     const datesRes = await aiven.query(
       `
-      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as date_str
+      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as date_str
       FROM (
         SELECT epoch FROM history WHERE device_id = $1
         UNION ALL
@@ -492,31 +517,55 @@ export async function getTelemetryHistory(
       targetDate = availableDates[0] // e.g. '2026-08-18'
     }
 
-    // 2. Fetch distinct sensors SCOPED to the active query (session, day, or week)
-    let sensorSql = `
-      SELECT phase, COALESCE(NULLIF(MAX(phase_name), ''), phase) as name, COUNT(*) as count
-      FROM (
-        SELECT phase, phase_name, epoch, session_id FROM history WHERE device_id = $1
-        UNION ALL
-        SELECT phase, NULL as phase_name, epoch, NULL as session_id FROM telemetry WHERE device_id = $1
-      ) combined_sensors
-      WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'
-    `
+    // 2. Fetch distinct sensors SCOPED to the active query with phase normalization
+    let sensorWhere = `WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'`
     const sensorParams: any[] = [deviceId]
 
     if (rangeType === 'session' && targetSessionId) {
-      sensorSql += ` AND session_id = $2`
+      sensorWhere += ` AND session_id = $2`
       sensorParams.push(targetSessionId)
     } else if (rangeType === 'day' && targetDate) {
-      sensorSql += ` AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2`
+      sensorWhere += ` AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date = $2::date`
       sensorParams.push(targetDate)
     } else if (rangeType === 'week' && targetDate) {
-      sensorSql += ` AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') <= $2 
-                     AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') >= TO_CHAR(TO_DATE($2, 'YYYY-MM-DD') - INTERVAL '6 days', 'YYYY-MM-DD')`
+      sensorWhere += ` AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date 
+                     AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')`
       sensorParams.push(targetDate)
     }
 
-    sensorSql += ` GROUP BY phase ORDER BY phase ASC`
+    const sensorSql = `
+      WITH raw_combined AS (
+        SELECT 
+          CASE
+            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+            ELSE phase
+          END as phase,
+          phase_name
+        FROM (
+          SELECT phase, phase_name, epoch, session_id FROM history WHERE device_id = $1
+          UNION ALL
+          SELECT phase, NULL as phase_name, epoch, NULL as session_id FROM telemetry WHERE device_id = $1
+        ) combined_sensors
+        ${sensorWhere}
+      )
+      SELECT 
+        phase,
+        COALESCE(
+          NULLIF(MAX(phase_name), ''), 
+          CASE
+            WHEN phase = 'R' THEN 'Fase R'
+            WHEN phase = 'S' THEN 'Fase S'
+            WHEN phase = 'T' THEN 'Fase T'
+            ELSE phase
+          END
+        ) as name, 
+        COUNT(*) as count
+      FROM raw_combined
+      GROUP BY phase
+      ORDER BY phase ASC
+    `
 
     let sensorRes = await aiven.query(sensorSql, sensorParams)
 
@@ -524,13 +573,35 @@ export async function getTelemetryHistory(
     if (sensorRes.rows.length === 0) {
       sensorRes = await aiven.query(
         `
-        SELECT phase, COALESCE(NULLIF(MAX(phase_name), ''), phase) as name, COUNT(*) as count
-        FROM (
-          SELECT phase, phase_name FROM history WHERE device_id = $1
-          UNION ALL
-          SELECT phase, NULL as phase_name FROM telemetry WHERE device_id = $1
-        ) combined_sensors
-        WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'
+        WITH raw_combined AS (
+          SELECT 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            phase_name
+          FROM (
+            SELECT phase, phase_name FROM history WHERE device_id = $1
+            UNION ALL
+            SELECT phase, NULL as phase_name FROM telemetry WHERE device_id = $1
+          ) combined_sensors
+          WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'
+        )
+        SELECT 
+          phase,
+          COALESCE(
+            NULLIF(MAX(phase_name), ''), 
+            CASE
+              WHEN phase = 'R' THEN 'Fase R'
+              WHEN phase = 'S' THEN 'Fase S'
+              WHEN phase = 'T' THEN 'Fase T'
+              ELSE phase
+            END
+          ) as name, 
+          COUNT(*) as count
+        FROM raw_combined
         GROUP BY phase
         ORDER BY phase ASC
       `,
@@ -555,7 +626,13 @@ export async function getTelemetryHistory(
       }
       if (Array.isArray(slist)) {
         slist.forEach((s: any) => {
-          if (s.phase && s.name) deviceSensorsMap.set(s.phase, s.name)
+          if (s.phase && s.name) {
+            let phKey = s.phase
+            if (['L12', 'L1', 'R', 'r'].includes(phKey)) phKey = 'R'
+            else if (['L13', 'L2', 'S', 's'].includes(phKey)) phKey = 'S'
+            else if (['L14', 'L3', 'T', 't'].includes(phKey)) phKey = 'T'
+            deviceSensorsMap.set(phKey, s.name)
+          }
         })
       }
     }
@@ -577,25 +654,41 @@ export async function getTelemetryHistory(
     let queryParams: any[] = [deviceId]
     let paginationMeta: PaginationMeta | undefined = undefined
 
-    // 3. Construct specific SQL query per range mode
+    // 3. Construct specific SQL query per range mode with phase normalization
     if (rangeType === 'day') {
       // Harian: Rata-rata per 1 jam (24 jam) menggabungkan telemetry + history
       queryParams.push(targetDate || '2026-08-18')
       pointsQuery = `
         WITH raw_day AS (
-          SELECT epoch, phase, power, voltage, current, energy, power_factor, frequency
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2
+          WHERE device_id = $1 AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date = $2::date
           UNION ALL
-          SELECT epoch, phase, power, voltage, current, energy, power_factor, frequency
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2
+          WHERE device_id = $1 AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date = $2::date
         ),
         buckets AS (
           SELECT 
             (epoch / (1000 * 60 * 60)) as bucket_id,
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'HH24:00') as time_str,
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD HH24:00') as full_time,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:00') as time_str,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:00') as full_time,
             phase,
             power,
             voltage,
@@ -625,23 +718,39 @@ export async function getTelemetryHistory(
       queryParams.push(targetDate || '2026-08-18')
       pointsQuery = `
         WITH raw_week AS (
-          SELECT epoch, phase, power, voltage, current, energy, power_factor, frequency
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
           FROM history
           WHERE device_id = $1 
-            AND TO_TIMESTAMP(epoch / 1000) >= ($2::date - interval '6 days')
-            AND TO_TIMESTAMP(epoch / 1000) < ($2::date + interval '1 day')
+            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')
+            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date
           UNION ALL
-          SELECT epoch, phase, power, voltage, current, energy, power_factor, frequency
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
           FROM telemetry
           WHERE device_id = $1 
-            AND TO_TIMESTAMP(epoch / 1000) >= ($2::date - interval '6 days')
-            AND TO_TIMESTAMP(epoch / 1000) < ($2::date + interval '1 day')
+            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')
+            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date
         ),
         buckets AS (
           SELECT 
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_key,
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'Dy, DD/MM') as time_str,
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as full_time,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_key,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy, DD/MM') as time_str,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as full_time,
             phase,
             power,
             voltage,
@@ -667,7 +776,7 @@ export async function getTelemetryHistory(
         ORDER BY day_key ASC
       `
     } else {
-      // Sesi Audit: Fast integer aggregation
+      // Sesi Audit: Fast integer aggregation with phase normalization
       if (!targetSessionId) {
         const latestSessRes = await aiven.query(
           `SELECT session_id FROM history WHERE device_id = $1 ORDER BY epoch DESC LIMIT 1`,
@@ -680,7 +789,20 @@ export async function getTelemetryHistory(
 
       queryParams.push(targetSessionId || '')
       pointsQuery = `
-        WITH agg AS (
+        WITH raw_sess AS (
+          SELECT 
+            epoch,
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM history
+          WHERE device_id = $1 AND session_id = $2
+        ),
+        agg AS (
           SELECT 
             (epoch / 900000) as bucket_id,
             phase,
@@ -690,8 +812,7 @@ export async function getTelemetryHistory(
             ROUND(AVG(energy)::numeric, 3) as energy,
             ROUND(AVG(power_factor)::numeric, 2) as power_factor,
             ROUND(AVG(frequency)::numeric, 1) as frequency
-          FROM history
-          WHERE device_id = $1 AND session_id = $2
+          FROM raw_sess
           GROUP BY (epoch / 900000), phase
         )
         SELECT 

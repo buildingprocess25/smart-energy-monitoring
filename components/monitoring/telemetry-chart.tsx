@@ -12,13 +12,14 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { TelemetryPoint, SensorMeta, MetricType } from '@/lib/types'
+import { TelemetryPoint, SensorMeta, MetricType, TimeRangeType } from '@/lib/types'
 
 interface TelemetryChartProps {
   data: TelemetryPoint[]
   sensors: SensorMeta[]
   metric: MetricType
   selectedSensorPhase?: string // 'all' or specific phase like 'L12'
+  rangeType?: TimeRangeType
   className?: string
 }
 
@@ -69,6 +70,7 @@ export function TelemetryChart({
   sensors,
   metric = 'power',
   selectedSensorPhase = 'all',
+  rangeType = 'day',
   className,
 }: TelemetryChartProps) {
   const config = METRIC_CONFIG[metric] || METRIC_CONFIG.power
@@ -84,14 +86,17 @@ export function TelemetryChart({
   // Sample ticks on XAxis so labels don't collide
   const xAxisTicks = useMemo(() => {
     if (!data || data.length === 0) return []
+    if (rangeType === 'week' || data.length <= 14) {
+      return data.map((d) => d.timestamp)
+    }
     const step = Math.max(Math.floor(data.length / 10), 1)
     return data.filter((_, i) => i % step === 0).map((d) => d.timestamp)
-  }, [data])
+  }, [data, rangeType])
 
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[400px] w-full items-center justify-center rounded-xl border border-dashed text-muted-foreground text-sm">
-        Tidak ada data titik telemetri pada sesi ini.
+        Tidak ada data titik telemetri pada rentang waktu ini.
       </div>
     )
   }
@@ -207,7 +212,7 @@ export function TelemetryChart({
                 name={displayName}
                 stroke={sensor.color}
                 strokeWidth={2}
-                dot={false}
+                dot={rangeType === 'week' || data.length <= 14 ? { r: 4, strokeWidth: 1.5 } : false}
                 activeDot={{ r: 5 }}
               />
             )
