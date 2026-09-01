@@ -1,41 +1,43 @@
-name: Build and deploy
+name: Build and Deploy
 
 on:
   push:
-    branches: [main, master]
-
-permissions:
-  contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+    branches:
+      - main
+      - master
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Lowercase Repository Name
+        run: echo "REPO=${GITHUB_REPOSITORY,,}" >> ${GITHUB_ENV}
 
-      - uses: docker/build-push-action@v6
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ env.REPO }}:latest
+            ghcr.io/${{ env.REPO }}:${{ github.sha }}
 
-      - name: Trigger Dokploy deployment
-        env:
-          DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
-        run: curl --fail --show-error --silent --request POST "$DOKPLOY_WEBHOOK_URL"
+      - name: Trigger Dokploy Webhook
+        run: curl -X POST ${{ secrets.DOKPLOY_WEBHOOK }}
