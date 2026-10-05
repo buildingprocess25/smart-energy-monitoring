@@ -11,27 +11,26 @@ import {
   Building2,
   CheckCircle2,
 } from 'lucide-react'
-import { Store, StoreAnalyticsResult } from '@/lib/types'
+import { Store, StoreAnalyticsResult, MonthlyCostRecord } from '@/lib/types'
 import { buttonVariants } from '@/components/ui/button'
 import { NetworkMapWidget } from './network-map-widget'
 import { StoreAnalyticsWidget } from './store-analytics-widget'
+import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
 import { cn } from '@/lib/utils'
-
-// Estimasi PLN Tariff
-const PLN_TARIFF_PER_KWH = 1444.7
 
 interface DashboardOverviewProps {
   stores?: Store[]
   initialStoreAnalytics?: StoreAnalyticsResult | null
+  monthlyCosts?: MonthlyCostRecord[]
 }
 
 export function DashboardOverview({
   stores = [],
   initialStoreAnalytics = null,
+  monthlyCosts = [],
 }: DashboardOverviewProps) {
   // Hitung total energi
   const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
-  const totalCost = totalKwh * PLN_TARIFF_PER_KWH
   const liveCount = stores.filter((s) => s.status === 'live').length
   const totalCount = stores.length || 1
   const livePercentage = (liveCount / totalCount) * 100
@@ -111,25 +110,11 @@ export function DashboardOverview({
           </div>
         </div>
 
-        {/* KPI 2 */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-amber-500/30 hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Estimasi Biaya PLN
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
-              <Coins className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              Rp {totalCost.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
-            </div>
-            <div className="mt-2 text-xs text-muted-foreground">
-              Tarif PLN B2/TR (Rp 1.444,7/kWh)
-            </div>
-          </div>
-        </div>
+        {/* KPI 2: Estimasi Biaya PLN (Per Bulan dengan Selector & Riwayat) */}
+        <MonthlyCostKpiCard
+          monthlyCosts={monthlyCosts}
+          totalCumulativeKwh={totalKwh}
+        />
 
         {/* KPI 3 */}
         <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-blue-500/30 hover:shadow-sm">

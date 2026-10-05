@@ -103,3 +103,19 @@ export interface AuditSession {
   isActive: boolean
   dataPointCount?: number
 }
+
+export interface MonthlyCostRecord {
+  monthKey: string // "YYYY-MM"
+  monthLabel: string // "Maret 2026"
+  monthShortLabel: string // "Mar 2026"
+  year: number
+  month: number
+  kwh: number
+  cost: number
+  previousCost?: number
+  diffPercentage?: number
+  isCurrentMonth?: boolean
+  activeStoresCount?: number
+  avgDailyKwh?: number
+}
+

@@ -42,3 +42,7 @@ pnpm-debug.log*
 # scratch files
 scratch*
 next-env.d.ts
+*.csv
+*.xlsx
+scripts/check_accuracy.mjs
+

@@ -365,6 +365,89 @@ export function StoreMonitoringPage({
           </div>
         </div>
 
+        {/* Dynamic Sensor Cards Breakdown (Summary KPI Fasa on Top) */}
+        {sensorStats.length > 0 && (
+          <div className="flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Gauge className="size-3.5" />
+                Rincian Statistik Per Sensor / Fasa ({metricMeta.label})
+              </h3>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline-block">
+                Klik kartu fasa untuk memfilter grafik di bawah
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+              {sensorStats.map(({ sensor, avg, max, latest }) => {
+                const isFiltered =
+                  selectedSensorPhase !== 'all' && selectedSensorPhase !== sensor.phase
+                const isSelected = selectedSensorPhase === sensor.phase
+
+                return (
+                  <div
+                    key={sensor.phase}
+                    onClick={() =>
+                      setSelectedSensorPhase(
+                        selectedSensorPhase === sensor.phase ? 'all' : sensor.phase
+                      )
+                    }
+                    className={cn(
+                      'group flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-all cursor-pointer',
+                      isSelected
+                        ? 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-500/20 shadow-sm dark:bg-emerald-950/20'
+                        : 'bg-card hover:border-emerald-500/40 hover:shadow-xs',
+                      isFiltered && 'opacity-40 grayscale-[20%]'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: sensor.color }}
+                        />
+                        <span className="font-mono text-xs font-bold text-foreground">
+                          {sensor.phase}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          ({sensor.name})
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                          Aktif
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-baseline justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                          Rata-rata
+                        </span>
+                        <span className="text-xl font-bold font-mono text-foreground">
+                          {avg.toLocaleString('id-ID')}{' '}
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {metricMeta.unit}
+                          </span>
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col text-right">
+                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
+                          Maksimum
+                        </span>
+                        <span className="text-sm font-semibold font-mono text-muted-foreground">
+                          {max.toLocaleString('id-ID')} {metricMeta.unit}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Chart Card */}
         <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs sm:p-6">
           {/* Header of Chart */}
@@ -466,76 +549,6 @@ export function StoreMonitoringPage({
             />
           </div>
         </div>
-
-        {/* Dynamic Sensor Cards Breakdown */}
-        {sensorStats.length > 0 && (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider text-muted-foreground">
-              Rincian Statistik Per Sensor / Fasa ({metricMeta.label})
-            </h3>
-            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-              {sensorStats.map(({ sensor, avg, max, latest }) => {
-                const isFiltered =
-                  selectedSensorPhase !== 'all' && selectedSensorPhase !== sensor.phase
-                return (
-                  <div
-                    key={sensor.phase}
-                    onClick={() =>
-                      setSelectedSensorPhase(
-                        selectedSensorPhase === sensor.phase ? 'all' : sensor.phase
-                      )
-                    }
-                    className={cn(
-                      'flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-all cursor-pointer',
-                      selectedSensorPhase === sensor.phase
-                        ? 'border-emerald-500 bg-emerald-50/20 ring-2 ring-emerald-500/20 dark:bg-emerald-950/20'
-                        : 'bg-card hover:border-emerald-500/30',
-                      isFiltered && 'opacity-50'
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="size-2.5 rounded-full shrink-0"
-                          style={{ backgroundColor: sensor.color }}
-                        />
-                        <span className="font-mono text-xs font-bold text-foreground">
-                          {sensor.phase}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({sensor.name})
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-baseline justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          Rata-rata
-                        </span>
-                        <span className="text-xl font-bold font-mono text-foreground">
-                          {avg.toLocaleString('id-ID')}{' '}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            {metricMeta.unit}
-                          </span>
-                        </span>
-                      </div>
-
-                      <div className="flex flex-col text-right">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          Maksimum
-                        </span>
-                        <span className="text-sm font-semibold font-mono text-muted-foreground">
-                          {max.toLocaleString('id-ID')} {metricMeta.unit}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )
