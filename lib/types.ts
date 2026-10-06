@@ -16,6 +16,28 @@ export interface LoadProfilePoint {
   powerKw: number
 }
 
+export interface RealMonthlyConsumption {
+  monthKey: string // "2026-08"
+  monthLabel: string // "Agu 2026"
+  year: number
+  month: number
+  kwh: number
+  cost: number
+  diffPct?: number // MoM % difference vs previous month
+  isLatest?: boolean
+}
+
+export interface MonthlyTrendSummary {
+  recordedMonthsCount: number
+  totalKwh: number
+  totalCost: number
+  avgMonthlyKwh: number
+  latestMonthLabel: string
+  latestMonthKwh: number
+  momDiffPct?: number
+  trendStatus: 'hemat' | 'stabil' | 'waspada'
+}
+
 export interface StoreAnalyticsResult {
   storeId: string
   storeCode: string
@@ -25,12 +47,15 @@ export interface StoreAnalyticsResult {
   deviceId?: string
   anchorDate: string // "YYYY-MM-DD"
   anchorDateLabel: string // "18 Agu 2026"
+  availableDates?: string[] // List of dates with telemetry
   isLive: boolean
   peakPowerWatts: number
   avgPowerWatts: number
   basePowerWatts: number
   loadProfile24h: LoadProfilePoint[]
   dailyConsumption: DailyConsumption[]
+  monthlyHistory?: RealMonthlyConsumption[]
+  monthlySummary?: MonthlyTrendSummary
 }
 
 export interface PhaseData {

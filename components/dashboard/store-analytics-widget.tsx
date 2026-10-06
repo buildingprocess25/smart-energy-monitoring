@@ -9,13 +9,15 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Building2,
   TrendingUp,
+  TrendingDown,
   ArrowUpRight,
   Clock,
   Flame,
   Moon,
   ChevronDown,
+  BarChart3,
+  Sparkles,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -28,8 +30,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
-import { Store, StoreAnalyticsResult, DailyConsumption } from '@/lib/types'
+import { Store, StoreAnalyticsResult, DailyConsumption, RealMonthlyConsumption } from '@/lib/types'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { TelemetryDatePicker } from '@/components/monitoring/telemetry-date-picker'
 import { cn } from '@/lib/utils'
 
 const PLN_TARIFF_PER_KWH = 1444.7
@@ -95,21 +99,46 @@ export function StoreAnalyticsWidget({
   )
   const [analytics, setAnalytics] = useState<StoreAnalyticsResult | null>(initialAnalytics)
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [activeTab, setActiveTab] = useState<'loadProfile' | 'dailyTrend'>('loadProfile')
+  
+  // 3-Granularity Tabs: 'daily' (24 Jam) | 'weekly' (7 Hari) | 'monthly' (Bulan Riil Tercatat)
+  const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [weekOffset, setWeekOffset] = useState<number>(0)
+  const [selectedDailyDate, setSelectedDailyDate] = useState<string>('')
 
-  // Fetch analytics when user selects a different store
+  // Available dates for Daily 24h curve selection
+  const availableDatesList = useMemo(() => {
+    if (analytics?.availableDates && analytics.availableDates.length > 0) {
+      return analytics.availableDates
+    }
+    if (analytics?.dailyConsumption && analytics.dailyConsumption.length > 0) {
+      const dates = analytics.dailyConsumption.map((d) => d.dayDate).filter(Boolean) as string[]
+      if (dates.length > 0) return Array.from(new Set(dates)).sort().reverse()
+    }
+    return analytics?.anchorDate ? [analytics.anchorDate] : []
+  }, [analytics])
+
+  const currentDateIdx = useMemo(() => {
+    const cur = selectedDailyDate || analytics?.anchorDate || ''
+    const idx = availableDatesList.indexOf(cur)
+    return idx !== -1 ? idx : 0
+  }, [selectedDailyDate, analytics?.anchorDate, availableDatesList])
+
+  // Fetch analytics when user selects a different store or selects a date
   useEffect(() => {
     if (!selectedStoreId) return
-    if (analytics && (analytics.storeCode === selectedStoreId || analytics.storeId === selectedStoreId)) {
+    if (
+      analytics &&
+      (analytics.storeCode === selectedStoreId || analytics.storeId === selectedStoreId) &&
+      !selectedDailyDate
+    ) {
       return
     }
 
     let isMounted = true
     setIsLoading(true)
-    setWeekOffset(0)
 
-    fetch(`/api/stores/${encodeURIComponent(selectedStoreId)}/overview-analytics`)
+    const dateParam = selectedDailyDate ? `?date=${encodeURIComponent(selectedDailyDate)}` : ''
+    fetch(`/api/stores/${encodeURIComponent(selectedStoreId)}/overview-analytics${dateParam}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load store analytics')
         return res.json()
@@ -128,7 +157,17 @@ export function StoreAnalyticsWidget({
     return () => {
       isMounted = false
     }
-  }, [selectedStoreId, analytics])
+  }, [selectedStoreId, selectedDailyDate])
+
+  const handleDateSelect = (dateStr: string) => {
+    setSelectedDailyDate(dateStr)
+  }
+
+  const handleNavigateDate = (newIdx: number) => {
+    if (newIdx >= 0 && newIdx < availableDatesList.length) {
+      setSelectedDailyDate(availableDatesList[newIdx])
+    }
+  }
 
   // Map daily consumption from store data
   const dbDataMap = useMemo(() => {
@@ -214,6 +253,9 @@ export function StoreAnalyticsWidget({
   const avgKw = analytics?.avgPowerWatts ? (analytics.avgPowerWatts / 1000).toFixed(2) : '0.00'
   const baseKw = analytics?.basePowerWatts ? (analytics.basePowerWatts / 1000).toFixed(2) : '0.00'
 
+  const realMonthlyList = analytics?.monthlyHistory || []
+  const monthlySummary = analytics?.monthlySummary
+
   return (
     <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs transition-all lg:col-span-8">
       {/* Header Widget */}
@@ -223,13 +265,16 @@ export function StoreAnalyticsWidget({
           <div className="relative">
             <select
               value={selectedStoreId}
-              onChange={(e) => setSelectedStoreId(e.target.value)}
+              onChange={(e) => {
+                setSelectedStoreId(e.target.value)
+                setSelectedDailyDate('')
+              }}
               className="h-9 cursor-pointer appearance-none rounded-lg border bg-background py-1.5 pl-3 pr-8 text-sm font-semibold text-foreground shadow-2xs transition-colors hover:border-emerald-500/50 focus:border-emerald-500 focus:outline-hidden"
               aria-label="Pilih Toko"
             >
               {stores.map((s) => (
                 <option key={s.id} value={s.code || s.id}>
-                  {s.name} ({s.code}) - {s.status === 'live' ? '🟢 Live' : '🔵 Audit'}
+                  {s.name} ({s.code}) - {s.status === 'live' ? 'Live' : 'Audit'}
                 </option>
               ))}
             </select>
@@ -262,96 +307,186 @@ export function StoreAnalyticsWidget({
           </div>
         </div>
 
-        {/* Tab Mode Buttons */}
+        {/* 3 Granularity Switcher Buttons (Harian | Mingguan | Bulanan) */}
         <div className="flex items-center rounded-lg border bg-muted/30 p-0.5 text-xs">
           <button
             type="button"
-            onClick={() => setActiveTab('loadProfile')}
+            onClick={() => setActiveTab('daily')}
             className={cn(
-              'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-semibold transition-all',
-              activeTab === 'loadProfile'
+              'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-semibold transition-all cursor-pointer',
+              activeTab === 'daily'
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Zap className="size-3.5 text-amber-500" />
-            Profil 24 Jam
+            <span>Per Hari</span>
           </button>
           <button
             type="button"
-            onClick={() => setActiveTab('dailyTrend')}
+            onClick={() => setActiveTab('weekly')}
             className={cn(
-              'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-semibold transition-all',
-              activeTab === 'dailyTrend'
+              'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-semibold transition-all cursor-pointer',
+              activeTab === 'weekly'
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
             <Activity className="size-3.5 text-emerald-500" />
-            Tren 7 Hari (kWh)
+            <span>Per Minggu</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('monthly')}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-2.5 py-1.5 font-semibold transition-all cursor-pointer',
+              activeTab === 'monthly'
+                ? 'bg-card text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <BarChart3 className="size-3.5 text-sky-500" />
+            <span>Per Bulan</span>
           </button>
         </div>
       </div>
 
       {/* Quick Metrics Bar */}
-      <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-        <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
-            <Flame className="size-3.5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Beban Puncak
+      {activeTab === 'monthly' ? (
+        /* Real Monthly History Specific KPI Badges */
+        <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <TrendingUp className="size-3.5" />
             </div>
-            <div className="text-sm font-bold text-foreground">
-              {peakKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Total Akumulasi
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {monthlySummary?.totalKwh.toLocaleString('id-ID') || 0}{' '}
+                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
-            <Clock className="size-3.5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Rata-rata Beban
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Clock className="size-3.5" />
             </div>
-            <div className="text-sm font-bold text-foreground">
-              {avgKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Rata-rata / Bulan
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {monthlySummary?.avgMonthlyKwh.toLocaleString('id-ID') || 0}{' '}
+                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
-            <Moon className="size-3.5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Beban Dasar
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <Calendar className="size-3.5" />
             </div>
-            <div className="text-sm font-bold text-foreground">
-              {baseKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                {monthlySummary?.latestMonthLabel || 'Bulan Terkini'}
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {monthlySummary?.latestMonthKwh.toLocaleString('id-ID') || 0}{' '}
+                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-          <div className="flex size-7 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <TrendingUp className="size-3.5" />
-          </div>
-          <div>
-            <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-              Total Periode
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className={cn(
+              "flex size-7 shrink-0 items-center justify-center rounded",
+              (monthlySummary?.momDiffPct ?? 0) <= 0 
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+            )}>
+              {(monthlySummary?.momDiffPct ?? 0) <= 0 ? <TrendingDown className="size-3.5" /> : <TrendingUp className="size-3.5" />}
             </div>
-            <div className="text-sm font-bold text-foreground">
-              {windowTotalKwh.toLocaleString('id-ID')}{' '}
-              <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                MoM (Bulan Terkini)
+              </div>
+              <div className={cn(
+                "text-sm font-bold",
+                (monthlySummary?.momDiffPct ?? 0) <= 0 
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-amber-600 dark:text-amber-400"
+              )}>
+                {monthlySummary?.momDiffPct !== undefined 
+                  ? (monthlySummary.momDiffPct > 0 ? `+${monthlySummary.momDiffPct}%` : `${monthlySummary.momDiffPct}%`) 
+                  : 'Tercatat Awal'}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        /* Daily / Weekly Quick Metrics Bar */
+        <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Flame className="size-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Beban Puncak
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {peakKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <Clock className="size-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Rata-rata Beban
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {avgKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <Moon className="size-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Beban Dasar
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {baseKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <TrendingUp className="size-3.5" />
+            </div>
+            <div>
+              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                Total Periode
+              </div>
+              <div className="text-sm font-bold text-foreground">
+                {windowTotalKwh.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Chart Section */}
       <div className="mt-4 flex-1">
@@ -360,16 +495,29 @@ export function StoreAnalyticsWidget({
             <span className="size-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent mr-2" />
             Memuat data toko...
           </div>
-        ) : activeTab === 'loadProfile' ? (
-          /* Tab 1: 24-Hour Load Curve */
+        ) : activeTab === 'daily' ? (
+          /* Tab 1: 24-Hour Load Curve (Harian with Interactive Date Picker) */
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                Kurva fluktuasi daya 24 jam •{' '}
-                <strong className="text-foreground font-semibold">
-                  {analytics?.anchorDateLabel || 'Rekaman Terakhir'}
-                </strong>
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span>Kurva 24 Jam •</span>
+                <TelemetryDatePicker
+                  selectedDate={selectedDailyDate || analytics?.anchorDate || ''}
+                  onDateSelect={handleDateSelect}
+                  availableDates={availableDatesList}
+                  rangeType="day"
+                  onDateShift={(direction) => {
+                    if (direction === 'prev') {
+                      handleNavigateDate(currentDateIdx + 1)
+                    } else {
+                      handleNavigateDate(currentDateIdx - 1)
+                    }
+                  }}
+                  canShiftPrev={currentDateIdx < availableDatesList.length - 1}
+                  canShiftNext={currentDateIdx > 0}
+                />
+              </div>
+
               <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                 Puncak: {peakKw} kW
               </span>
@@ -415,7 +563,7 @@ export function StoreAnalyticsWidget({
                         return (
                           <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
                             <p className="font-semibold text-xs text-muted-foreground">
-                              Waktu: {data.fullTime || data.time}
+                              Waktu: {data.fullTime || data.time} ({analytics?.anchorDateLabel || ''})
                             </p>
                             <p className="mt-1 font-bold text-sm text-emerald-600 dark:text-emerald-400">
                               {data.powerKw} kW ({data.powerWatts.toLocaleString('id-ID')} W)
@@ -445,8 +593,8 @@ export function StoreAnalyticsWidget({
               </ResponsiveContainer>
             </div>
           </div>
-        ) : (
-          /* Tab 2: 7-Day Daily Consumption Bar Chart */
+        ) : activeTab === 'weekly' ? (
+          /* Tab 2: 7-Day Daily Consumption Bar Chart (Mingguan) */
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
               <span className="text-muted-foreground">
@@ -556,6 +704,111 @@ export function StoreAnalyticsWidget({
                   />
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          /* Tab 3: Real Monthly Consumption History (Bulanan Murni Riil) */
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                Rekaman Riil: <strong>{realMonthlyList.length} Bulan Tercatat</strong> • Total:{' '}
+                <strong className="text-foreground font-semibold">
+                  {monthlySummary?.totalKwh.toLocaleString('id-ID') || 0} kWh
+                </strong>
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <Badge variant="outline" className="text-[10.5px] font-medium flex items-center gap-1.5">
+                  <span className={cn(
+                    "size-1.5 rounded-full",
+                    monthlySummary?.trendStatus === 'hemat' ? "bg-emerald-500" : (monthlySummary?.trendStatus === 'waspada' ? "bg-rose-500" : "bg-amber-500")
+                  )} />
+                  <span>
+                    {monthlySummary?.trendStatus === 'hemat' ? 'Tren Konsumsi Efisien' : (monthlySummary?.trendStatus === 'waspada' ? 'Waspada Kenaikan Beban' : 'Tren Konsumsi Stabil')}
+                  </span>
+                </Badge>
+              </div>
+            </div>
+
+            <div className="h-60 w-full sm:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={realMonthlyList}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="currentColor"
+                    className="text-border/40"
+                  />
+                  <XAxis
+                    dataKey="monthLabel"
+                    tickLine={false}
+                    axisLine={false}
+                    stroke="currentColor"
+                    className="text-xs text-muted-foreground font-semibold"
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    stroke="currentColor"
+                    className="text-xs text-muted-foreground font-mono"
+                    tickFormatter={(val) => `${val}`}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data: RealMonthlyConsumption = payload[0].payload
+                        const diff = data.diffPct
+                        return (
+                          <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md min-w-[200px] space-y-1">
+                            <p className="font-bold text-xs text-foreground border-b pb-1">
+                              Bulan {data.monthLabel}
+                            </p>
+                            <p className="mt-1 font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                              {data.kwh.toLocaleString('id-ID')} kWh
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Est. Biaya PLN: Rp {data.cost.toLocaleString('id-ID')}
+                            </p>
+                            {diff !== undefined && (
+                              <div className="pt-1 border-t flex items-center justify-between text-[11px]">
+                                <span className="text-muted-foreground font-medium">MoM (vs Bulan Lalu):</span>
+                                <span className={cn(
+                                  "font-bold",
+                                  diff <= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
+                                )}>
+                                  {diff > 0 ? `+${diff}% (Naik)` : `${diff}% (Turun)`}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
+                      return null
+                    }}
+                  />
+                  <Bar
+                    dataKey="kwh"
+                    fill="#10b981"
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Bottom Insight Footer */}
+            <div className="mt-1 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-[11px] text-muted-foreground flex items-center justify-between flex-wrap gap-2">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="size-3.5 text-primary shrink-0" />
+                <span>
+                  Total Biaya Listrik ({realMonthlyList.length} bulan): <strong>Rp {monthlySummary?.totalCost.toLocaleString('id-ID') || 0}</strong>
+                </span>
+              </span>
+              <span className="text-[10.5px] font-semibold text-foreground">
+                Tarif PLN: Rp {PLN_TARIFF_PER_KWH}/kWh
+              </span>
             </div>
           </div>
         )}

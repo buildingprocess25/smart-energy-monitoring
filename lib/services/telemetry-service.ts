@@ -12,6 +12,8 @@ import {
   StoreAnalyticsResult,
   LoadProfilePoint,
   MonthlyCostRecord,
+  RealMonthlyConsumption,
+  MonthlyTrendSummary,
 } from '@/lib/types'
 import { getStoreById, getStores } from './store-service'
 
@@ -154,9 +156,10 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
   }
 }
 
-// Fetch store-specific analytics: 24h load profile on latest recorded date & daily consumption
+// Fetch store-specific analytics: 24h load profile on latest/selected recorded date & daily consumption
 export async function getStoreAnalyticsData(
-  storeCodeOrId?: string
+  storeCodeOrId?: string,
+  targetDate?: string
 ): Promise<StoreAnalyticsResult | null> {
   const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
@@ -194,7 +197,7 @@ export async function getStoreAnalyticsData(
   try {
     // 2. Cari tanggal-tanggal rekaman yang tersedia untuk device ini
     const datesRes = await aiven.query(`
-      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') as day_date
+      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date
       FROM (
         SELECT epoch FROM history WHERE device_id = $1
         UNION ALL
@@ -203,11 +206,13 @@ export async function getStoreAnalyticsData(
       ORDER BY day_date DESC
     `, [deviceId])
 
-    const availableDates: string[] = datesRes.rows.map((r) => r.day_date)
+    let availableDates: string[] = datesRes.rows.map((r) => r.day_date).filter(Boolean)
 
-    // Tentukan anchor date: Jika live, prioritaskan tanggal kemarin jika ada data, atau tanggal terbaru
+    // Tentukan anchor date: Jika targetDate spesifik diberikan, pakai targetDate!
     let anchorDate = availableDates[0] || '2026-08-26'
-    if (isLive) {
+    if (targetDate) {
+      anchorDate = targetDate
+    } else if (isLive) {
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       const yIso = yesterday.toISOString().split('T')[0]
@@ -229,10 +234,10 @@ export async function getStoreAnalyticsData(
       }
     }
 
-    // 3. Query Profil Beban 24 Jam pada anchorDate (Agregasi per jam 00:00 - 23:00)
+    // 3. Query Profil Beban 24 Jam pada anchorDate (Agregasi per jam 00:00 - 23:00 WIB)
     const loadRes = await aiven.query(`
       SELECT 
-        TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'HH24:00') as hour_str,
+        TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:00') as hour_str,
         ROUND(AVG(total_power)::numeric, 1) as avg_power
       FROM (
         SELECT 
@@ -240,10 +245,10 @@ export async function getStoreAnalyticsData(
           SUM(power) as total_power
         FROM (
           SELECT epoch, phase, power FROM history 
-          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2 AND phase != 'L6'
+          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
           UNION ALL
           SELECT epoch, phase, power FROM telemetry 
-          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000), 'YYYY-MM-DD') = $2 AND phase != 'L6'
+          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
         ) p
         GROUP BY epoch
       ) grouped_epoch
@@ -350,6 +355,140 @@ export async function getStoreAnalyticsData(
       }
     })
 
+    // 5. Query Real Monthly Aggregation recorded in database for this store
+    const monthlyYearRes = await aiven.query(`
+      WITH raw_combined AS (
+        SELECT 
+          CASE
+            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+            ELSE phase
+          END as phase,
+          epoch,
+          energy
+        FROM (
+          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          UNION ALL
+          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+        ) combined
+      ),
+      per_phase_month AS (
+        SELECT 
+          phase,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
+          EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as yr,
+          EXTRACT(MONTH FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as mo,
+          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+        FROM raw_combined
+        GROUP BY phase, month_key, yr, mo
+      )
+      SELECT 
+        month_key,
+        yr::int as yr,
+        mo::int as mo,
+        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
+      FROM per_phase_month
+      GROUP BY month_key, yr, mo
+      HAVING COALESCE(SUM(phase_delta), 0) > 0
+      ORDER BY month_key ASC
+    `, [deviceId])
+
+    let monthlyHistory: RealMonthlyConsumption[] = []
+    const monthShortLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+
+    if (monthlyYearRes.rows.length > 0) {
+      monthlyYearRes.rows.forEach((r, idx) => {
+        const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
+        const cost = Math.round(kwh * PLN_TARIFF)
+        const m = r.mo || 1
+        const y = r.yr || 2026
+        const monthLabel = `${monthShortLabels[m - 1]} ${y}`
+        
+        let diffPct: number | undefined = undefined
+        if (idx > 0) {
+          const prevKwh = monthlyHistory[idx - 1].kwh
+          if (prevKwh > 0) {
+            diffPct = Math.round(((kwh - prevKwh) / prevKwh) * 1000) / 10
+          }
+        }
+
+        monthlyHistory.push({
+          monthKey: r.month_key,
+          monthLabel,
+          year: y,
+          month: m,
+          kwh,
+          cost,
+          diffPct,
+          isLatest: idx === monthlyYearRes.rows.length - 1,
+        })
+      })
+    } else {
+      // Fallback: If no direct monthly partition found, aggregate from store's daily consumption
+      const monthMap = new Map<string, number>()
+      dailyConsumption.forEach((d) => {
+        if (d.dayDate) {
+          const mKey = d.dayDate.substring(0, 7) // "YYYY-MM"
+          monthMap.set(mKey, (monthMap.get(mKey) || 0) + d.kwh)
+        }
+      })
+
+      const sortedKeys = Array.from(monthMap.keys()).sort()
+      sortedKeys.forEach((mKey, idx) => {
+        const [yStr, mStr] = mKey.split('-')
+        const y = parseInt(yStr, 10) || 2026
+        const m = parseInt(mStr, 10) || 1
+        const kwh = Math.round((monthMap.get(mKey) || 0) * 10) / 10
+        const cost = Math.round(kwh * PLN_TARIFF)
+        const monthLabel = `${monthShortLabels[m - 1]} ${y}`
+
+        let diffPct: number | undefined = undefined
+        if (idx > 0) {
+          const prevKwh = monthlyHistory[idx - 1].kwh
+          if (prevKwh > 0) {
+            diffPct = Math.round(((kwh - prevKwh) / prevKwh) * 1000) / 10
+          }
+        }
+
+        monthlyHistory.push({
+          monthKey: mKey,
+          monthLabel,
+          year: y,
+          month: m,
+          kwh,
+          cost,
+          diffPct,
+          isLatest: idx === sortedKeys.length - 1,
+        })
+      })
+    }
+
+    const totalMonthlyKwh = monthlyHistory.reduce((sum, m) => sum + m.kwh, 0)
+    const totalMonthlyCost = monthlyHistory.reduce((sum, m) => sum + m.cost, 0)
+    const avgMonthlyKwh = monthlyHistory.length > 0 ? Math.round((totalMonthlyKwh / monthlyHistory.length) * 10) / 10 : 0
+    const latestItem = monthlyHistory[monthlyHistory.length - 1]
+
+    const monthlySummary: MonthlyTrendSummary = {
+      recordedMonthsCount: monthlyHistory.length,
+      totalKwh: Math.round(totalMonthlyKwh * 10) / 10,
+      totalCost: totalMonthlyCost,
+      avgMonthlyKwh,
+      latestMonthLabel: latestItem?.monthLabel || 'Bulan Terkini',
+      latestMonthKwh: latestItem?.kwh || 0,
+      momDiffPct: latestItem?.diffPct,
+      trendStatus: (latestItem?.diffPct ?? 0) <= 0 ? 'hemat' : ((latestItem?.diffPct ?? 0) > 8 ? 'waspada' : 'stabil'),
+    }
+
+    // Ensure availableDates includes all recorded dates from both dates query and daily aggregation
+    if (availableDates.length === 0 && dailyConsumption.length > 0) {
+      const set = new Set<string>()
+      dailyConsumption.forEach((d) => {
+        if (d.dayDate) set.add(d.dayDate)
+      })
+      availableDates = Array.from(set).sort().reverse()
+    }
+
     return {
       storeId: store.id,
       storeCode,
@@ -359,12 +498,15 @@ export async function getStoreAnalyticsData(
       deviceId,
       anchorDate,
       anchorDateLabel,
+      availableDates,
       isLive,
       peakPowerWatts,
       avgPowerWatts,
       basePowerWatts,
       loadProfile24h,
       dailyConsumption,
+      monthlyHistory,
+      monthlySummary,
     }
   } catch (error) {
     console.error('Error in getStoreAnalyticsData:', error)

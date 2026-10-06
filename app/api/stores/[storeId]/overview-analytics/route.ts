@@ -10,8 +10,10 @@ export async function GET(
   try {
     const { storeId } = await params
     const decodedStoreId = decodeURIComponent(storeId)
+    const { searchParams } = new URL(request.url)
+    const targetDate = searchParams.get('date') || undefined
 
-    const data = await getStoreAnalyticsData(decodedStoreId)
+    const data = await getStoreAnalyticsData(decodedStoreId, targetDate)
     if (!data) {
       return NextResponse.json(
         { error: 'Data analisis toko tidak ditemukan' },
