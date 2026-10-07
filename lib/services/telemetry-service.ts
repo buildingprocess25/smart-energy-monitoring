@@ -1,4 +1,4 @@
-import { getAivenPool } from '@/lib/db/pools'
+import { getTelemetryPool as getAivenPool } from '@/lib/db/pools'
 import {
   Store,
   AuditSession,
@@ -30,11 +30,16 @@ const DEFAULT_PALETTE = [
 
 function getSensorColor(phase: string, name: string, index: number): string {
   const p = phase.toUpperCase()
-  const n = name.toLowerCase()
+  const n = (name || '').toLowerCase()
 
-  if (n.includes('fase r') || n.includes('phase r') || p === 'L1' || p === 'L12') return '#10b981' // Green (R)
-  if (n.includes('fase s') || n.includes('phase s') || p === 'L2' || p === 'L13') return '#3b82f6' // Blue (S)
-  if (n.includes('fase t') || n.includes('phase t') || p === 'L3' || p === 'L14') return '#f59e0b' // Amber/Yellow (T)
+  if (n.includes('fase r') || n.includes('phase r') || p === 'R') return '#10b981' // Green (R)
+  if (n.includes('fase s') || n.includes('phase s') || p === 'S') return '#3b82f6' // Blue (S)
+  if (n.includes('fase t') || n.includes('phase t') || p === 'T') return '#f59e0b' // Amber/Yellow (T)
+  if (n.includes('ac') || n.includes('air conditioner') || n.includes('hvac') || n.includes('cooler')) return '#06b6d4' // Cyan (AC/Cooling)
+  if (n.includes('chiller') || n.includes('showcase') || n.includes('refrigerat')) return '#3b82f6' // Blue (Cold Chain)
+  if (n.includes('freezer')) return '#6366f1' // Indigo (Freezer)
+  if (n.includes('lampu') || n.includes('light') || n.includes('penerangan')) return '#eab308' // Yellow (Lighting)
+  if (n.includes('heater') || n.includes('cooker') || n.includes('oven') || n.includes('microwave')) return '#f97316' // Orange (Heating)
   if (n.includes('dummy') || p === 'L6') return '#94a3b8' // Slate (Dummy)
 
   return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]
@@ -1278,8 +1283,17 @@ export async function getLiveTelemetry(storeId: string): Promise<PhaseData[]> {
   }
 }
 
+// In-memory cache for monthly cost summary across all stores (TTL: 5 minutes)
+let _monthlyCostCache: { data: MonthlyCostRecord[]; timestamp: number } | null = null
+const MONTHLY_COST_CACHE_TTL_MS = 5 * 60 * 1000
+
 // Fetch monthly energy consumption & cost history across all recorded months
 export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
+  const nowMs = Date.now()
+  if (_monthlyCostCache && nowMs - _monthlyCostCache.timestamp < MONTHLY_COST_CACHE_TTL_MS) {
+    return _monthlyCostCache.data
+  }
+
   const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
 
@@ -1348,7 +1362,7 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
       const y = now.getFullYear()
       const m = now.getMonth()
 
-      return [
+      const fallbackRecords: MonthlyCostRecord[] = [
         {
           monthKey: currentMonthKey,
           monthLabel: `${monthNames[m]} ${y}`,
@@ -1362,6 +1376,8 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
           avgDailyKwh: Math.round((totalKwh / 30) * 10) / 10,
         },
       ]
+      _monthlyCostCache = { data: fallbackRecords, timestamp: nowMs }
+      return fallbackRecords
     }
 
     const records: MonthlyCostRecord[] = []
@@ -1398,7 +1414,9 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
       })
     }
 
-    return records.reverse()
+    const result = records.reverse()
+    _monthlyCostCache = { data: result, timestamp: nowMs }
+    return result
   } catch (error) {
     console.error('Error in getMonthlyCostSummary:', error)
     return []

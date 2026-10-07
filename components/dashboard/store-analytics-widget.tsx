@@ -320,7 +320,7 @@ export function StoreAnalyticsWidget({
             )}
           >
             <Zap className="size-3.5 text-amber-500" />
-            <span>Per Hari</span>
+            <span>Harian (24 Jam)</span>
           </button>
           <button
             type="button"
@@ -333,7 +333,7 @@ export function StoreAnalyticsWidget({
             )}
           >
             <Activity className="size-3.5 text-emerald-500" />
-            <span>Per Minggu</span>
+            <span>Mingguan (7 Hari)</span>
           </button>
           <button
             type="button"
@@ -346,7 +346,7 @@ export function StoreAnalyticsWidget({
             )}
           >
             <BarChart3 className="size-3.5 text-sky-500" />
-            <span>Per Bulan</span>
+            <span>Bulanan (Riil)</span>
           </button>
         </div>
       </div>

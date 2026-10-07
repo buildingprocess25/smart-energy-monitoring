@@ -4,21 +4,38 @@ import { cn } from '@/lib/utils'
 
 interface StatusBadgeProps {
   status: StoreStatus
+  isRecording?: boolean
+  recordingSessionName?: string
   className?: string
 }
 
-export function StatusBadge({ status, className }: StatusBadgeProps) {
+export function StatusBadge({ status, isRecording, recordingSessionName, className }: StatusBadgeProps) {
+  if (isRecording) {
+    return (
+      <Badge
+        variant="default"
+        className={cn(
+          'gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-semibold',
+          className
+        )}
+      >
+        <span className="size-1.5 animate-ping rounded-full bg-white" />
+        {recordingSessionName ? `MEREKAM: ${recordingSessionName}` : 'SESI REKAMAN AKTIF'}
+      </Badge>
+    )
+  }
+
   if (status === 'live') {
     return (
       <Badge
         variant="default"
         className={cn(
-          'gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm',
+          'gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs font-semibold',
           className
         )}
       >
-        <span className="size-1.5 animate-pulse rounded-full bg-white" />
-        LIVE AUDIT IN PROGRESS
+        <span className="size-1.5 rounded-full bg-white" />
+        LIVE AUDIT
       </Badge>
     )
   }

@@ -82,7 +82,11 @@ export function StoreTable({ stores }: StoreTableProps) {
 
               {/* Status */}
               <TableCell>
-                <StatusBadge status={store.status} />
+                <StatusBadge
+                  status={store.status}
+                  isRecording={store.isRecording}
+                  recordingSessionName={store.recordingSessionName}
+                />
               </TableCell>
 
               {/* Total Energi */}

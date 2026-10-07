@@ -249,10 +249,13 @@ export function TelemetryChart({
             />
           )}
 
-          {/* Dynamic Lines for each Sensor / Phase in database */}
+          {/* Dynamic Lines for each Sensor / Equipment in database */}
           {visibleSensors.map((sensor) => {
             const dataKey = `${sensor.phase}_${metric}`
-            const displayName = `${sensor.phase} (${sensor.name})`
+            const displayName =
+              sensor.name && sensor.name !== sensor.phase
+                ? `${sensor.name} (${sensor.phase})`
+                : (sensor.name || sensor.phase)
 
             return (
               <Line

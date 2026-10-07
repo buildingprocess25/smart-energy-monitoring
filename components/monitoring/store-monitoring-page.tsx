@@ -352,7 +352,7 @@ export function StoreMonitoringPage({
           )}
         >
           <Gauge className="size-4" />
-          <span>Telemetri Multi-Fasa &amp; Sesi</span>
+          <span>Telemetri IoT &amp; Sesi Audit</span>
         </button>
 
         <button
@@ -366,7 +366,7 @@ export function StoreMonitoringPage({
           )}
         >
           <BarChart3 className="size-4" />
-          <span>Analitik Energi (Hari / Minggu / Bulan)</span>
+          <span>Analitik Profil Beban (Hari / Minggu / Bulan)</span>
         </button>
       </div>
 
@@ -524,10 +524,10 @@ export function StoreMonitoringPage({
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Gauge className="size-3.5" />
-                  Rincian Statistik Per Sensor / Fasa ({metricMeta.label})
+                  Rincian Statistik Per Sensor / Equipment ({metricMeta.label})
                 </h3>
                 <span className="text-[11px] text-muted-foreground">
-                  Klik kartu untuk memilih beberapa fasa (Multi-Select)
+                  Klik kartu untuk memilih beberapa sensor / equipment (Multi-Select)
                 </span>
               </div>
 
@@ -546,11 +546,11 @@ export function StoreMonitoringPage({
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="size-2.5 rounded-full bg-emerald-500 shrink-0" />
-                        <span className="font-mono text-xs font-bold text-foreground">
+                        <span className="text-xs font-bold text-foreground">
                           Total Beban
                         </span>
                         <span className="text-xs text-muted-foreground">
-                          (Semua Fasa)
+                          (Semua Titik)
                         </span>
                       </div>
                       {isAllPhasesSelected && (
@@ -585,9 +585,10 @@ export function StoreMonitoringPage({
                   </div>
                 )}
 
-                {/* Individual Phase Cards (R, S, T, etc.) */}
+                {/* Individual Equipment / Sensor Cards */}
                 {sensorStats.map(({ sensor, avg, max }) => {
                   const isSelected = isPhaseSelected(sensor.phase)
+                  const hasCustomName = sensor.name && sensor.name !== sensor.phase
 
                   return (
                     <div
@@ -601,20 +602,22 @@ export function StoreMonitoringPage({
                       )}
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <span
                             className="size-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: sensor.color }}
                           />
-                          <span className="font-mono text-xs font-bold text-foreground">
-                            {sensor.phase}
+                          <span className="text-xs font-bold text-foreground truncate" title={sensor.name || sensor.phase}>
+                            {hasCustomName ? sensor.name : `Sensor ${sensor.phase}`}
                           </span>
-                          <span className="text-xs text-muted-foreground">
-                            ({sensor.name})
-                          </span>
+                          {hasCustomName && (
+                            <span className="font-mono text-[10.5px] text-muted-foreground shrink-0">
+                              ({sensor.phase})
+                            </span>
+                          )}
                         </div>
                         {isSelected && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded shrink-0">
                             Terpilih
                           </span>
                         )}

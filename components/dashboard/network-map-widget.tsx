@@ -11,6 +11,8 @@ import {
   Filter,
   Navigation,
   Building2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from './status-badge'
@@ -53,39 +55,97 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
 
   const displayedStores = useMemo(() => {
     if (filterLiveOnly) {
-      return stores.filter((s) => s.status === 'live')
+      return stores.filter((s) => s.status === 'live' || s.isRecording)
     }
     return stores
   }, [filterLiveOnly, stores])
 
-  const liveStoresCount = stores.filter((s) => s.status === 'live').length
+  const liveStoresCount = stores.filter((s) => s.status === 'live' || s.isRecording).length
+  const recordingStoresCount = stores.filter((s) => s.isRecording).length
+
+  const currentStoreIndex = useMemo(() => {
+    if (!selectedStore) return 0
+    const idx = displayedStores.findIndex((s) => s.id === selectedStore.id)
+    return idx !== -1 ? idx : 0
+  }, [displayedStores, selectedStore])
 
   const handleSelectAndFocus = (store: Store) => {
     setSelectedStore(store)
     setFocusCount((c) => c + 1)
   }
 
+  const handleNextStore = () => {
+    if (displayedStores.length <= 1) return
+    const nextIdx = (currentStoreIndex + 1) % displayedStores.length
+    handleSelectAndFocus(displayedStores[nextIdx])
+  }
+
+  const handlePrevStore = () => {
+    if (displayedStores.length <= 1) return
+    const prevIdx = (currentStoreIndex - 1 + displayedStores.length) % displayedStores.length
+    handleSelectAndFocus(displayedStores[prevIdx])
+  }
+
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs">
       {/* Header Widget */}
-      <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-foreground">
               Peta Sebaran Alat IoT &amp; Jaringan Toko
             </h2>
-            <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              {liveStoresCount} Sesi Aktif
-            </span>
+            {recordingStoresCount > 0 ? (
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30">
+                <span className="size-1.5 animate-ping rounded-full bg-emerald-500" />
+                {recordingStoresCount} Sedang Merekam
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                {liveStoresCount} IoT Online
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">
-            Titik koordinat GPS toko yang sedang terpasang perangkat Smart Energy Meter dan riwayat audit.
+            Navigasi instan antar titik koordinat GPS toko yang terpasang perangkat Smart Energy Meter.
           </p>
         </div>
 
-        {/* Filter Controls & Store Count */}
-        <div className="flex items-center gap-2">
+        {/* Controls: Next/Prev Switcher & Filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Direct Next/Prev Navigation Button Group */}
+          {displayedStores.length > 1 && (
+            <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 shadow-2xs">
+              <button
+                type="button"
+                onClick={handlePrevStore}
+                title="Pindah ke Toko Sebelumnya"
+                aria-label="Toko Sebelumnya"
+                className="flex size-7 items-center justify-center rounded-md bg-background text-foreground shadow-xs hover:bg-muted transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="size-4" />
+              </button>
+
+              <div className="px-2 text-xs font-semibold text-foreground select-none">
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  {currentStoreIndex + 1}
+                </span>{' '}
+                <span className="text-muted-foreground">/ {displayedStores.length}</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleNextStore}
+                title="Pindah ke Toko Berikutnya"
+                aria-label="Toko Berikutnya"
+                className="flex size-7 items-center justify-center rounded-md bg-background text-foreground shadow-xs hover:bg-muted transition-colors cursor-pointer"
+              >
+                <ChevronRight className="size-4" />
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => setFilterLiveOnly(!filterLiveOnly)}
             className={cn(
@@ -96,7 +156,7 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
             )}
           >
             <Filter className="size-3.5" />
-            {filterLiveOnly ? 'Hanya Alat Aktif' : 'Semua Titik Toko'}
+            {filterLiveOnly ? 'Hanya Alat Aktif' : 'Semua Titik'}
           </button>
         </div>
       </div>
@@ -104,12 +164,14 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
       {/* Quick Store Shortcut Chips (if multiple stores exist) */}
       {displayedStores.length > 1 && (
         <div className="flex items-center gap-2 overflow-x-auto border-b bg-muted/20 px-4 py-2 text-xs scrollbar-none">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0">
-            Lompat ke Toko:
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground shrink-0 flex items-center gap-1">
+            <Navigation className="size-3" />
+            Lompat Lokasi:
           </span>
-          {displayedStores.map((s) => {
+          {displayedStores.map((s, idx) => {
             const isSelected = selectedStore?.id === s.id
-            const isLive = s.status === 'live'
+            const isRec = Boolean(s.isRecording)
+            const isLive = s.status === 'live' || isRec
             return (
               <button
                 key={s.id}
@@ -117,18 +179,18 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                 className={cn(
                   'flex items-center gap-1.5 shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-all cursor-pointer',
                   isSelected
-                    ? 'bg-slate-900 text-white shadow-xs dark:bg-emerald-600'
+                    ? 'bg-emerald-600 text-white shadow-xs font-semibold'
                     : 'bg-background border text-muted-foreground hover:text-foreground hover:border-slate-300'
                 )}
               >
                 <span
                   className={cn(
                     'size-1.5 rounded-full',
-                    isLive ? 'bg-emerald-400 animate-pulse' : 'bg-blue-400'
+                    isRec ? 'bg-emerald-300 animate-ping' : isLive ? 'bg-emerald-400' : 'bg-blue-400'
                   )}
                 />
-                <span>{s.code}</span>
-                <span className="text-[10px] opacity-75 truncate max-w-[100px]">
+                <span className="font-mono text-[11px]">{s.code}</span>
+                <span className="text-[10.5px] opacity-80 truncate max-w-[120px]">
                   {s.name}
                 </span>
               </button>
@@ -141,6 +203,31 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
       <div className="grid grid-cols-1 lg:grid-cols-12">
         {/* Real Interactive Leaflet Map (Col 8) */}
         <div className="relative min-h-[400px] lg:col-span-8 overflow-hidden bg-slate-100">
+          {/* Floating On-Map Next / Prev Quick Controller Bar */}
+          {displayedStores.length > 1 && (
+            <div className="absolute top-3 left-14 z-1000 flex items-center gap-1.5 rounded-lg border border-slate-200/90 bg-white/95 px-2 py-1 backdrop-blur-md shadow-md text-slate-800">
+              <button
+                type="button"
+                onClick={handlePrevStore}
+                title="Toko Sebelumnya"
+                className="flex size-6 items-center justify-center rounded hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="size-3.5" />
+              </button>
+              <span className="font-mono text-[11px] font-bold text-emerald-700 px-1 truncate max-w-[150px]">
+                {selectedStore?.name || selectedStore?.code}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextStore}
+                title="Toko Berikutnya"
+                className="flex size-6 items-center justify-center rounded hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+              >
+                <ChevronRight className="size-3.5" />
+              </button>
+            </div>
+          )}
+
           {/* Top-Right Info Badge */}
           <div className="pointer-events-none absolute right-3 top-3 z-1000 flex flex-col gap-0.5 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 backdrop-blur-md shadow-xs text-slate-800">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
@@ -182,7 +269,11 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                     <span className="font-mono text-xs font-bold text-muted-foreground">
                       {selectedStore.code}
                     </span>
-                    <StatusBadge status={selectedStore.status} />
+                    <StatusBadge
+                      status={selectedStore.status}
+                      isRecording={selectedStore.isRecording}
+                      recordingSessionName={selectedStore.recordingSessionName}
+                    />
                   </div>
                   <h3 className="mt-1 font-bold text-base text-foreground leading-tight">
                     {selectedStore.name}

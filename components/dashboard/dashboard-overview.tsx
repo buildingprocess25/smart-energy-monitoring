@@ -279,16 +279,27 @@ export function DashboardOverview({
                     <td className="p-4 text-center">
                       <span
                         className={cn(
-                          'inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-semibold',
-                          store.status === 'live'
+                          'inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold',
+                          store.isRecording
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30'
+                            : store.status === 'live'
                             ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
                             : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
                         )}
                       >
-                        {store.status === 'live' && (
-                          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                        {(store.isRecording || store.status === 'live') && (
+                          <span
+                            className={cn(
+                              'size-1.5 rounded-full',
+                              store.isRecording ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'
+                            )}
+                          />
                         )}
-                        {store.status === 'live' ? 'Live Telemetry' : 'Historical Audit'}
+                        {store.isRecording
+                          ? `Merekam (${store.recordingSessionName || 'Aktif'})`
+                          : store.status === 'live'
+                          ? 'Live Telemetry'
+                          : 'Historical Audit'}
                       </span>
                     </td>
                     <td className="p-4 text-right">

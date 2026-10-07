@@ -291,15 +291,21 @@ export function NetworkMapLeaflet({
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        isLive
+                        store.isRecording
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 ring-1 ring-emerald-400/40'
+                          : isLive
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-blue-50 text-blue-700 border border-blue-200'
                       }`}
                     >
-                      {isLive && (
-                        <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      {(store.isRecording || isLive) && (
+                        <span className={`size-1.5 rounded-full ${store.isRecording ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}`} />
                       )}
-                      {isLive ? 'Online Real-time' : 'Riwayat Audit'}
+                      {store.isRecording
+                        ? `Merekam: ${store.recordingSessionName || 'Aktif'}`
+                        : isLive
+                        ? 'Online Real-time'
+                        : 'Riwayat Audit'}
                     </span>
                   </div>
 

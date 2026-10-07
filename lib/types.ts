@@ -85,6 +85,9 @@ export interface Store {
   is24Hours?: boolean
   salesAreaM2?: number
   warehouseAreaM2?: number
+  isRecording?: boolean
+  recordingSessionName?: string
+  isOnline?: boolean
 }
 
 export interface SensorMeta {

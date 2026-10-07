@@ -60,6 +60,8 @@ export function StoreCard({ store }: StoreCardProps) {
         {/* Status Badge */}
         <StatusBadge
           status={store.status}
+          isRecording={store.isRecording}
+          recordingSessionName={store.recordingSessionName}
           className="absolute left-3 top-3 z-10 shadow-xs backdrop-blur-sm"
         />
 
