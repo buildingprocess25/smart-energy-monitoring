@@ -13,12 +13,15 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { TelemetryPoint, SensorMeta, MetricType, TimeRangeType } from '@/lib/types'
+import { cn } from '@/lib/utils'
 
 interface TelemetryChartProps {
   data: TelemetryPoint[]
   sensors: SensorMeta[]
   metric: MetricType
-  selectedSensorPhase?: string // 'all' or specific phase like 'L12'
+  selectedSensorPhase?: string | string[] // 'all' or specific phase array like ['R', 'S']
+  selectedSensorPhases?: string[]
+  showTotalPower?: boolean
   rangeType?: TimeRangeType
   className?: string
 }
@@ -70,18 +73,45 @@ export function TelemetryChart({
   sensors,
   metric = 'power',
   selectedSensorPhase = 'all',
+  selectedSensorPhases,
+  showTotalPower = true,
   rangeType = 'day',
   className,
 }: TelemetryChartProps) {
   const config = METRIC_CONFIG[metric] || METRIC_CONFIG.power
 
+  // Determine if 'all' is explicitly chosen
+  const isAllExplicitlySelected = useMemo(() => {
+    if (selectedSensorPhases && selectedSensorPhases.length > 0) {
+      return selectedSensorPhases.includes('all')
+    }
+    return selectedSensorPhase === 'all' || !selectedSensorPhase
+  }, [selectedSensorPhases, selectedSensorPhase])
+
+  // Normalise selected sensor phases to string array
+  const activePhases = useMemo<string[]>(() => {
+    if (isAllExplicitlySelected) {
+      return sensors.map((s) => s.phase)
+    }
+    if (selectedSensorPhases && selectedSensorPhases.length > 0) {
+      return selectedSensorPhases
+    }
+    if (Array.isArray(selectedSensorPhase)) {
+      return selectedSensorPhase
+    }
+    return [selectedSensorPhase]
+  }, [isAllExplicitlySelected, selectedSensorPhases, selectedSensorPhase, sensors])
+
+  const isAllPhasesSelected = useMemo(() => {
+    if (isAllExplicitlySelected) return true
+    if (sensors.length === 0) return true
+    return sensors.every((s) => activePhases.includes(s.phase))
+  }, [isAllExplicitlySelected, sensors, activePhases])
+
   // Filter dynamic sensors based on selected filter
   const visibleSensors = useMemo(() => {
-    if (selectedSensorPhase !== 'all') {
-      return sensors.filter((s) => s.phase === selectedSensorPhase)
-    }
-    return sensors
-  }, [sensors, selectedSensorPhase])
+    return sensors.filter((s) => activePhases.includes(s.phase))
+  }, [sensors, activePhases])
 
   // Sample ticks on XAxis so labels don't collide
   const xAxisTicks = useMemo(() => {
@@ -89,7 +119,7 @@ export function TelemetryChart({
     if (rangeType === 'week' || data.length <= 14) {
       return data.map((d) => d.timestamp)
     }
-    const step = Math.max(Math.floor(data.length / 10), 1)
+    const step = Math.max(Math.floor(data.length / (rangeType === 'month' ? 10 : 8)), 1)
     return data.filter((_, i) => i % step === 0).map((d) => d.timestamp)
   }, [data, rangeType])
 
@@ -100,6 +130,9 @@ export function TelemetryChart({
       </div>
     )
   }
+
+  // Check if Total Power area should be rendered
+  const renderTotalPower = metric === 'power' && showTotalPower && (isAllPhasesSelected || activePhases.includes('total'))
 
   return (
     <div className={className}>
@@ -143,38 +176,54 @@ export function TelemetryChart({
             content={({ active, payload, label }) => {
               if (active && payload && payload.length) {
                 const pt = payload[0]?.payload
+
+                // Ensure Total Daya Beban is ALWAYS at the top of the tooltip items
+                const sortedItems = [...payload].sort((a: any, b: any) => {
+                  const isATotal = a.dataKey === 'totalPower' || (typeof a.name === 'string' && a.name.toLowerCase().includes('total daya'))
+                  const isBTotal = b.dataKey === 'totalPower' || (typeof b.name === 'string' && b.name.toLowerCase().includes('total daya'))
+                  if (isATotal && !isBTotal) return -1
+                  if (!isATotal && isBTotal) return 1
+                  return 0
+                })
+
                 return (
-                  <div className="rounded-xl border bg-background/95 backdrop-blur-md p-3.5 shadow-xl text-xs flex flex-col gap-2 min-w-[200px]">
+                  <div className="rounded-xl border bg-background/95 backdrop-blur-md p-3.5 shadow-xl text-xs flex flex-col gap-2 min-w-[210px]">
                     <div className="flex items-center justify-between border-b pb-1.5 font-semibold text-foreground">
-                      <span className="font-mono text-muted-foreground">{pt.fullTime || label}</span>
+                      <span className="font-mono text-muted-foreground">{pt?.fullTime || label}</span>
                       <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
                         {config.unit}
                       </span>
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                      {payload.map((item: any) => (
-                        <div
-                          key={item.dataKey}
-                          className="flex items-center justify-between gap-3"
-                        >
-                          <span
-                            className="flex items-center gap-1.5 font-medium"
-                            style={{ color: item.color }}
+                    <div className="flex flex-col gap-1.5">
+                      {sortedItems.map((item: any) => {
+                        const isTotalItem = item.dataKey === 'totalPower' || item.name?.toLowerCase().includes('total daya')
+                        return (
+                          <div
+                            key={item.dataKey || item.name}
+                            className={cn(
+                              'flex items-center justify-between gap-3',
+                              isTotalItem && 'border-b pb-1.5 mb-0.5 font-semibold'
+                            )}
                           >
                             <span
-                              className="size-2 rounded-full shrink-0"
-                              style={{ backgroundColor: item.color }}
-                            />
-                            {item.name}
-                          </span>
-                          <span className="font-mono font-bold text-foreground">
-                            {typeof item.value === 'number'
-                              ? `${item.value.toLocaleString('id-ID')} ${config.unit}`
-                              : item.value}
-                          </span>
-                        </div>
-                      ))}
+                              className="flex items-center gap-1.5 font-medium"
+                              style={{ color: item.color }}
+                            >
+                              <span
+                                className="size-2 rounded-full shrink-0"
+                                style={{ backgroundColor: item.color }}
+                              />
+                              {item.name}
+                            </span>
+                            <span className="font-mono font-bold text-foreground">
+                              {typeof item.value === 'number'
+                                ? `${item.value.toLocaleString('id-ID')} ${config.unit}`
+                                : item.value}
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -185,17 +234,18 @@ export function TelemetryChart({
 
           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '16px' }} />
 
-          {/* Area fill for Total Power if power metric and all sensors visible */}
-          {metric === 'power' && selectedSensorPhase === 'all' && (
+          {/* Area and Line for Total Power (Total Daya Beban) */}
+          {renderTotalPower && (
             <Area
               type="monotone"
               dataKey="totalPower"
               name="Total Daya Beban"
               fill="#10b981"
-              fillOpacity={0.12}
-              stroke="#10b981"
-              strokeWidth={1}
-              strokeDasharray="4 4"
+              fillOpacity={0.15}
+              stroke="#059669"
+              strokeWidth={2.5}
+              dot={rangeType === 'year' || data.length <= 14 ? { r: 4, strokeWidth: 1.5, fill: '#059669' } : false}
+              activeDot={{ r: 6 }}
             />
           )}
 
@@ -212,7 +262,7 @@ export function TelemetryChart({
                 name={displayName}
                 stroke={sensor.color}
                 strokeWidth={2}
-                dot={rangeType === 'week' || data.length <= 14 ? { r: 4, strokeWidth: 1.5 } : false}
+                dot={rangeType === 'year' || data.length <= 14 ? { r: 4, strokeWidth: 1.5 } : false}
                 activeDot={{ r: 5 }}
               />
             )

@@ -117,21 +117,13 @@ Setiap card toko dirancang informatif dan interaktif:
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-1. **IoT Session Selector Dropdown:**
-   * Memungkinkan pengguna memilih rentang waktu sesi audit IoT (Sesi Aktif vs Riwayat Audit Lampau).
-2. **Multi-Utility Navigation Tabs:**
-   * **Tab ⚡ Listrik (Utama):** Visualisasi lengkap parameter listrik.
-   * **Tab 💧 Air (Ekspansi Masa Depan):** Debit air ($L/min$) & konsumsi ($m^3$).
-   * **Tab 🌡️ Lingkungan (Ekspansi Masa Depan):** Suhu ($\text{}^\circ\text{C}$) & kelembaban ($\%RH$).
-3. **Live Gauge Dashboard (3-Fase L1, L2, L3):**
-   * Meter dial melingkar (*Circular Gauges*) untuk:
-     * **Voltage ($V$):** Tegangan listrik per fase.
-     * **Current ($A$):** Arus listrik per fase.
-     * **Power ($W$):** Beban daya aktif.
-     * **Power Factor ($PF$):** Faktor efisiensi daya.
-4. **Interactive Telemetry Chart:**
-   * Grafik tren konsumsi beban daya listrik dari VPS backend.
-   * Highlight visual untuk **Jam Beban Puncak (*Peak Load Hours*)**.
+1. **Sub-Tab Navigation:**
+   * **Sub-Tab 1: ⚡ Telemetri Multi-Fasa & Sesi:** Visualisasi detail parameter listrik (Daya, Tegangan, Arus, Power Factor, Energi, Frekuensi), KPI per fasa/sensor dengan **Multi-Select Phase Filtering** & kartu **Total Daya Beban**, grafik multi-line/area dengan 4 mode waktu (**Harian** 24 jam, **Bulanan** 30 hari, **Tahunan** 12 bulan perbandingan, dan **Sesi Audit** 15 menit), serta tooltip yang memposisikan Total Daya Beban selalu di urutan paling atas.
+   * **Sub-Tab 2: 📊 Analitik Energi (Per Hari / Per Minggu / Per Bulan):** Widget komprehensif profil beban 24 jam dengan `TelemetryDatePicker`, grafik konsumsi harian 7 hari dengan sliding window navigation, dan riwayat bulanan riil dengan analisis MoM (% kenaikan/penurunan).
+2. **IoT Session & Date Navigator:**
+   * Memungkinkan pengguna memilih rentang waktu sesi audit IoT, tanggal harian dengan kalender popover, atau menggeser window mingguan/bulanan secara interaktif.
+3. **Optimasi Kueri & Caching:**
+   * Pengambilan data `getAuditSessions`, `getTelemetryHistory`, dan `getStoreAnalyticsData` dijalankan secara paralel (`Promise.all`) dengan in-memory cache untuk performa responsif instan.
 
 ---
 

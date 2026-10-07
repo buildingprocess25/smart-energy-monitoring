@@ -17,7 +17,7 @@ interface TelemetryDatePickerProps {
   selectedDate: string // YYYY-MM-DD
   onDateSelect: (dateStr: string) => void
   availableDates?: string[] // List of YYYY-MM-DD with real data
-  rangeType?: 'day' | 'week'
+  rangeType?: 'day' | 'week' | 'month' | 'year'
   onDateShift?: (direction: 'prev' | 'next') => void
   canShiftPrev?: boolean
   canShiftNext?: boolean
@@ -151,6 +151,15 @@ export function TelemetryDatePicker({
 
     const dayName = ID_DAYS[d.getDay()]
     const monthName = ID_MONTHS[d.getMonth()]?.slice(0, 3)
+    const fullMonthName = ID_MONTHS[d.getMonth()]
+
+    if (rangeType === 'year') {
+      return `Tahun ${d.getFullYear()}`
+    }
+
+    if (rangeType === 'month') {
+      return `${fullMonthName} ${d.getFullYear()}`
+    }
 
     if (rangeType === 'week') {
       const startDate = getSevenDaysBefore(d)
@@ -226,7 +235,13 @@ export function TelemetryDatePicker({
         <button
           type="button"
           onClick={() => onDateShift('prev')}
-          title="Tanggal Sebelumnya (Lebih Lama)"
+          title={
+            rangeType === 'year'
+              ? 'Tahun Sebelumnya'
+              : rangeType === 'month'
+              ? 'Bulan Sebelumnya'
+              : 'Tanggal Sebelumnya'
+          }
           disabled={!canShiftPrev}
           className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 cursor-pointer shadow-xs"
         >
@@ -255,7 +270,13 @@ export function TelemetryDatePicker({
         <button
           type="button"
           onClick={() => onDateShift('next')}
-          title="Tanggal Berikutnya (Terbaru)"
+          title={
+            rangeType === 'year'
+              ? 'Tahun Berikutnya'
+              : rangeType === 'month'
+              ? 'Bulan Berikutnya'
+              : 'Tanggal Berikutnya'
+          }
           disabled={!canShiftNext}
           className="flex size-8 items-center justify-center rounded-lg border border-border/80 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-30 cursor-pointer shadow-xs"
         >
@@ -277,29 +298,37 @@ export function TelemetryDatePicker({
               >
                 <ChevronsLeft className="size-4" />
               </button>
-              <button
-                type="button"
-                onClick={prevMonth}
-                title="Bulan Sebelumnya"
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="size-4" />
-              </button>
+              {rangeType === 'day' && (
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  title="Bulan Sebelumnya"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
+              )}
             </div>
 
             <div className="text-center font-semibold text-sm text-foreground">
-              {ID_MONTHS[viewDate.getMonth()]} {viewDate.getFullYear()}
+              {rangeType === 'year'
+                ? `Tahun ${viewDate.getFullYear()}`
+                : rangeType === 'month'
+                ? `Pilih Bulan (${viewDate.getFullYear()})`
+                : `${ID_MONTHS[viewDate.getMonth()]} ${viewDate.getFullYear()}`}
             </div>
 
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={nextMonth}
-                title="Bulan Berikutnya"
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-              >
-                <ChevronRight className="size-4" />
-              </button>
+              {rangeType === 'day' && (
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  title="Bulan Berikutnya"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <ChevronRight className="size-4" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={nextYear}
@@ -315,7 +344,16 @@ export function TelemetryDatePicker({
           <div className="mb-2.5 flex flex-col gap-1 rounded-xl bg-muted/70 p-2 text-[11px] text-muted-foreground border border-border/50">
             <div className="flex items-center justify-between">
               <span>
-                Mode: <strong className="text-foreground font-semibold">{rangeType === 'week' ? 'Mingguan (7 Hari)' : 'Harian (24 Jam)'}</strong>
+                Mode:{' '}
+                <strong className="text-foreground font-semibold">
+                  {rangeType === 'year'
+                    ? 'Tahunan (12 Bulan)'
+                    : rangeType === 'month'
+                    ? 'Bulanan (Per Hari dalam Sebulan)'
+                    : rangeType === 'week'
+                    ? 'Mingguan (7 Hari)'
+                    : 'Harian (24 Jam)'}
+                </strong>
               </span>
               {availableDates.length > 0 && (
                 <span className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-100/80 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
@@ -324,6 +362,16 @@ export function TelemetryDatePicker({
                 </span>
               )}
             </div>
+            {rangeType === 'year' && (
+              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
+                Pilih tahun untuk melihat perbandingan tren 12 bulan.
+              </div>
+            )}
+            {rangeType === 'month' && (
+              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
+                Pilih bulan untuk melihat tren seluruh hari (1 s/d 31) dalam bulan tersebut.
+              </div>
+            )}
             {rangeType === 'week' && (
               <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
                 Pilih tanggal akhir untuk melihat 7 hari ke belakang.
@@ -331,74 +379,127 @@ export function TelemetryDatePicker({
             )}
           </div>
 
-          {/* Day of Week Headers (Mon - Sun) */}
-          <div className="grid grid-cols-7 mb-1 text-center text-[10px] font-bold text-muted-foreground uppercase">
-            {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day) => (
-              <div key={day} className="py-1">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Days Grid */}
-          <div className="grid grid-cols-7 gap-y-1 text-center text-xs">
-            {calendarDays.map(({ date, isCurrentMonth, iso }, idx) => {
-              const dayNum = date.getDate()
-              const hasData = availableDateSet.has(iso)
-              const selected = isSelected(iso)
-              const inRange = isInRange(iso)
-              const rangeStart = isRangeStart(iso)
-              const rangeEnd = isRangeEnd(iso)
-
-              return (
-                <div
-                  key={idx}
-                  className={cn(
-                    'relative flex items-center justify-center p-0.5 transition-colors',
-                    rangeType === 'week' && inRange && 'bg-emerald-100/90 dark:bg-emerald-900/40',
-                    rangeType === 'week' && rangeStart && 'rounded-l-xl',
-                    rangeType === 'week' && rangeEnd && 'rounded-r-xl'
-                  )}
-                  onMouseEnter={() => {
-                    if (rangeType === 'week' && isCurrentMonth) {
-                      setHoveredDate(iso)
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    if (rangeType === 'week') {
-                      setHoveredDate(null)
-                    }
-                  }}
-                >
+          {rangeType === 'year' ? (
+            /* Year Selection Grid */
+            <div className="grid grid-cols-3 gap-2 py-2">
+              {[viewDate.getFullYear() - 1, viewDate.getFullYear(), viewDate.getFullYear() + 1].map((yr) => {
+                const yearIso = `${yr}-01-01`
+                const isCurrent = selectedDateObj.getFullYear() === yr
+                return (
                   <button
+                    key={yr}
                     type="button"
-                    onClick={() => handleSelect(iso)}
+                    onClick={() => handleSelect(yearIso)}
                     className={cn(
-                      'relative flex size-8 items-center justify-center rounded-lg font-mono text-xs transition-all cursor-pointer',
-                      !isCurrentMonth && 'text-muted-foreground/30 hover:text-muted-foreground',
-                      isCurrentMonth && !selected && !rangeEnd && !inRange && 'text-foreground hover:bg-muted',
-                      rangeType === 'week' && inRange && !rangeEnd && 'text-emerald-950 dark:text-emerald-100 font-bold bg-emerald-200/60 dark:bg-emerald-800/50',
-                      rangeType === 'week' && rangeStart && !rangeEnd && 'ring-1.5 ring-emerald-600/40 font-black',
-                      (selected || rangeEnd) &&
-                        'bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30 scale-105 z-10 ring-2 ring-emerald-400/40'
+                      'flex items-center justify-center rounded-xl p-3 text-xs font-semibold transition-all cursor-pointer border font-mono',
+                      isCurrent
+                        ? 'border-emerald-600 bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30'
+                        : 'border-border/60 bg-card text-foreground hover:bg-muted hover:border-border'
                     )}
                   >
-                    {dayNum}
-
-                    {/* Green dot indicator for dates with real telemetry data */}
-                    {hasData && (
-                      <span
-                        className={cn(
-                          'absolute bottom-0.5 left-1/2 -translate-x-1/2 size-1 rounded-full',
-                          selected || rangeEnd ? 'bg-white' : 'bg-emerald-500'
-                        )}
-                      />
-                    )}
+                    {yr}
                   </button>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          ) : rangeType === 'month' ? (
+            /* Month Selection Grid (12 Months) */
+            <div className="grid grid-cols-3 gap-2 py-2">
+              {ID_MONTHS.map((monthName, idx) => {
+                const targetYear = viewDate.getFullYear()
+                const monthIso = `${targetYear}-${String(idx + 1).padStart(2, '0')}-01`
+                const isCurrent =
+                  selectedDateObj.getFullYear() === targetYear && selectedDateObj.getMonth() === idx
+
+                return (
+                  <button
+                    key={monthName}
+                    type="button"
+                    onClick={() => handleSelect(monthIso)}
+                    className={cn(
+                      'flex items-center justify-center rounded-xl p-2.5 text-xs font-semibold transition-all cursor-pointer border',
+                      isCurrent
+                        ? 'border-emerald-600 bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30'
+                        : 'border-border/60 bg-card text-foreground hover:bg-muted hover:border-border'
+                    )}
+                  >
+                    {monthName}
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <>
+              {/* Day of Week Headers (Mon - Sun) */}
+              <div className="grid grid-cols-7 mb-1 text-center text-[10px] font-bold text-muted-foreground uppercase">
+                {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day) => (
+                  <div key={day} className="py-1">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Days Grid */}
+              <div className="grid grid-cols-7 gap-y-1 text-center text-xs">
+                {calendarDays.map(({ date, isCurrentMonth, iso }, idx) => {
+                  const dayNum = date.getDate()
+                  const hasData = availableDateSet.has(iso)
+                  const selected = isSelected(iso)
+                  const inRange = isInRange(iso)
+                  const rangeStart = isRangeStart(iso)
+                  const rangeEnd = isRangeEnd(iso)
+
+                  return (
+                    <div
+                      key={idx}
+                      className={cn(
+                        'relative flex items-center justify-center p-0.5 transition-colors',
+                        rangeType === 'week' && inRange && 'bg-emerald-100/90 dark:bg-emerald-900/40',
+                        rangeType === 'week' && rangeStart && 'rounded-l-xl',
+                        rangeType === 'week' && rangeEnd && 'rounded-r-xl'
+                      )}
+                      onMouseEnter={() => {
+                        if (rangeType === 'week' && isCurrentMonth) {
+                          setHoveredDate(iso)
+                        }
+                      }}
+                      onMouseLeave={() => {
+                        if (rangeType === 'week') {
+                          setHoveredDate(null)
+                        }
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSelect(iso)}
+                        className={cn(
+                          'relative flex size-8 items-center justify-center rounded-lg font-mono text-xs transition-all cursor-pointer',
+                          !isCurrentMonth && 'text-muted-foreground/30 hover:text-muted-foreground',
+                          isCurrentMonth && !selected && !rangeEnd && !inRange && 'text-foreground hover:bg-muted',
+                          rangeType === 'week' && inRange && !rangeEnd && 'text-emerald-950 dark:text-emerald-100 font-bold bg-emerald-200/60 dark:bg-emerald-800/50',
+                          rangeType === 'week' && rangeStart && !rangeEnd && 'ring-1.5 ring-emerald-600/40 font-black',
+                          (selected || rangeEnd) &&
+                            'bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30 scale-105 z-10 ring-2 ring-emerald-400/40'
+                        )}
+                      >
+                        {dayNum}
+
+                        {/* Green dot indicator for dates with real telemetry data */}
+                        {hasData && (
+                          <span
+                            className={cn(
+                              'absolute bottom-0.5 left-1/2 -translate-x-1/2 size-1 rounded-full',
+                              selected || rangeEnd ? 'bg-white' : 'bg-emerald-500'
+                            )}
+                          />
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
+          )}
 
           {/* Quick Jump Buttons Footer */}
           <div className="mt-3 pt-2.5 border-t border-border/60 flex items-center justify-between text-xs">

@@ -156,6 +156,10 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
   }
 }
 
+// In-memory cache for store analytics (TTL: 15 minutes)
+const _analyticsCache = new Map<string, { data: StoreAnalyticsResult; timestamp: number }>()
+const ANALYTICS_CACHE_TTL_MS = 15 * 60 * 1000
+
 // Fetch store-specific analytics: 24h load profile on latest/selected recorded date & daily consumption
 export async function getStoreAnalyticsData(
   storeCodeOrId?: string,
@@ -182,6 +186,13 @@ export async function getStoreAnalyticsData(
   const branch = store.branch || 'CIANJUR'
   const isLive = store.status === 'live'
 
+  // Check in-memory cache
+  const cacheKey = `${deviceId}_${targetDate || 'default'}`
+  const cached = _analyticsCache.get(cacheKey)
+  if (cached && Date.now() - cached.timestamp < ANALYTICS_CACHE_TTL_MS) {
+    return cached.data
+  }
+
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
   const monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -195,8 +206,8 @@ export async function getStoreAnalyticsData(
   }
 
   try {
-    // 2. Cari tanggal-tanggal rekaman yang tersedia untuk device ini
-    const datesRes = await aiven.query(`
+    // 2. Run queries in parallel: available dates, daily delta, and monthly partitions
+    const datesQueryPromise = aiven.query(`
       SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date
       FROM (
         SELECT epoch FROM history WHERE device_id = $1
@@ -205,6 +216,110 @@ export async function getStoreAnalyticsData(
       ) sub
       ORDER BY day_date DESC
     `, [deviceId])
+
+    const dailyQueryPromise = aiven.query(`
+      WITH raw_combined AS (
+        SELECT 
+          CASE
+            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+            ELSE phase
+          END as phase,
+          epoch,
+          energy
+        FROM (
+          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          UNION ALL
+          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+        ) combined
+      ),
+      per_phase_day AS (
+        SELECT 
+          phase,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
+          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+        FROM raw_combined
+        GROUP BY phase, day_date, day_name
+      )
+      SELECT 
+        day_date,
+        day_name,
+        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
+      FROM per_phase_day
+      GROUP BY day_date, day_name
+      ORDER BY day_date ASC
+    `, [deviceId])
+
+    const monthlyQueryPromise = aiven.query(`
+      WITH raw_combined AS (
+        SELECT 
+          CASE
+            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+            ELSE phase
+          END as phase,
+          epoch,
+          energy
+        FROM (
+          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          UNION ALL
+          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+        ) combined
+      ),
+      per_phase_month AS (
+        SELECT 
+          phase,
+          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
+          EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as yr,
+          EXTRACT(MONTH FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as mo,
+          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+        FROM raw_combined
+        GROUP BY phase, month_key, yr, mo
+      )
+      SELECT 
+        month_key,
+        yr::int as yr,
+        mo::int as mo,
+        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
+      FROM per_phase_month
+      GROUP BY month_key, yr, mo
+      HAVING COALESCE(SUM(phase_delta), 0) > 0
+      ORDER BY month_key ASC
+    `, [deviceId])
+
+    // Preload load curve if targetDate is provided
+    const loadQueryPromise = targetDate
+      ? aiven.query(`
+          SELECT 
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:00') as hour_str,
+            ROUND(AVG(total_power)::numeric, 1) as avg_power
+          FROM (
+            SELECT 
+              epoch,
+              SUM(power) as total_power
+            FROM (
+              SELECT epoch, phase, power FROM history 
+              WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
+              UNION ALL
+              SELECT epoch, phase, power FROM telemetry 
+              WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
+            ) p
+            GROUP BY epoch
+          ) grouped_epoch
+          GROUP BY hour_str
+          ORDER BY hour_str ASC
+        `, [deviceId, targetDate])
+      : null
+
+    const [datesRes, dailyRes, monthlyYearRes, preloadedLoadRes] = await Promise.all([
+      datesQueryPromise,
+      dailyQueryPromise,
+      monthlyQueryPromise,
+      loadQueryPromise,
+    ])
 
     let availableDates: string[] = datesRes.rows.map((r) => r.day_date).filter(Boolean)
 
@@ -234,8 +349,8 @@ export async function getStoreAnalyticsData(
       }
     }
 
-    // 3. Query Profil Beban 24 Jam pada anchorDate (Agregasi per jam 00:00 - 23:00 WIB)
-    const loadRes = await aiven.query(`
+    // 3. Query Profil Beban 24 Jam pada anchorDate (jika belum di-preload)
+    const loadRes = preloadedLoadRes || await aiven.query(`
       SELECT 
         TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:00') as hour_str,
         ROUND(AVG(total_power)::numeric, 1) as avg_power
@@ -289,42 +404,7 @@ export async function getStoreAnalyticsData(
     const avgPowerWatts = validLoadCount > 0 ? Math.round(totalLoadSum / validLoadCount) : 0
     const basePowerWatts = minPowerWatts !== Infinity ? Math.round(minPowerWatts) : 0
 
-    // 4. Query Daily Consumption Trend khusus untuk device ini (per-phase calculation with phase normalization)
-    const dailyRes = await aiven.query(`
-      WITH raw_combined AS (
-        SELECT 
-          CASE
-            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-            ELSE phase
-          END as phase,
-          epoch,
-          energy
-        FROM (
-          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-          UNION ALL
-          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-        ) combined
-      ),
-      per_phase_day AS (
-        SELECT 
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
-        FROM raw_combined
-        GROUP BY phase, day_date, day_name
-      )
-      SELECT 
-        day_date,
-        day_name,
-        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
-      FROM per_phase_day
-      GROUP BY day_date, day_name
-      ORDER BY day_date ASC
-    `, [deviceId])
-
+    // 4. Map Daily Consumption Trend
     const dailyConsumption: DailyConsumption[] = dailyRes.rows.map((r) => {
       const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
       const shortDay = dayNameMap[r.day_name] || r.day_name
@@ -356,44 +436,6 @@ export async function getStoreAnalyticsData(
     })
 
     // 5. Query Real Monthly Aggregation recorded in database for this store
-    const monthlyYearRes = await aiven.query(`
-      WITH raw_combined AS (
-        SELECT 
-          CASE
-            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-            ELSE phase
-          END as phase,
-          epoch,
-          energy
-        FROM (
-          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-          UNION ALL
-          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-        ) combined
-      ),
-      per_phase_month AS (
-        SELECT 
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
-          EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as yr,
-          EXTRACT(MONTH FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as mo,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
-        FROM raw_combined
-        GROUP BY phase, month_key, yr, mo
-      )
-      SELECT 
-        month_key,
-        yr::int as yr,
-        mo::int as mo,
-        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
-      FROM per_phase_month
-      GROUP BY month_key, yr, mo
-      HAVING COALESCE(SUM(phase_delta), 0) > 0
-      ORDER BY month_key ASC
-    `, [deviceId])
-
     let monthlyHistory: RealMonthlyConsumption[] = []
     const monthShortLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
@@ -425,7 +467,7 @@ export async function getStoreAnalyticsData(
         })
       })
     } else {
-      // Fallback: If no direct monthly partition found, aggregate from store's daily consumption
+      // Fallback: Aggregate from store's daily consumption
       const monthMap = new Map<string, number>()
       dailyConsumption.forEach((d) => {
         if (d.dayDate) {
@@ -489,7 +531,7 @@ export async function getStoreAnalyticsData(
       availableDates = Array.from(set).sort().reverse()
     }
 
-    return {
+    const result: StoreAnalyticsResult = {
       storeId: store.id,
       storeCode,
       storeName,
@@ -508,6 +550,11 @@ export async function getStoreAnalyticsData(
       monthlyHistory,
       monthlySummary,
     }
+
+    // Save to cache
+    _analyticsCache.set(cacheKey, { data: result, timestamp: Date.now() })
+
+    return result
   } catch (error) {
     console.error('Error in getStoreAnalyticsData:', error)
     return null
@@ -673,6 +720,12 @@ export async function getTelemetryHistory(
     } else if (rangeType === 'week' && targetDate) {
       sensorWhere += ` AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date 
                      AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')`
+      sensorParams.push(targetDate)
+    } else if (rangeType === 'month' && targetDate) {
+      sensorWhere += ` AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') = TO_CHAR($2::date, 'YYYY-MM')`
+      sensorParams.push(targetDate)
+    } else if (rangeType === 'year' && targetDate) {
+      sensorWhere += ` AND EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) = EXTRACT(YEAR FROM $2::date)`
       sensorParams.push(targetDate)
     }
 
@@ -917,6 +970,152 @@ export async function getTelemetryHistory(
         FROM buckets
         GROUP BY day_key, time_str, full_time, phase
         ORDER BY day_key ASC
+      `
+    } else if (rangeType === 'month') {
+      // Bulanan: Rata-rata per 1 hari dalam bulan targetDate (~30 titik data harian)
+      queryParams.push(targetDate || '2026-08-18')
+      pointsQuery = `
+        WITH raw_month AS (
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM history
+          WHERE device_id = $1 
+            AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') = TO_CHAR($2::date, 'YYYY-MM')
+          UNION ALL
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM telemetry
+          WHERE device_id = $1 
+            AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') = TO_CHAR($2::date, 'YYYY-MM')
+        ),
+        buckets AS (
+          SELECT 
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_key,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'DD/MM') as time_str,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as full_time,
+            phase,
+            power,
+            voltage,
+            current,
+            energy,
+            power_factor,
+            frequency
+          FROM raw_month
+        )
+        SELECT 
+          day_key as bucket_id,
+          time_str,
+          full_time,
+          phase,
+          ROUND(AVG(power)::numeric, 1) as power,
+          ROUND(AVG(voltage)::numeric, 1) as voltage,
+          ROUND(AVG(current)::numeric, 2) as current,
+          ROUND(GREATEST(0, (MAX(energy) - MIN(energy)))::numeric, 2) as energy,
+          ROUND(AVG(power_factor)::numeric, 2) as power_factor,
+          ROUND(AVG(frequency)::numeric, 1) as frequency
+        FROM buckets
+        GROUP BY day_key, time_str, full_time, phase
+        ORDER BY day_key ASC
+      `
+    } else if (rangeType === 'year') {
+      // Tahunan: Rata-rata per bulan dalam tahun targetDate (12 titik bulan)
+      queryParams.push(targetDate || '2026-08-18')
+      pointsQuery = `
+        WITH raw_year AS (
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM history
+          WHERE device_id = $1 
+            AND EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) = EXTRACT(YEAR FROM $2::date)
+          UNION ALL
+          SELECT 
+            epoch, 
+            CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM telemetry
+          WHERE device_id = $1 
+            AND EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) = EXTRACT(YEAR FROM $2::date)
+        ),
+        buckets AS (
+          SELECT 
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
+            EXTRACT(MONTH FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta'))::int as mo,
+            EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta'))::int as yr,
+            phase,
+            power,
+            voltage,
+            current,
+            energy,
+            power_factor,
+            frequency
+          FROM raw_year
+        )
+        SELECT 
+          month_key as bucket_id,
+          CASE mo
+            WHEN 1 THEN 'Jan'
+            WHEN 2 THEN 'Feb'
+            WHEN 3 THEN 'Mar'
+            WHEN 4 THEN 'Apr'
+            WHEN 5 THEN 'Mei'
+            WHEN 6 THEN 'Jun'
+            WHEN 7 THEN 'Jul'
+            WHEN 8 THEN 'Agu'
+            WHEN 9 THEN 'Sep'
+            WHEN 10 THEN 'Okt'
+            WHEN 11 THEN 'Nov'
+            WHEN 12 THEN 'Des'
+          END as time_str,
+          CASE mo
+            WHEN 1 THEN 'Januari ' || yr
+            WHEN 2 THEN 'Februari ' || yr
+            WHEN 3 THEN 'Maret ' || yr
+            WHEN 4 THEN 'April ' || yr
+            WHEN 5 THEN 'Mei ' || yr
+            WHEN 6 THEN 'Juni ' || yr
+            WHEN 7 THEN 'Juli ' || yr
+            WHEN 8 THEN 'Agustus ' || yr
+            WHEN 9 THEN 'September ' || yr
+            WHEN 10 THEN 'Oktober ' || yr
+            WHEN 11 THEN 'November ' || yr
+            WHEN 12 THEN 'Desember ' || yr
+          END as full_time,
+          phase,
+          ROUND(AVG(power)::numeric, 1) as power,
+          ROUND(AVG(voltage)::numeric, 1) as voltage,
+          ROUND(AVG(current)::numeric, 2) as current,
+          ROUND(GREATEST(0, (MAX(energy) - MIN(energy)))::numeric, 2) as energy,
+          ROUND(AVG(power_factor)::numeric, 2) as power_factor,
+          ROUND(AVG(frequency)::numeric, 1) as frequency
+        FROM buckets
+        GROUP BY month_key, mo, yr, phase
+        ORDER BY month_key ASC
       `
     } else {
       // Sesi Audit: Fast integer aggregation with phase normalization

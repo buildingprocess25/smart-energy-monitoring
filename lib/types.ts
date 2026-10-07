@@ -94,7 +94,7 @@ export interface SensorMeta {
 }
 
 export type MetricType = 'power' | 'voltage' | 'current' | 'powerFactor' | 'energy' | 'frequency'
-export type TimeRangeType = 'day' | 'week' | 'session'
+export type TimeRangeType = 'day' | 'week' | 'month' | 'year' | 'session'
 
 export interface TelemetryPoint {
   timestamp: string // "HH:MM" or "DD/MM HH:MM" format
