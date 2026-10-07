@@ -15,8 +15,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -98,18 +96,17 @@ function NavItemButton({
         tooltip={item.title}
         isActive={active}
         className={cn(
-          'group/nav relative h-9.5 px-3 font-medium transition-all duration-200 ease-out',
+          'group/nav relative h-10 w-full px-3 font-medium transition-colors duration-200',
+          'group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto',
           // Modern hover micro-interaction
-          'hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:text-emerald-950 dark:hover:text-emerald-100 hover:translate-x-0.5',
-          // Subtle gradient backdrop on hover
-          'after:pointer-events-none after:absolute after:inset-0 after:rounded-md after:bg-linear-to-r after:from-emerald-500/10 after:via-emerald-500/5 after:to-transparent after:opacity-0 hover:after:opacity-100 after:transition-opacity',
+          'hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:text-emerald-950 dark:hover:text-emerald-100',
           // Active state styling: distinct pill & indicator
           active
             ? 'bg-emerald-500/12 text-emerald-950 font-semibold shadow-xs ring-1 ring-emerald-500/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
             : 'text-muted-foreground',
-          // Active glowing left accent bar
+          // Active glowing left accent bar (only visible when expanded)
           active &&
-            'before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-full before:bg-emerald-600 dark:before:bg-emerald-400 before:shadow-[0_0_8px_rgba(16,185,129,0.7)]'
+            'before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-r-full before:bg-emerald-600 dark:before:bg-emerald-400 before:shadow-[0_0_8px_rgba(16,185,129,0.7)] group-data-[collapsible=icon]:before:hidden'
         )}
         render={
           item.external ? (
@@ -117,7 +114,7 @@ function NavItemButton({
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex w-full items-center gap-2.5"
+              className="flex size-full items-center gap-2.5 overflow-hidden group-data-[collapsible=icon]:justify-center"
             >
               <Icon
                 className={cn(
@@ -127,16 +124,16 @@ function NavItemButton({
                     : 'text-muted-foreground group-hover/nav:text-emerald-600 dark:group-hover/nav:text-emerald-400'
                 )}
               />
-              <span className="truncate">{item.title}</span>
+              <span className="truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
               {item.badge && (
-                <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-300">
+                <span className="ml-auto shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-300 group-data-[collapsible=icon]:hidden">
                   {item.badge}
                 </span>
               )}
-              <ExternalLink className="ml-auto size-3 opacity-40 transition-opacity group-hover/nav:opacity-90" />
+              <ExternalLink className="ml-auto size-3 shrink-0 opacity-40 transition-opacity group-hover/nav:opacity-90 group-data-[collapsible=icon]:hidden" />
             </a>
           ) : (
-            <Link href={item.href} className="flex w-full items-center gap-2.5">
+            <Link href={item.href} className="flex size-full items-center gap-2.5 overflow-hidden group-data-[collapsible=icon]:justify-center">
               <Icon
                 className={cn(
                   'size-4 shrink-0 transition-transform duration-200 group-hover/nav:scale-110',
@@ -145,9 +142,9 @@ function NavItemButton({
                     : 'text-muted-foreground group-hover/nav:text-emerald-600 dark:group-hover/nav:text-emerald-400'
                 )}
               />
-              <span className="truncate">{item.title}</span>
+              <span className="truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
               {item.badge && (
-                <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-300">
+                <span className="ml-auto shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-300 group-data-[collapsible=icon]:hidden">
                   {item.badge}
                 </span>
               )}
@@ -164,20 +161,22 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <SidebarMenu>
+      <SidebarHeader className="h-14 p-2 overflow-hidden flex items-center justify-center">
+        <SidebarMenu className="w-full">
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               tooltip="Smart Energy Monitoring"
-              className="h-auto p-1.5 transition-all duration-200 group-data-[collapsible=icon]:p-0 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+              className="h-10 w-full p-1.5 transition-colors duration-200 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
               render={
-                <Link href="/" className="flex items-center gap-2">
-                  <Logo className="scale-95 origin-left group-data-[collapsible=icon]:hidden" />
-                  <div className="hidden size-8 items-center justify-center rounded-lg bg-muted/40 p-1 ring-1 ring-border/50 group-data-[collapsible=icon]:flex">
+                <Link href="/" className="flex size-full items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center">
+                  <div className="flex shrink-0 group-data-[collapsible=icon]:hidden">
+                    <Logo className="scale-90 origin-left" />
+                  </div>
+                  <div className="hidden size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 p-1 ring-1 ring-emerald-500/20 group-data-[collapsible=icon]:flex">
                     <Image
-                      src="/api/assets/Building-Logo.png"
-                      alt="Smart Energy Logo"
+                      src="/api/assets/Alfamart-Emblem.png"
+                      alt="Alfamart"
                       width={60}
                       height={60}
                       className="size-6 object-contain drop-shadow-sm"
@@ -191,15 +190,20 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="overflow-x-hidden p-2 gap-0">
         {navGroups.map((group, groupIdx) => (
-          <SidebarGroup key={groupIdx}>
+          <div key={groupIdx} className="flex flex-col">
             {group.label && (
-              <SidebarGroupLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 group-data-[collapsible=icon]:opacity-0">
-                {group.label}
-              </SidebarGroupLabel>
+              <div className="h-8 flex items-center shrink-0">
+                <span className="px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80 group-data-[collapsible=icon]:hidden">
+                  {group.label}
+                </span>
+                <div className="hidden w-full items-center justify-center group-data-[collapsible=icon]:flex">
+                  <div className="h-px w-6 bg-sidebar-border" />
+                </div>
+              </div>
             )}
-            <SidebarMenu>
+            <SidebarMenu className="gap-1">
               {group.items.map((item) => (
                 <NavItemButton
                   key={item.title}
@@ -208,23 +212,24 @@ export function AppSidebar() {
                 />
               ))}
             </SidebarMenu>
-          </SidebarGroup>
+          </div>
         ))}
       </SidebarContent>
 
-      <SidebarFooter>
-        <SidebarMenu>
+      <SidebarFooter className="h-14 p-2 overflow-hidden flex items-center justify-center">
+        <SidebarMenu className="w-full">
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <SidebarMenuButton
                     size="lg"
-                    className="h-12 rounded-xl transition-all duration-200 hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:ring-1 hover:ring-emerald-500/20"
+                    tooltip="Admin SPARTA"
+                    className="h-10 w-full rounded-xl transition-colors duration-200 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:ring-1 hover:ring-emerald-500/20"
                   />
                 }
               >
-                <div className="relative">
+                <div className="relative shrink-0">
                   <Avatar className="size-8 rounded-lg ring-1 ring-emerald-500/30">
                     <AvatarFallback className="rounded-lg bg-emerald-600 text-xs font-semibold text-white">
                       AD
@@ -232,7 +237,7 @@ export function AppSidebar() {
                   </Avatar>
                   <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-semibold text-foreground">
                     Admin SPARTA
                   </span>

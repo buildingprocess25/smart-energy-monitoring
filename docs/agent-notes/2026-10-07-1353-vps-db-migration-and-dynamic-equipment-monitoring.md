@@ -21,6 +21,7 @@ Migrate database connection configuration in `smart-energy-monitoring` from lega
 - `lib/services/telemetry-service.ts`: Updated pool usage, added monthly cost query caching, and enhanced `getSensorColor` to recognize equipment categories.
 - `lib/types.ts`: Added `isRecording`, `recordingSessionName`, and `isOnline` to `Store` interface.
 - `components/dashboard/network-map-leaflet.tsx` & `network-map-widget.tsx`: Added Next/Prev direct navigation buttons (header, on-map floating controller, shortcut chips) to instantly glide across store GPS coordinates without manual panning.
+- `components/layout/app-sidebar.tsx` & `components/ui/sidebar.tsx`: Stabilized sidebar collapse/expand animations, fixed label/badge/external-link layout jumping in icon mode (`group-data-[collapsible=icon]:hidden`), centered icon alignment, and applied `overflow-x-hidden` with smooth 300ms easing.
 - `components/dashboard/status-badge.tsx`, `store-card.tsx`, and `store-table.tsx`: Integrated dynamic recording indicator.
 - `components/monitoring/store-monitoring-page.tsx`: Updated sub-tab names and enhanced equipment breakdown cards.
 - `components/dashboard/store-analytics-widget.tsx`: Standardized analytics tab labels to "Harian (24 Jam)", "Mingguan (7 Hari)", and "Bulanan (Riil)".
