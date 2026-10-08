@@ -76,8 +76,9 @@ export function TelemetryDatePicker({
 
   // Selected date as Date object
   const selectedDateObj = useMemo(() => {
-    return parseIso(selectedDate || '2026-08-18')
-  }, [selectedDate])
+    const defaultDate = availableDates[0] || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+    return parseIso(selectedDate || defaultDate)
+  }, [selectedDate, availableDates])
 
   // Calendar navigation month/year state
   const [viewDate, setViewDate] = useState<Date>(() => selectedDateObj)

@@ -184,7 +184,8 @@ export function StoreAnalyticsWidget({
 
   // Calculate 7-day sliding window anchored to store's anchorDate
   const { displayedTrend, periodLabel, windowTotalKwh } = useMemo(() => {
-    const baseAnchorStr = analytics?.anchorDate || '2026-08-26'
+    const todayJakarta = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+    const baseAnchorStr = analytics?.anchorDate || todayJakarta
     const parts = baseAnchorStr.split('-')
     const baseAnchor =
       parts.length === 3

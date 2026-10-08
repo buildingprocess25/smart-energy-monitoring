@@ -55,10 +55,10 @@ export const METRIC_CONFIG: Record<
     yAxisFormatter: (v) => v.toFixed(2),
   },
   energy: {
-    label: 'Energi Listrik (Active Energy)',
+    label: 'Konsumsi Energi (Active Energy)',
     unit: 'kWh',
-    description: 'Akumulasi pemakaian energi listrik',
-    yAxisFormatter: (v) => `${v.toFixed(1)} kWh`,
+    description: 'Konsumsi energi listrik per interval waktu',
+    yAxisFormatter: (v) => `${v.toFixed(2)} kWh`,
   },
   frequency: {
     label: 'Frekuensi Jaringan (Frequency)',
@@ -131,8 +131,11 @@ export function TelemetryChart({
     )
   }
 
-  // Check if Total Power area should be rendered
-  const renderTotalPower = metric === 'power' && showTotalPower && (isAllPhasesSelected || activePhases.includes('total'))
+  // Check if Total area should be rendered (for power or energy)
+  const isPowerOrEnergy = metric === 'power' || metric === 'energy'
+  const renderTotalArea = isPowerOrEnergy && showTotalPower && (isAllPhasesSelected || activePhases.includes('total'))
+  const totalDataKey = metric === 'energy' ? 'totalEnergy' : 'totalPower'
+  const totalLabel = metric === 'energy' ? 'Total Energi' : 'Total Daya Beban'
 
   return (
     <div className={className}>
@@ -177,10 +180,10 @@ export function TelemetryChart({
               if (active && payload && payload.length) {
                 const pt = payload[0]?.payload
 
-                // Ensure Total Daya Beban is ALWAYS at the top of the tooltip items
+                // Ensure Total is ALWAYS at the top of the tooltip items
                 const sortedItems = [...payload].sort((a: any, b: any) => {
-                  const isATotal = a.dataKey === 'totalPower' || (typeof a.name === 'string' && a.name.toLowerCase().includes('total daya'))
-                  const isBTotal = b.dataKey === 'totalPower' || (typeof b.name === 'string' && b.name.toLowerCase().includes('total daya'))
+                  const isATotal = a.dataKey === 'totalPower' || a.dataKey === 'totalEnergy' || (typeof a.name === 'string' && a.name.toLowerCase().includes('total'))
+                  const isBTotal = b.dataKey === 'totalPower' || b.dataKey === 'totalEnergy' || (typeof b.name === 'string' && b.name.toLowerCase().includes('total'))
                   if (isATotal && !isBTotal) return -1
                   if (!isATotal && isBTotal) return 1
                   return 0
@@ -197,7 +200,7 @@ export function TelemetryChart({
 
                     <div className="flex flex-col gap-1.5">
                       {sortedItems.map((item: any) => {
-                        const isTotalItem = item.dataKey === 'totalPower' || item.name?.toLowerCase().includes('total daya')
+                        const isTotalItem = item.dataKey === 'totalPower' || item.dataKey === 'totalEnergy' || item.name?.toLowerCase().includes('total')
                         return (
                           <div
                             key={item.dataKey || item.name}
@@ -234,12 +237,12 @@ export function TelemetryChart({
 
           <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '16px' }} />
 
-          {/* Area and Line for Total Power (Total Daya Beban) */}
-          {renderTotalPower && (
+          {/* Area and Line for Total (Total Daya Beban / Total Energi) */}
+          {renderTotalArea && (
             <Area
               type="monotone"
-              dataKey="totalPower"
-              name="Total Daya Beban"
+              dataKey={totalDataKey}
+              name={totalLabel}
               fill="#10b981"
               fillOpacity={0.15}
               stroke="#059669"
@@ -252,10 +255,11 @@ export function TelemetryChart({
           {/* Dynamic Lines for each Sensor / Equipment in database */}
           {visibleSensors.map((sensor) => {
             const dataKey = `${sensor.phase}_${metric}`
-            const displayName =
-              sensor.name && sensor.name !== sensor.phase
-                ? `${sensor.name} (${sensor.phase})`
-                : (sensor.name || sensor.phase)
+            const hasCustomName = sensor.name && sensor.name.trim() !== '' && sensor.name !== sensor.phase
+            const isShortPhase = sensor.phase.length <= 2
+            const displayName = hasCustomName
+              ? sensor.name
+              : (isShortPhase ? `Phase ${sensor.phase}` : sensor.phase)
 
             return (
               <Line

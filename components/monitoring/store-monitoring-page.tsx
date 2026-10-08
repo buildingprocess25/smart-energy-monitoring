@@ -56,7 +56,8 @@ export function StoreMonitoringPage({
 
   // Available dates from database (newest first)
   const availableDates = initialHistory.availableDates || []
-  const defaultDate = availableDates[0] || '2026-08-18'
+  const defaultDate =
+    availableDates[0] || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
   const [selectedDate, setSelectedDate] = useState<string>(defaultDate)
 
   // Active session state (for 'session' mode)
@@ -268,25 +269,36 @@ export function StoreMonitoringPage({
       const min = Math.min(...values)
       const latest = values[values.length - 1]
 
+      const decimals = selectedMetric === 'energy' ? 100 : 10
       return {
         sensor,
-        avg: Math.round(avg * 10) / 10,
-        max: Math.round(max * 10) / 10,
-        min: Math.round(min * 10) / 10,
-        latest: Math.round(latest * 10) / 10,
+        avg: Math.round(avg * decimals) / decimals,
+        max: Math.round(max * decimals) / decimals,
+        min: Math.round(min * decimals) / decimals,
+        latest: Math.round(latest * decimals) / decimals,
       }
     })
   }, [points, sensors, selectedMetric])
 
-  // Calculate Total Power stats if metric is power
-  const totalPowerStats = useMemo(() => {
-    if (!points || points.length === 0 || selectedMetric !== 'power') return null
+  // Calculate Total stats if metric is power or energy
+  const totalSummaryStats = useMemo(() => {
+    if (!points || points.length === 0) return null
+    if (selectedMetric !== 'power' && selectedMetric !== 'energy') return null
+
+    const isEnergy = selectedMetric === 'energy'
+    const key = isEnergy ? 'totalEnergy' : 'totalPower'
     const values = points
-      .map((p) => (typeof p.totalPower === 'number' ? p.totalPower : null))
+      .map((p) => (typeof p[key] === 'number' ? p[key] : null))
       .filter((v): v is number => v !== null && v > 0)
 
     if (values.length === 0) {
-      return { avg: 0, max: 0, latest: 0 }
+      return {
+        label: isEnergy ? 'Total Energi' : 'Total Beban',
+        unit: isEnergy ? 'kWh' : 'W',
+        avg: 0,
+        max: 0,
+        latest: 0,
+      }
     }
 
     const sum = values.reduce((a, b) => a + b, 0)
@@ -294,10 +306,13 @@ export function StoreMonitoringPage({
     const max = Math.max(...values)
     const latest = values[values.length - 1]
 
+    const decimals = isEnergy ? 100 : 10
     return {
-      avg: Math.round(avg * 10) / 10,
-      max: Math.round(max * 10) / 10,
-      latest: Math.round(latest * 10) / 10,
+      label: isEnergy ? 'Total Energi' : 'Total Beban',
+      unit: isEnergy ? 'kWh' : 'W',
+      avg: Math.round(avg * decimals) / decimals,
+      max: Math.round(max * decimals) / decimals,
+      latest: Math.round(latest * decimals) / decimals,
     }
   }, [points, selectedMetric])
 
@@ -520,132 +535,166 @@ export function StoreMonitoringPage({
 
           {/* Dynamic Sensor Cards Breakdown (Summary KPI Fasa with Multi-Select) */}
           {sensorStats.length > 0 && (
-            <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <Gauge className="size-3.5" />
-                  Rincian Statistik Per Sensor / Equipment ({metricMeta.label})
+                  Rincian Statistik Per Sensor / Titik ({metricMeta.label})
                 </h3>
                 <span className="text-[11px] text-muted-foreground">
-                  Klik kartu untuk memilih beberapa sensor / equipment (Multi-Select)
+                  Klik kartu untuk memilih sensor (Multi-Select)
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-                {/* Total Daya Beban Card (Tampil di posisi pertama jika parameter Daya) */}
-                {selectedMetric === 'power' && totalPowerStats && (
-                  <div
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                {/* Total Beban / Total Energi Card (Tampil di posisi pertama jika parameter Daya atau Energi) */}
+                {totalSummaryStats && (
+                  <button
+                    type="button"
                     onClick={() => togglePhase('all')}
                     className={cn(
-                      'group flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-all cursor-pointer',
+                      'group flex flex-col justify-between rounded-lg border px-3 py-2 text-left transition-all cursor-pointer select-none',
                       isAllPhasesSelected
-                        ? 'border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-500/20 shadow-sm dark:bg-emerald-950/30'
-                        : 'bg-card hover:border-emerald-500/40 hover:shadow-xs opacity-75 grayscale-[20%]'
+                        ? 'border-emerald-500/60 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:border-emerald-500/40'
+                        : 'bg-card hover:border-emerald-500/30 hover:bg-muted/30 opacity-60 hover:opacity-95'
                     )}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2.5 rounded-full bg-emerald-500 shrink-0" />
-                        <span className="text-xs font-bold text-foreground">
-                          Total Beban
+                    <div className="flex items-center justify-between gap-1.5 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span className="text-xs font-bold text-foreground truncate">
+                          {totalSummaryStats.label}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          (Semua Titik)
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          (Semua)
                         </span>
                       </div>
                       {isAllPhasesSelected && (
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                          Aktif (Area)
+                        <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded">
+                          Aktif
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-3 flex items-baseline justify-between">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          Rata-rata Total
+                    <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="text-sm sm:text-base font-bold font-mono tracking-tight text-foreground">
+                          {totalSummaryStats.avg.toLocaleString('id-ID', {
+                            minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
+                            maximumFractionDigits: 2,
+                          })}
                         </span>
-                        <span className="text-xl font-bold font-mono text-foreground">
-                          {totalPowerStats.avg.toLocaleString('id-ID')}{' '}
-                          <span className="text-xs font-normal text-muted-foreground">
-                            W
-                          </span>
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          {totalSummaryStats.unit}
                         </span>
                       </div>
 
-                      <div className="flex flex-col text-right">
-                        <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                          Maks Total
+                      <div
+                        className="flex items-baseline gap-1 text-[11px] text-muted-foreground font-mono shrink-0"
+                        title={`Maks Total: ${totalSummaryStats.max.toLocaleString('id-ID')} ${totalSummaryStats.unit}`}
+                      >
+                        <span className="text-[9px] uppercase font-sans text-muted-foreground/75 font-medium">
+                          Maks
                         </span>
-                        <span className="text-sm font-semibold font-mono text-muted-foreground">
-                          {totalPowerStats.max.toLocaleString('id-ID')} W
+                        <span className="font-semibold text-foreground/80">
+                          {totalSummaryStats.max.toLocaleString('id-ID', {
+                            minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
+                            maximumFractionDigits: 2,
+                          })}
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 )}
 
                 {/* Individual Equipment / Sensor Cards */}
                 {sensorStats.map(({ sensor, avg, max }) => {
                   const isSelected = isPhaseSelected(sensor.phase)
-                  const hasCustomName = sensor.name && sensor.name !== sensor.phase
+                  const hasCustomName = sensor.name && sensor.name.trim() !== '' && sensor.name !== sensor.phase
+                  const isShortPhase = sensor.phase.length <= 2 // e.g. 'R', 'S', 'T'
+                  const displayName = hasCustomName ? sensor.name : (isShortPhase ? `Phase ${sensor.phase}` : sensor.phase)
+                  const subLabel = !hasCustomName && isShortPhase ? `(${sensor.phase})` : null
 
                   return (
-                    <div
+                    <button
                       key={sensor.phase}
+                      type="button"
                       onClick={() => togglePhase(sensor.phase)}
                       className={cn(
-                        'group flex flex-col justify-between rounded-xl border p-4 shadow-xs transition-all cursor-pointer',
+                        'group flex flex-col justify-between rounded-lg border px-3 py-2 text-left transition-all cursor-pointer select-none',
                         isSelected
-                          ? 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-500/20 shadow-sm dark:bg-emerald-950/20'
-                          : 'bg-card hover:border-emerald-500/40 hover:shadow-xs opacity-40 grayscale-[20%]'
+                          ? 'border-border/80 bg-card shadow-xs ring-1 ring-border/50 dark:bg-card'
+                          : 'bg-card/60 hover:border-border hover:bg-muted/20 opacity-50 hover:opacity-90'
                       )}
+                      style={{
+                        borderColor: isSelected ? sensor.color : undefined,
+                        backgroundColor: isSelected ? `${sensor.color}0c` : undefined,
+                        boxShadow: isSelected ? `0 0 0 1px ${sensor.color}35` : undefined,
+                      }}
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center justify-between gap-1.5 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0 truncate">
                           <span
-                            className="size-2.5 rounded-full shrink-0"
+                            className="size-2 rounded-full shrink-0"
                             style={{ backgroundColor: sensor.color }}
                           />
-                          <span className="text-xs font-bold text-foreground truncate" title={sensor.name || sensor.phase}>
-                            {hasCustomName ? sensor.name : `Sensor ${sensor.phase}`}
+                          <span
+                            className="text-xs font-bold text-foreground truncate"
+                            title={hasCustomName ? `${sensor.name} (${sensor.phase})` : `Phase ${sensor.phase}`}
+                          >
+                            {displayName}
                           </span>
-                          {hasCustomName && (
-                            <span className="font-mono text-[10.5px] text-muted-foreground shrink-0">
-                              ({sensor.phase})
+                          {subLabel && (
+                            <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                              {subLabel}
                             </span>
                           )}
                         </div>
                         {isSelected && (
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded shrink-0">
-                            Terpilih
+                          <span
+                            className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                            style={{
+                              color: sensor.color,
+                              backgroundColor: `${sensor.color}18`,
+                            }}
+                          >
+                            Pilih
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-3 flex items-baseline justify-between">
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                            Rata-rata
+                      <div className="mt-1.5 flex items-baseline justify-between gap-2">
+                        <div className="flex items-baseline gap-1 min-w-0">
+                          <span className="text-sm sm:text-base font-bold font-mono tracking-tight text-foreground">
+                            {avg.toLocaleString('id-ID', {
+                              minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
+                              maximumFractionDigits: 2,
+                            })}
                           </span>
-                          <span className="text-xl font-bold font-mono text-foreground">
-                            {avg.toLocaleString('id-ID')}{' '}
-                            <span className="text-xs font-normal text-muted-foreground">
-                              {metricMeta.unit}
-                            </span>
+                          <span className="text-[10px] font-medium text-muted-foreground">
+                            {metricMeta.unit}
                           </span>
                         </div>
 
-                        <div className="flex flex-col text-right">
-                          <span className="text-[10px] uppercase font-semibold text-muted-foreground">
-                            Maksimum
+                        <div
+                          className="flex items-baseline gap-1 text-[11px] text-muted-foreground font-mono shrink-0"
+                          title={`Maksimum: ${max.toLocaleString('id-ID', {
+                            minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
+                            maximumFractionDigits: 2,
+                          })} ${metricMeta.unit}`}
+                        >
+                          <span className="text-[9px] uppercase font-sans text-muted-foreground/75 font-medium">
+                            Maks
                           </span>
-                          <span className="text-sm font-semibold font-mono text-muted-foreground">
-                            {max.toLocaleString('id-ID')} {metricMeta.unit}
+                          <span className="font-semibold text-foreground/80">
+                            {max.toLocaleString('id-ID', {
+                              minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
+                              maximumFractionDigits: 2,
+                            })}
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>
@@ -716,6 +765,10 @@ export function StoreMonitoringPage({
                   </button>
                   {sensors.map((s) => {
                     const isSelected = isPhaseSelected(s.phase)
+                    const hasCustomName = s.name && s.name.trim() !== '' && s.name !== s.phase
+                    const isShortPhase = s.phase.length <= 2
+                    const btnLabel = hasCustomName ? s.name : (isShortPhase ? `Phase ${s.phase}` : s.phase)
+
                     return (
                       <button
                         key={s.phase}
@@ -724,6 +777,7 @@ export function StoreMonitoringPage({
                           borderColor: isSelected ? s.color : undefined,
                           color: isSelected ? s.color : undefined,
                         }}
+                        title={hasCustomName ? `${s.name} (${s.phase})` : s.phase}
                         className={cn(
                           'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold border transition-colors cursor-pointer',
                           isSelected
@@ -735,7 +789,7 @@ export function StoreMonitoringPage({
                           className="size-2 rounded-full shrink-0"
                           style={{ backgroundColor: s.color }}
                         />
-                        {s.phase} ({s.name})
+                        {btnLabel}
                       </button>
                     )
                   })}

@@ -232,11 +232,12 @@ export async function getStoreAnalyticsData(
             ELSE phase
           END as phase,
           epoch,
+          power,
           energy
         FROM (
-          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT phase, epoch, power, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
           UNION ALL
-          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT phase, epoch, power, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
         ) combined
       ),
       per_phase_day AS (
@@ -244,7 +245,10 @@ export async function getStoreAnalyticsData(
           phase,
           TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
           TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+          CASE 
+            WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 24 * 1.8 + 5.0, 10.0) THEN (MAX(energy) - MIN(energy))
+            ELSE GREATEST(0, (AVG(power) / 1000.0) * 24)
+          END as phase_delta
         FROM raw_combined
         GROUP BY phase, day_date, day_name
       )
@@ -267,11 +271,12 @@ export async function getStoreAnalyticsData(
             ELSE phase
           END as phase,
           epoch,
+          power,
           energy
         FROM (
-          SELECT phase, epoch, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT phase, epoch, power, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
           UNION ALL
-          SELECT phase, epoch, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT phase, epoch, power, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
         ) combined
       ),
       per_phase_month AS (
@@ -280,7 +285,10 @@ export async function getStoreAnalyticsData(
           TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
           EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as yr,
           EXTRACT(MONTH FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as mo,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
+          CASE 
+            WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 720 * 1.8 + 50.0, 50.0) THEN (MAX(energy) - MIN(energy))
+            ELSE GREATEST(0, (AVG(power) / 1000.0) * 720)
+          END as phase_delta
         FROM raw_combined
         GROUP BY phase, month_key, yr, mo
       )
@@ -327,21 +335,10 @@ export async function getStoreAnalyticsData(
     ])
 
     let availableDates: string[] = datesRes.rows.map((r) => r.day_date).filter(Boolean)
+    const todayJakarta = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
-    // Tentukan anchor date: Jika targetDate spesifik diberikan, pakai targetDate!
-    let anchorDate = availableDates[0] || '2026-08-26'
-    if (targetDate) {
-      anchorDate = targetDate
-    } else if (isLive) {
-      const yesterday = new Date()
-      yesterday.setDate(yesterday.getDate() - 1)
-      const yIso = yesterday.toISOString().split('T')[0]
-      if (availableDates.includes(yIso)) {
-        anchorDate = yIso
-      } else if (availableDates.length > 0) {
-        anchorDate = availableDates[0]
-      }
-    }
+    // Tentukan anchor date: Selalu prioritaskan tanggal terbaru yang tercatat (availableDates[0]) jika tidak ada targetDate spesifik
+    let anchorDate = targetDate || availableDates[0] || todayJakarta
 
     let anchorDateLabel = anchorDate
     if (anchorDate) {
@@ -707,9 +704,11 @@ export async function getTelemetryHistory(
 
     const availableDates: string[] = datesRes.rows.map((r) => r.date_str)
 
-    // Set default target date to newest available date
-    if (!targetDate && availableDates.length > 0) {
-      targetDate = availableDates[0] // e.g. '2026-08-18'
+    const todayJakarta = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+
+    // Set default target date to newest available date from database, or today's date
+    if (!targetDate) {
+      targetDate = availableDates[0] || todayJakarta
     }
 
     // 2. Fetch distinct sensors SCOPED to the active query with phase normalization
@@ -858,7 +857,7 @@ export async function getTelemetryHistory(
     // 3. Construct specific SQL query per range mode with phase normalization
     if (rangeType === 'day') {
       // Harian: Rata-rata per 1 jam (24 jam) menggabungkan telemetry + history
-      queryParams.push(targetDate || '2026-08-18')
+      queryParams.push(targetDate || todayJakarta)
       pointsQuery = `
         WITH raw_day AS (
           SELECT 
@@ -907,7 +906,13 @@ export async function getTelemetryHistory(
           ROUND(AVG(power)::numeric, 1) as power,
           ROUND(AVG(voltage)::numeric, 1) as voltage,
           ROUND(AVG(current)::numeric, 2) as current,
-          ROUND(MAX(energy)::numeric, 3) as energy,
+          ROUND(
+            CASE 
+              WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 1.8 + 0.2, 0.5) THEN (MAX(energy) - MIN(energy))
+              ELSE GREATEST(0, (AVG(power) / 1000.0))
+            END::numeric, 
+            2
+          ) as energy,
           ROUND(AVG(power_factor)::numeric, 2) as power_factor,
           ROUND(AVG(frequency)::numeric, 1) as frequency
         FROM buckets
@@ -916,7 +921,7 @@ export async function getTelemetryHistory(
       `
     } else if (rangeType === 'week') {
       // Mingguan: Rata-rata per 1 hari (7 hari terakhir dari tanggal terpilih) menggabungkan telemetry + history
-      queryParams.push(targetDate || '2026-08-18')
+      queryParams.push(targetDate || todayJakarta)
       pointsQuery = `
         WITH raw_week AS (
           SELECT 
@@ -969,7 +974,13 @@ export async function getTelemetryHistory(
           ROUND(AVG(power)::numeric, 1) as power,
           ROUND(AVG(voltage)::numeric, 1) as voltage,
           ROUND(AVG(current)::numeric, 2) as current,
-          ROUND(GREATEST(0, (MAX(energy) - MIN(energy)))::numeric, 2) as energy,
+          ROUND(
+            CASE 
+              WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 24 * 1.8 + 5.0, 10.0) THEN (MAX(energy) - MIN(energy))
+              ELSE GREATEST(0, (AVG(power) / 1000.0) * 24)
+            END::numeric, 
+            2
+          ) as energy,
           ROUND(AVG(power_factor)::numeric, 2) as power_factor,
           ROUND(AVG(frequency)::numeric, 1) as frequency
         FROM buckets
@@ -978,7 +989,7 @@ export async function getTelemetryHistory(
       `
     } else if (rangeType === 'month') {
       // Bulanan: Rata-rata per 1 hari dalam bulan targetDate (~30 titik data harian)
-      queryParams.push(targetDate || '2026-08-18')
+      queryParams.push(targetDate || todayJakarta)
       pointsQuery = `
         WITH raw_month AS (
           SELECT 
@@ -1029,7 +1040,13 @@ export async function getTelemetryHistory(
           ROUND(AVG(power)::numeric, 1) as power,
           ROUND(AVG(voltage)::numeric, 1) as voltage,
           ROUND(AVG(current)::numeric, 2) as current,
-          ROUND(GREATEST(0, (MAX(energy) - MIN(energy)))::numeric, 2) as energy,
+          ROUND(
+            CASE 
+              WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 24 * 1.8 + 5.0, 10.0) THEN (MAX(energy) - MIN(energy))
+              ELSE GREATEST(0, (AVG(power) / 1000.0) * 24)
+            END::numeric, 
+            2
+          ) as energy,
           ROUND(AVG(power_factor)::numeric, 2) as power_factor,
           ROUND(AVG(frequency)::numeric, 1) as frequency
         FROM buckets
@@ -1038,7 +1055,7 @@ export async function getTelemetryHistory(
       `
     } else if (rangeType === 'year') {
       // Tahunan: Rata-rata per bulan dalam tahun targetDate (12 titik bulan)
-      queryParams.push(targetDate || '2026-08-18')
+      queryParams.push(targetDate || todayJakarta)
       pointsQuery = `
         WITH raw_year AS (
           SELECT 
@@ -1115,7 +1132,13 @@ export async function getTelemetryHistory(
           ROUND(AVG(power)::numeric, 1) as power,
           ROUND(AVG(voltage)::numeric, 1) as voltage,
           ROUND(AVG(current)::numeric, 2) as current,
-          ROUND(GREATEST(0, (MAX(energy) - MIN(energy)))::numeric, 2) as energy,
+          ROUND(
+            CASE 
+              WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 720 * 1.8 + 50.0, 50.0) THEN (MAX(energy) - MIN(energy))
+              ELSE GREATEST(0, (AVG(power) / 1000.0) * 720)
+            END::numeric, 
+            2
+          ) as energy,
           ROUND(AVG(power_factor)::numeric, 2) as power_factor,
           ROUND(AVG(frequency)::numeric, 1) as frequency
         FROM buckets
@@ -1156,7 +1179,13 @@ export async function getTelemetryHistory(
             ROUND(AVG(power)::numeric, 1) as power,
             ROUND(AVG(voltage)::numeric, 1) as voltage,
             ROUND(AVG(current)::numeric, 2) as current,
-            ROUND(AVG(energy)::numeric, 3) as energy,
+            ROUND(
+              CASE 
+                WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) * 0.25 / 1000.0) * 1.8 + 0.1, 0.2) THEN (MAX(energy) - MIN(energy))
+                ELSE (AVG(power) * 0.25 / 1000.0)
+              END::numeric, 
+              2
+            ) as energy,
             ROUND(AVG(power_factor)::numeric, 2) as power_factor,
             ROUND(AVG(frequency)::numeric, 1) as frequency
           FROM raw_sess
@@ -1184,6 +1213,7 @@ export async function getTelemetryHistory(
           timestamp: row.time_str,
           fullTime: row.full_time,
           totalPower: 0,
+          totalEnergy: 0,
         })
       }
 
@@ -1203,9 +1233,10 @@ export async function getTelemetryHistory(
       pt[`${phaseKey}_energy`] = kwh
       pt[`${phaseKey}_frequency`] = hz
 
-      // Accumulate to totalPower (skip dummy sensor if labeled dummy)
+      // Accumulate to totalPower & totalEnergy (skip dummy sensor if labeled dummy)
       if (!phaseKey.toLowerCase().includes('dummy') && phaseKey !== 'L6') {
         pt.totalPower = Math.round(((pt.totalPower || 0) + p) * 10) / 10
+        pt.totalEnergy = Math.round(((pt.totalEnergy || 0) + kwh) * 100) / 100
       }
     }
 
