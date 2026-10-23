@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Store, StoreStatus } from '@/lib/types'
+import { SangatBorosListStatus, SangatBorosPriorityItem, Store, StoreStatus } from '@/lib/types'
+import { SangatBorosPriority } from '@/components/monitoring/sangat-boros-priority'
 import { DashboardKpiSummary } from './dashboard-kpi-summary'
 import { GalleryToolbar } from './gallery-toolbar'
 import { StoreCard } from './store-card'
@@ -9,9 +10,10 @@ import { StoreTable } from './store-table'
 
 interface StoreGalleryProps {
   initialStores?: Store[]
+  sangatBoros?: { status: SangatBorosListStatus; items: SangatBorosPriorityItem[] }
 }
 
-export function StoreGallery({ initialStores = [] }: StoreGalleryProps) {
+export function StoreGallery({ initialStores = [], sangatBoros }: StoreGalleryProps) {
   const [search, setSearch] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<StoreStatus | 'all'>('all')
@@ -71,6 +73,12 @@ export function StoreGallery({ initialStores = [] }: StoreGalleryProps) {
 
       {/* KPI Stats Summary Cards */}
       <DashboardKpiSummary stores={stores} />
+
+      {sangatBoros && (
+        <div className="border-t pt-4">
+          <SangatBorosPriority items={sangatBoros.items} status={sangatBoros.status} />
+        </div>
+      )}
 
       {/* Filter Toolbar */}
       <div className="flex flex-col gap-4 border-t pt-4">

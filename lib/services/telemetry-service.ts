@@ -1,4 +1,5 @@
 import { getTelemetryPool as getAivenPool } from '@/lib/db/pools'
+import { compareWithSangatBoros, getSangatBorosByCode } from '@/lib/services/sangat-boros-service'
 import {
   Store,
   AuditSession,
@@ -195,7 +196,14 @@ export async function getStoreAnalyticsData(
   const cacheKey = `${deviceId}_${targetDate || 'default'}`
   const cached = _analyticsCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < ANALYTICS_CACHE_TTL_MS) {
-    return cached.data
+    // Sangat Boros comes from SPARTA and can change with a new calculation, so it is never cached
+    const sangatBorosStore = await getSangatBorosByCode(storeCode)
+    return {
+      ...cached.data,
+      sangatBoros: sangatBorosStore
+        ? compareWithSangatBoros(sangatBorosStore, cached.data.dailyConsumption, cached.data.anchorDate)
+        : null,
+    }
   }
 
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -252,10 +260,11 @@ export async function getStoreAnalyticsData(
         FROM raw_combined
         GROUP BY phase, day_date, day_name
       )
-      SELECT 
+      SELECT
         day_date,
         day_name,
-        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
+        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh,
+        ROUND(COALESCE(SUM(phase_delta) FILTER (WHERE phase IN ('R', 'S', 'T')), 0)::numeric, 1) as main_kwh
       FROM per_phase_day
       GROUP BY day_date, day_name
       ORDER BY day_date ASC
@@ -296,7 +305,8 @@ export async function getStoreAnalyticsData(
         month_key,
         yr::int as yr,
         mo::int as mo,
-        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh
+        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh,
+        ROUND(COALESCE(SUM(phase_delta) FILTER (WHERE phase IN ('R', 'S', 'T')), 0)::numeric, 1) as main_kwh
       FROM per_phase_month
       GROUP BY month_key, yr, mo
       HAVING COALESCE(SUM(phase_delta), 0) > 0
@@ -327,11 +337,12 @@ export async function getStoreAnalyticsData(
         `, [deviceId, targetDate])
       : null
 
-    const [datesRes, dailyRes, monthlyYearRes, preloadedLoadRes] = await Promise.all([
+    const [datesRes, dailyRes, monthlyYearRes, preloadedLoadRes, sangatBorosStore] = await Promise.all([
       datesQueryPromise,
       dailyQueryPromise,
       monthlyQueryPromise,
       loadQueryPromise,
+      getSangatBorosByCode(storeCode),
     ])
 
     let availableDates: string[] = datesRes.rows.map((r) => r.day_date).filter(Boolean)
@@ -411,7 +422,7 @@ export async function getStoreAnalyticsData(
       const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
       const shortDay = dayNameMap[r.day_name] || r.day_name
       const fullDay = dayFullMap[r.day_name] || r.day_name
-      
+
       let dayLabel = shortDay
       let dayFullDate = `${fullDay}, ${r.day_date}`
       if (r.day_date) {
@@ -433,6 +444,7 @@ export async function getStoreAnalyticsData(
         dayLabel,
         dayFullDate,
         kwh,
+        mainPanelKwh: Math.max(parseFloat(r.main_kwh) || 0, 0),
         cost: Math.round(kwh * PLN_TARIFF),
       }
     })
@@ -463,6 +475,7 @@ export async function getStoreAnalyticsData(
           year: y,
           month: m,
           kwh,
+          mainPanelKwh: Math.max(parseFloat(r.main_kwh) || 0, 0),
           cost,
           diffPct,
           isLatest: idx === monthlyYearRes.rows.length - 1,
@@ -471,10 +484,12 @@ export async function getStoreAnalyticsData(
     } else {
       // Fallback: Aggregate from store's daily consumption
       const monthMap = new Map<string, number>()
+      const mainMonthMap = new Map<string, number>()
       dailyConsumption.forEach((d) => {
         if (d.dayDate) {
           const mKey = d.dayDate.substring(0, 7) // "YYYY-MM"
           monthMap.set(mKey, (monthMap.get(mKey) || 0) + d.kwh)
+          mainMonthMap.set(mKey, (mainMonthMap.get(mKey) || 0) + (d.mainPanelKwh || 0))
         }
       })
 
@@ -501,6 +516,7 @@ export async function getStoreAnalyticsData(
           year: y,
           month: m,
           kwh,
+          mainPanelKwh: Math.round((mainMonthMap.get(mKey) || 0) * 10) / 10,
           cost,
           diffPct,
           isLatest: idx === sortedKeys.length - 1,
@@ -551,6 +567,9 @@ export async function getStoreAnalyticsData(
       dailyConsumption,
       monthlyHistory,
       monthlySummary,
+      sangatBoros: sangatBorosStore
+        ? compareWithSangatBoros(sangatBorosStore, dailyConsumption, anchorDate)
+        : null,
     }
 
     // Save to cache
