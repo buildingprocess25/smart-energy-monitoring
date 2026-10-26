@@ -99,13 +99,14 @@ pnpm format              # Prettier (ts, tsx)
 
 pnpm check:agent-note    # same check the pre-commit hook runs
 pnpm test:agent-note     # tests for that check
+pnpm test:access         # role and access-scope rules (node --test)
 
 pnpm prisma:validate     # allowed: does not touch the database
 pnpm prisma:generate     # allowed: does not touch the database
 pnpm copy:assets         # copy brand assets into public/assets
 ```
 
-There is no unit test runner yet. Verify behavior with `pnpm typecheck`, `pnpm lint`, and the running app (`next-dev-loop`).
+Unit tests use `node --test` on pure modules without `@/` imports (`tests/*.test.mjs`). Verify the rest with `pnpm typecheck`, `pnpm lint`, and the running app (`next-dev-loop`).
 
 ### Environment Setup
 
@@ -165,6 +166,7 @@ components/
 └── theme-provider.tsx
 
 lib/
+├── auth/                          # access-rules (pure), access (per request), api-guard
 ├── db/pools.ts                     # pg pools: getSpartaPool (DB 1), getTelemetryPool (DB 2)
 ├── services/
 │   ├── store-service.ts            # getStores, getStoreById, getIotDeviceDataList
@@ -218,6 +220,25 @@ scripts/                            # agent-note check, asset copy
 - `getSangatBorosStores()`: reads `v_toko_sangat_boros` (12 Sangat Boros stores). Returns status `missing` when the view does not exist yet, so pages keep working.
 - `withInstallStatus()`: marks each store Terpasang when its code matches a store from `getStores()`.
 - `compareWithSangatBoros()`: per-day comparison of main panel kWh with the PLN bill and the standard. The view's columns are a contract with `sparta-energy` (see `ARCHITECTURE_PLAN.md` section 7).
+
+## Access Control
+
+Login happens in sparta-energy; this portal only reads the session. The concept lives in sparta-energy `docs/akses-role-admin-auditor-gs-area.md`.
+
+| Role | Portal |
+| :--- | :--- |
+| `ADMIN`, `AUDITOR` | All devices |
+| `GS` | Only devices in `user_device_access` (DB 1) |
+| `USER` | Redirected to the sparta calculator (`/dashboard`) |
+| `AREA` | Redirected to the sparta admin dashboard (`/admin/dashboard`) |
+
+- `lib/auth/access-rules.ts`: pure role rules (no imports), tested with `pnpm test:access`.
+- `lib/auth/access.ts`: `getRequestAccess()` (cached per request) reads cookie `sso_session`, then `session` and `users` in DB 1 (SELECT only). In development, cookie `dev_role` overrides the role and a simulated GS uses `DEV_GS_DEVICE_IDS`.
+- Scope is enforced in the services: `getIotDeviceDataList()` drops devices outside the scope, so `getStores()`, `getStoreById()` and every store page and API follow; the two aggregate queries filter `device_id = ANY($1)`.
+- `proxy.ts` only redirects pages without `sso_session` to the sparta login and stamps the request path header. `app/(dashboard)/layout.tsx` does the real role check.
+- API routes call `requireApiAccess()`. sparta calls with header `x-internal-token` (`MONITORING_INTERNAL_TOKEN`); while that env is empty, `GET /api/stores` stays open. `GET /api/internal/devices` feeds the GS checklist in sparta and needs the token.
+- Until sparta runs its migration, `user_device_access` does not exist; error `42P01` means a GS user has no devices.
+- Sign-out (sidebar "Keluar"): `POST` to sparta `/api/auth/sign-out` (deletes the session row, clears cookies), then portal `GET /api/auth/logout` clears `sso_session`/`dev_role` (and the `SSO_COOKIE_DOMAIN` cookie) and redirects to the sparta login.
 
 ## Domain Rules That Code Must Keep
 

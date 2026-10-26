@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireApiAccess } from '@/lib/auth/api-guard'
 import { getTelemetryHistory } from '@/lib/services/telemetry-service'
 import { TimeRangeType } from '@/lib/types'
 
@@ -8,6 +9,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ storeId: string }> }
 ) {
+  const denied = await requireApiAccess()
+  if (denied) return denied
+
   try {
     const { storeId } = await params
     const { searchParams } = new URL(request.url)

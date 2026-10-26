@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireApiAccess } from '@/lib/auth/api-guard'
 import { getStoreById } from '@/lib/services/store-service'
 import { getAuditSessions, getLiveTelemetry } from '@/lib/services/telemetry-service'
 
@@ -8,6 +9,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ storeId: string }> }
 ) {
+  const denied = await requireApiAccess()
+  if (denied) return denied
+
   try {
     const { storeId } = await params
     const store = await getStoreById(storeId)

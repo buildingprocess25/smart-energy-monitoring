@@ -1,5 +1,7 @@
 import { getTelemetryPool as getAivenPool } from '@/lib/db/pools'
 import { compareWithSangatBoros, getSangatBorosByCode } from '@/lib/services/sangat-boros-service'
+import { getRequestScope } from '@/lib/auth/access'
+import type { AccessScope } from '@/lib/auth/access-rules'
 import {
   Store,
   AuditSession,
@@ -46,10 +48,21 @@ function getSensorColor(phase: string, name: string, index: number): string {
   return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]
 }
 
+// SQL filter for queries that scan every device; params start at $1.
+function deviceScopeFilter(scope: AccessScope): { clause: string; params: string[][] } {
+  if (scope.kind === 'devices') {
+    return { clause: ' AND device_id = ANY($1::text[])', params: [scope.deviceIds] }
+  }
+  return { clause: '', params: [] }
+}
+
 // Fetch real daily energy consumption trend across recorded days
 export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
   const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
+  const scope = await getRequestScope()
+  if (scope.kind === 'none') return []
+  const deviceFilter = deviceScopeFilter(scope)
 
   try {
     // Query combined daily delta energy per phase across telemetry & history sources with phase normalization
@@ -66,9 +79,9 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
           epoch,
           energy
         FROM (
-          SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
           UNION ALL
-          SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
         ) combined
       ),
       per_phase_day AS (
@@ -97,7 +110,7 @@ export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
       FROM per_device_day
       GROUP BY day_date, day_name
       ORDER BY day_date ASC
-    `)
+    `, deviceFilter.params)
 
     const rows = res.rows
     if (rows.length === 0) return []
@@ -1334,14 +1347,20 @@ export async function getLiveTelemetry(storeId: string): Promise<PhaseData[]> {
 }
 
 // In-memory cache for monthly cost summary across all stores (TTL: 5 minutes)
-let _monthlyCostCache: { data: MonthlyCostRecord[]; timestamp: number } | null = null
+// Keyed by access scope so a GS user never receives totals of devices outside their scope.
+const _monthlyCostCache = new Map<string, { data: MonthlyCostRecord[]; timestamp: number }>()
 const MONTHLY_COST_CACHE_TTL_MS = 5 * 60 * 1000
 
 // Fetch monthly energy consumption & cost history across all recorded months
 export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
   const nowMs = Date.now()
-  if (_monthlyCostCache && nowMs - _monthlyCostCache.timestamp < MONTHLY_COST_CACHE_TTL_MS) {
-    return _monthlyCostCache.data
+  const scope = await getRequestScope()
+  if (scope.kind === 'none') return []
+  const deviceFilter = deviceScopeFilter(scope)
+  const cacheKey = scope.kind === 'all' ? 'all' : [...scope.deviceIds].sort().join(',')
+  const cached = _monthlyCostCache.get(cacheKey)
+  if (cached && nowMs - cached.timestamp < MONTHLY_COST_CACHE_TTL_MS) {
+    return cached.data
   }
 
   const aiven = getAivenPool()
@@ -1367,9 +1386,9 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
           epoch,
           energy
         FROM (
-          SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
           UNION ALL
-          SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
+          SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
         ) combined
       ),
       per_phase_month AS (
@@ -1399,7 +1418,7 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
       FROM per_month
       WHERE month_key IS NOT NULL
       ORDER BY month_key ASC
-    `)
+    `, deviceFilter.params)
 
     const rows = res.rows || []
     const now = new Date()
@@ -1426,7 +1445,7 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
           avgDailyKwh: Math.round((totalKwh / 30) * 10) / 10,
         },
       ]
-      _monthlyCostCache = { data: fallbackRecords, timestamp: nowMs }
+      _monthlyCostCache.set(cacheKey, { data: fallbackRecords, timestamp: nowMs })
       return fallbackRecords
     }
 
@@ -1465,7 +1484,7 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
     }
 
     const result = records.reverse()
-    _monthlyCostCache = { data: result, timestamp: nowMs }
+    _monthlyCostCache.set(cacheKey, { data: result, timestamp: nowMs })
     return result
   } catch (error) {
     console.error('Error in getMonthlyCostSummary:', error)

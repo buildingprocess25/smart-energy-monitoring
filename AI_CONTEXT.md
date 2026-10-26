@@ -26,8 +26,17 @@ Aplikasi ini hanya membaca dan menampilkan data. Input audit manual ada di
 - **Manajer operasional / supervisor energi**: membandingkan konsumsi dan biaya
   antar toko dan cabang.
 
-Belum ada login. Rencananya autentikasi memakai SSO better-auth bersama
-`sparta-energy` (tabel `users`, `sessions`, `accounts` di DB 1).
+Login dilakukan di `sparta-energy`; portal membaca sesi yang sama (cookie
+`sso_session`, tabel `session` dan `users` di DB 1).
+
+- **Admin** dan **Auditor**: melihat semua alat.
+- **GS (General Service, HO)**: hanya alat yang di-assign admin lewat halaman
+  User & Akses sparta (tabel `user_device_access`). Bagian Prioritas Pasang IoT
+  disembunyikan.
+- **User** biasa diarahkan ke kalkulator sparta; **Area** ke Dashboard Admin
+  sparta. Keduanya tidak bisa membuka portal ini.
+- Untuk testing lokal, tombol Masuk Cepat sparta bisa mensimulasikan role
+  lewat cookie `dev_role` (hanya di development).
 
 ## Alur Pengguna
 
