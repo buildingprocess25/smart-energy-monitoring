@@ -1,4 +1,6 @@
 import { getSpartaPool, getTelemetryPool } from '@/lib/db/pools'
+import { getRequestScope } from '@/lib/auth/access'
+import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
 
 // Helper: Extract Store Code from IoT Device Name
@@ -71,6 +73,10 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
   const telemetryDb = getTelemetryPool()
   const now = Date.now()
 
+  // Every store, page and API route reads devices through here, so the role scope is applied once.
+  const scope = await getRequestScope()
+  if (scope.kind === 'none') return []
+
   try {
     let devRows: any[] = []
     try {
@@ -130,6 +136,7 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
     const results: IotDeviceData[] = []
 
     for (const dev of devRows) {
+      if (!isDeviceAllowed(scope, String(dev.id))) continue
       const storeCode = extractStoreCode(dev.name)
 
       let captureStateObj: any = null
@@ -490,6 +497,9 @@ export async function getStoreById(storeId: string): Promise<Store | null> {
     (s) => s.id === storeId || s.code.toUpperCase() === storeId.toUpperCase()
   )
   if (found) return found
+
+  // A limited scope (GS) only reaches stores of its assigned devices, never other DB 1 stores.
+  if ((await getRequestScope()).kind !== 'all') return null
 
   // If queried by direct ID or code from SPARTA DB
   const sparta = getSpartaPool()

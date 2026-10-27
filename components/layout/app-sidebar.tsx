@@ -9,6 +9,7 @@ import {
   Zap,
   ClipboardList,
   ExternalLink,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -25,13 +26,16 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
 
-const SPARTA_AUDIT_URL = process.env.NEXT_PUBLIC_SPARTA_AUDIT_URL ?? '#'
+const SPARTA_AUDIT_URL = process.env.NEXT_PUBLIC_SPARTA_AUDIT_URL?.replace(/\/+$/, '')
+// ADMIN and AUDITOR come from the SPARTA chooser page, so the link returns there.
+const SPARTA_ENTRY_URL = SPARTA_AUDIT_URL ? `${SPARTA_AUDIT_URL}/admin-entry` : '#'
 const REALTIME_METER_URL = process.env.NEXT_PUBLIC_REALTIME_METER_URL ?? '#'
 
 type NavItem = {
@@ -72,7 +76,7 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
       },
       {
         title: 'SPARTA Energy',
-        href: SPARTA_AUDIT_URL,
+        href: SPARTA_ENTRY_URL,
         icon: ClipboardList,
         external: true,
       },
@@ -156,8 +160,48 @@ function NavItemButton({
   )
 }
 
-export function AppSidebar() {
+export interface SidebarViewer {
+  name: string
+  email: string
+  role: string
+  simulated: boolean
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: 'Admin',
+  AUDITOR: 'Auditor',
+  GS: 'GS (General Service)',
+}
+
+// sparta deletes the session row and clears its cookies; the portal route then clears
+// what it can see and redirects to the sparta login. no-cors: sparta sends no CORS headers.
+async function signOut() {
+  if (SPARTA_AUDIT_URL) {
+    await fetch(`${SPARTA_AUDIT_URL}/api/auth/sign-out`, {
+      method: 'POST',
+      mode: 'no-cors',
+      credentials: 'include',
+    }).catch(() => undefined)
+  }
+  window.location.href = '/api/auth/logout'
+}
+
+function initialsOf(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  const letters = parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+  return letters.toUpperCase() || '?'
+}
+
+export function AppSidebar({ viewer }: { viewer: SidebarViewer }) {
   const pathname = usePathname()
+  const roleLabel = ROLE_LABELS[viewer.role] ?? viewer.role
+  // GS users only have the monitoring portal; SPARTA pages send them back here.
+  const visibleGroups = navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => viewer.role !== 'GS' || item.href !== SPARTA_ENTRY_URL),
+    }))
+    .filter((group) => group.items.length > 0)
 
   return (
     <Sidebar collapsible="icon">
@@ -191,7 +235,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent className="overflow-x-hidden p-2 gap-0">
-        {navGroups.map((group, groupIdx) => (
+        {visibleGroups.map((group, groupIdx) => (
           <div key={groupIdx} className="flex flex-col">
             {group.label && (
               <div className="h-8 flex items-center shrink-0">
@@ -224,7 +268,7 @@ export function AppSidebar() {
                 render={
                   <SidebarMenuButton
                     size="lg"
-                    tooltip="Admin SPARTA"
+                    tooltip={viewer.name}
                     className="h-10 w-full rounded-xl transition-colors duration-200 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:ring-1 hover:ring-emerald-500/20"
                   />
                 }
@@ -232,22 +276,30 @@ export function AppSidebar() {
                 <div className="relative shrink-0">
                   <Avatar className="size-8 rounded-lg ring-1 ring-emerald-500/30">
                     <AvatarFallback className="rounded-lg bg-emerald-600 text-xs font-semibold text-white">
-                      AD
+                      {initialsOf(viewer.name)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-500 ring-2 ring-background" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-semibold text-foreground">
-                    Admin SPARTA
+                    {viewer.name}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
-                    admin@sparta.id
+                    {viewer.email}
                   </span>
                 </div>
               </DropdownMenuTrigger>
               <DropdownMenuContent side="top" align="start" className="w-56">
-                <DropdownMenuItem>Profil</DropdownMenuItem>
+                <DropdownMenuItem disabled>
+                  Masuk sebagai {roleLabel}
+                  {viewer.simulated ? ' (simulasi dev)' : ''}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut />
+                  Keluar
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarMenuItem>
