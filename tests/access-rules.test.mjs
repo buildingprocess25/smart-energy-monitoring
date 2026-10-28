@@ -7,7 +7,13 @@ import {
   parseDeviceIds,
   isDeviceAllowed,
   isValidInternalToken,
+  anonymousPageTarget,
 } from '../lib/auth/access-rules.ts'
+
+test('anonymousPageTarget sends to sparta once, then stops the loop', () => {
+  assert.equal(anonymousPageTarget(false), 'sparta-login')
+  assert.equal(anonymousPageTarget(true), 'session-denied')
+})
 
 test('resolveRole uses dev_role only in development and only for known roles', () => {
   assert.equal(resolveRole('ADMIN', 'GS', true), 'GS')

@@ -5,7 +5,7 @@ import { getRequestAccess } from '@/lib/auth/access'
 // Store-level checks happen in the services, which only see devices in the caller's scope.
 export async function requireApiAccess(): Promise<NextResponse | null> {
   const access = await getRequestAccess()
-  if (access.status === 'anonymous') {
+  if (access.status === 'anonymous' || access.status === 'invalid') {
     return NextResponse.json({ error: 'Sesi login tidak ditemukan.' }, { status: 401 })
   }
   if (access.status === 'error') {
