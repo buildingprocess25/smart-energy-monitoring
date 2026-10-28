@@ -27,6 +27,8 @@ export interface Viewer {
 
 export type RequestAccess =
   | { status: 'anonymous' }
+  // sso_session is present but matches no live session row.
+  | { status: 'invalid' }
   | { status: 'error' }
   | { status: 'ok'; viewer: Viewer | null; scope: AccessScope; internal: boolean }
 
@@ -80,7 +82,7 @@ export const getRequestAccess = cache(async (): Promise<RequestAccess> => {
       [sessionToken]
     )
     const row = res.rows[0]
-    if (!row) return { status: 'anonymous' }
+    if (!row) return { status: 'invalid' }
 
     const isDev = process.env.NODE_ENV === 'development'
     const devRole = cookieStore.get(DEV_ROLE_COOKIE)?.value

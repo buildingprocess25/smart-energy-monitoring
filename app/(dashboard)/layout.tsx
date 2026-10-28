@@ -12,6 +12,7 @@ export default async function DashboardLayout({
   const access = await getRequestAccess()
 
   if (access.status === 'error') return <AccessCheckFailed />
+  if (access.status === 'invalid') redirect('/api/auth/session-invalid')
   if (access.status === 'anonymous' || access.internal) redirect(spartaUrl('/login'))
   if (!access.viewer) redirect('/akses-ditolak')
 

@@ -6,6 +6,10 @@ export type Role = (typeof ROLES)[number]
 
 export const SESSION_COOKIE = 'sso_session'
 export const DEV_ROLE_COOKIE = 'dev_role'
+// Loop breaker: set by proxy.ts when it sends a page request to the sparta login.
+export const BOUNCE_COOKIE = 'sso_bounce'
+export const BOUNCE_MAX_AGE_SECONDS = 60
+export const SESSION_DENIED_PATH = '/akses-ditolak?alasan=sesi'
 export const INTERNAL_TOKEN_HEADER = 'x-internal-token'
 // Set by proxy.ts on every request; any value sent by the client is overwritten.
 export const PATHNAME_HEADER = 'x-sem-pathname'
@@ -38,6 +42,12 @@ export function portalDecision(role: Role | null): PortalDecision {
   if (role === 'USER') return { allow: false, redirect: 'calculator' }
   if (role === 'AREA') return { allow: false, redirect: 'admin-dashboard' }
   return { allow: false, redirect: 'forbidden' }
+}
+
+// A page request without sso_session goes to the sparta login once. Coming back still
+// without it while the bounce cookie lives means sparta set no session cookie: stop there.
+export function anonymousPageTarget(bounced: boolean): 'sparta-login' | 'session-denied' {
+  return bounced ? 'session-denied' : 'sparta-login'
 }
 
 export function scopeFor(role: Role | null, deviceIds: string[]): AccessScope {
