@@ -2,55 +2,45 @@ import { NextRequest, NextResponse } from 'next/server'
 import fs from 'node:fs'
 import path from 'node:path'
 
+const CONTENT_TYPES: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+}
+
+// A bare file name only: no slashes, no "..", so the path cannot leave the assets folder.
+const SAFE_FILENAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+// Local copy first; the sparta-energy checkout next to this repo is a development fallback.
+const ASSET_DIRS = [
+  path.join(process.cwd(), 'public/assets'),
+  path.resolve(process.cwd(), '../sparta-energy/public/assets'),
+]
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ filename: string }> }
 ) {
   const { filename } = await params
+  const contentType = CONTENT_TYPES[path.extname(filename).toLowerCase()]
 
-  const possiblePaths = [
-    path.join(process.cwd(), 'public/assets', filename),
-    path.resolve(process.cwd(), '../sparta-energy/public/assets', filename),
-    path.join('d:/Coding/sparta-energy/public/assets', filename),
-  ]
+  if (!SAFE_FILENAME.test(filename) || filename.includes('..') || !contentType) {
+    return new NextResponse('Asset not found', { status: 404 })
+  }
 
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      const buffer = fs.readFileSync(filePath)
+  for (const dir of ASSET_DIRS) {
+    const filePath = path.join(dir, filename)
+    if (path.dirname(filePath) !== dir || !fs.existsSync(filePath)) continue
 
-      // Ensure local public/assets copy exists
-      try {
-        const localAssetsDir = path.join(process.cwd(), 'public/assets')
-        if (!fs.existsSync(localAssetsDir)) {
-          fs.mkdirSync(localAssetsDir, { recursive: true })
-        }
-        const localDest = path.join(localAssetsDir, filename)
-        if (!fs.existsSync(localDest)) {
-          fs.writeFileSync(localDest, buffer)
-        }
-      } catch {
-        // ignore error
-      }
-
-      const ext = path.extname(filename).toLowerCase()
-      const contentType =
-        ext === '.png'
-          ? 'image/png'
-          : ext === '.jpg' || ext === '.jpeg'
-          ? 'image/jpeg'
-          : ext === '.svg'
-          ? 'image/svg+xml'
-          : ext === '.ico'
-          ? 'image/x-icon'
-          : 'application/octet-stream'
-
-      return new NextResponse(buffer, {
-        headers: {
-          'Content-Type': contentType,
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        },
-      })
-    }
+    return new NextResponse(fs.readFileSync(filePath), {
+      headers: {
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    })
   }
 
   return new NextResponse('Asset not found', { status: 404 })

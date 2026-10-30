@@ -65,8 +65,10 @@ export const getRequestAccess = cache(async (): Promise<RequestAccess> => {
   const sessionToken = cookieStore.get(SESSION_COOKIE)?.value
 
   if (!sessionToken) {
-    // sparta reads GET /api/stores without a session; it stays open until the token is configured.
-    if (!expectedToken && headerStore.get(PATHNAME_HEADER) === '/api/stores') {
+    // sparta reads GET /api/stores without a session. Without a configured token it stays
+    // open only in development; production never serves it unauthenticated.
+    const isProduction = process.env.NODE_ENV === 'production'
+    if (!expectedToken && !isProduction && headerStore.get(PATHNAME_HEADER) === '/api/stores') {
       return { status: 'ok', viewer: null, scope: { kind: 'all' }, internal: true }
     }
     return { status: 'anonymous' }

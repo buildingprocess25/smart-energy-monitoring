@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireApiAccess } from '@/lib/auth/api-guard'
+import { parseHistoryParams } from '@/lib/request-params'
 import { getTelemetryHistory } from '@/lib/services/telemetry-service'
-import { TimeRangeType } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,23 +12,14 @@ export async function GET(
   const denied = await requireApiAccess()
   if (denied) return denied
 
+  const parsed = parseHistoryParams(new URL(request.url).searchParams)
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 })
+  }
+
   try {
     const { storeId } = await params
-    const { searchParams } = new URL(request.url)
-
-    const rangeType = (searchParams.get('rangeType') as TimeRangeType) || 'day'
-    const date = searchParams.get('date') || undefined
-    const sessionId = searchParams.get('sessionId') || undefined
-    const page = searchParams.get('page') ? parseInt(searchParams.get('page')!) : undefined
-    const pageSize = searchParams.get('pageSize') ? parseInt(searchParams.get('pageSize')!) : undefined
-
-    const history = await getTelemetryHistory(storeId, {
-      rangeType,
-      date,
-      sessionId,
-      page,
-      pageSize,
-    })
+    const history = await getTelemetryHistory(storeId, parsed.value)
 
     return NextResponse.json(history)
   } catch (error) {

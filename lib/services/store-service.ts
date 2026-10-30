@@ -508,7 +508,7 @@ export async function getStoreById(storeId: string): Promise<Store | null> {
       `
       SELECT id, code, name, branch, pln_power_va, sales_area_m2, warehouse_area_m2, is_24_hours, latitude, longitude
       FROM stores
-      WHERE id::text = $1 OR code ILIKE $1
+      WHERE id::text = $1 OR UPPER(code) = UPPER($1)
       LIMIT 1
     `,
       [storeId]

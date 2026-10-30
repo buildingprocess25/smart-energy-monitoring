@@ -151,7 +151,7 @@ API routes (read-only JSON):
 - `GET /api/stores/[storeId]/history` → `getTelemetryHistory`
 - `GET /api/stores/[storeId]/telemetry` → `getLiveTelemetry`
 - `GET /api/stores/[storeId]/overview-analytics` → `getStoreAnalyticsData`
-- `GET /api/assets/[filename]` → aset logo
+- `GET /api/assets/[filename]` → aset logo (hanya nama file gambar polos dari `public/assets`)
 
 Komponen:
 
