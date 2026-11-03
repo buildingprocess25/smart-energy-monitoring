@@ -822,9 +822,9 @@
     "semantic_hash": ""
   },
   "lib/services/sangat-boros-service.ts": {
-    "mtime": 1793081779.0333045,
-    "seen": 1793153387.4440658,
-    "ast_hash": "a35142a9cdaca102202a0a9e0b03fffe",
+    "mtime": 1793689692.358891,
+    "seen": 1793689888.7143257,
+    "ast_hash": "855d30e962147d592b80630beb7a42c2",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-23-1039-integrasi-sangat-boros.md": {
@@ -951,6 +951,18 @@
     "mtime": 1793176471.1998675,
     "seen": 1793176479.768648,
     "ast_hash": "c5b3075a89f455599551a15db44491d0",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-03-0702-sembunyikan-toko-demo-sangat-boros.md": {
+    "mtime": 1793689871.7759972,
+    "seen": 1793689888.7143257,
+    "ast_hash": "6b94d335bb8d4fd93a53417fcd037ecd",
+    "semantic_hash": ""
+  },
+  "pnpm-lock.yaml": {
+    "mtime": 1792736680.108769,
+    "seen": 1793689399.001792,
+    "ast_hash": "84773cf91f020ac14ca0d75e7167e000",
     "semantic_hash": ""
   }
 }

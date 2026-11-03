@@ -43,7 +43,7 @@ function mapRow(r: Record<string, unknown>): SangatBorosStore {
   }
 }
 
-// The 12 Sangat Boros stores from v_toko_sangat_boros (DB 1, owned by sparta-energy).
+// Up to 12 Sangat Boros stores from v_toko_sangat_boros (DB 1, owned by sparta-energy).
 // 'missing' means the view does not exist yet; the page keeps working either way.
 export async function getSangatBorosStores(): Promise<{
   status: SangatBorosListStatus
@@ -51,9 +51,13 @@ export async function getSangatBorosStores(): Promise<{
 }> {
   try {
     const res = await getSpartaPool().query(
-      'SELECT * FROM v_toko_sangat_boros ORDER BY peringkat'
+      'SELECT * FROM v_toko_sangat_boros ORDER BY is_demo DESC, peringkat'
     )
-    return { status: 'ok', stores: res.rows.map(mapRow) }
+    const rows = res.rows.map(mapRow)
+    // The view keeps DEMO rows for testing; production hides them as sparta does.
+    if (process.env.NODE_ENV !== 'production') return { status: 'ok', stores: rows }
+    const stores = rows.filter((s) => !s.isDemo).map((s, i) => ({ ...s, rank: i + 1 }))
+    return { status: 'ok', stores }
   } catch (error) {
     if ((error as { code?: string } | null)?.code === UNDEFINED_TABLE) {
       console.warn('v_toko_sangat_boros is not available in SPARTA database yet')
