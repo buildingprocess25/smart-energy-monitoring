@@ -30,20 +30,20 @@
     "semantic_hash": ""
   },
   "app/api/assets/[filename]/route.ts": {
-    "mtime": 1793176117.2309172,
-    "seen": 1793176479.768648,
-    "ast_hash": "ce07c05dd197c7318e97966ad1c25d56",
+    "mtime": 1793692244.9859424,
+    "seen": 1793693003.813352,
+    "ast_hash": "640d947c9d2e834070a66bb03e577c2f",
     "semantic_hash": ""
   },
   "app/api/stores/[storeId]/history/route.ts": {
-    "mtime": 1793176160.9711246,
-    "seen": 1793176479.768648,
-    "ast_hash": "1efc336a243640b0e1d664909c1820fd",
+    "mtime": 1793692244.9883788,
+    "seen": 1793693003.813352,
+    "ast_hash": "fc144d95ae5f4e0e27b8fe4149331326",
     "semantic_hash": ""
   },
   "app/api/stores/[storeId]/overview-analytics/route.ts": {
-    "mtime": 1793176162.5727677,
-    "seen": 1793176479.768648,
+    "mtime": 1793692244.9899065,
+    "seen": 1793693003.813352,
     "ast_hash": "e32a036070c3bcbfadcd08db91b83902",
     "semantic_hash": ""
   },
@@ -144,20 +144,20 @@
     "semantic_hash": "b62c22898ca3a74677175c1bd7bdc40e"
   },
   "components/layout/admin-shell.tsx": {
-    "mtime": 1793691698.9050775,
-    "seen": 1793691976.857499,
+    "mtime": 1793692244.991984,
+    "seen": 1793693003.813352,
     "ast_hash": "cd3061044d2e3f43b37275b007801fba",
     "semantic_hash": ""
   },
   "components/layout/app-header.tsx": {
-    "mtime": 1793691696.7227643,
-    "seen": 1793691976.857499,
-    "ast_hash": "de1bec509b2faf41a6b26228a239149a",
+    "mtime": 1793692244.9940765,
+    "seen": 1793693003.813352,
+    "ast_hash": "5cbe80455f088d4be7129aa773b77992",
     "semantic_hash": ""
   },
   "components/layout/app-sidebar.tsx": {
-    "mtime": 1793691689.5968432,
-    "seen": 1793691976.857499,
+    "mtime": 1793692244.9950755,
+    "seen": 1793693003.813352,
     "ast_hash": "ac8b247270246a1749f37daa942d3397",
     "semantic_hash": ""
   },
@@ -336,9 +336,9 @@
     "semantic_hash": "a6d373dbb0484749573ae16ab10b3558"
   },
   "lib/services/store-service.ts": {
-    "mtime": 1793176134.2769911,
-    "seen": 1793176479.768648,
-    "ast_hash": "4c0849b2e4761320d9e277d008e20f33",
+    "mtime": 1793692883.6996238,
+    "seen": 1793693003.813352,
+    "ast_hash": "f9bb2f98479e79c1070242799ae4b426",
     "semantic_hash": ""
   },
   "lib/services/telemetry-service.ts": {
@@ -360,14 +360,14 @@
     "semantic_hash": "1d8011eb18769078bf77502b220daa5e"
   },
   "next.config.ts": {
-    "mtime": 1793176298.3724473,
-    "seen": 1793176479.768648,
-    "ast_hash": "5838b2febc69c33408b1e13883b2e706",
+    "mtime": 1793692245.0378158,
+    "seen": 1793693003.813352,
+    "ast_hash": "604b78a30129de0b7ec1e538502ea29e",
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793176184.065957,
-    "seen": 1793176479.768648,
+    "mtime": 1793692245.0398245,
+    "seen": 1793693003.813352,
     "ast_hash": "7fccaa5904a4ac82303bb4d457d7d792",
     "semantic_hash": ""
   },
@@ -420,8 +420,8 @@
     "semantic_hash": "f031e1bf14375f11567de3bc872ca62b"
   },
   "AGENTS.md": {
-    "mtime": 1793176457.2742953,
-    "seen": 1793176479.768648,
+    "mtime": 1793692244.9785287,
+    "seen": 1793693003.813352,
     "ast_hash": "dad5ec4891a9a51db10ff4fc95d50991",
     "semantic_hash": ""
   },
@@ -738,14 +738,14 @@
     "semantic_hash": "fba415f0fdf3512e074fc55b28ed42da"
   },
   "AI_CONTEXT.md": {
-    "mtime": 1793176457.2772903,
-    "seen": 1793176479.768648,
+    "mtime": 1793692244.9808433,
+    "seen": 1793693003.813352,
     "ast_hash": "ec7ff901139c760011f445b23b756e83",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1793176457.2752943,
-    "seen": 1793176479.768648,
+    "mtime": 1793692244.9824798,
+    "seen": 1793693003.813352,
     "ast_hash": "6948090bfb61677fca328aa1e8491541",
     "semantic_hash": ""
   },
@@ -822,8 +822,8 @@
     "semantic_hash": ""
   },
   "lib/services/sangat-boros-service.ts": {
-    "mtime": 1793689692.358891,
-    "seen": 1793689888.7143257,
+    "mtime": 1793692245.0322008,
+    "seen": 1793693003.813352,
     "ast_hash": "855d30e962147d592b80630beb7a42c2",
     "semantic_hash": ""
   },
@@ -870,8 +870,8 @@
     "semantic_hash": ""
   },
   "lib/auth/access.ts": {
-    "mtime": 1793176173.950356,
-    "seen": 1793176479.768648,
+    "mtime": 1793692245.0289583,
+    "seen": 1793693003.813352,
     "ast_hash": "1d99f81366f1d1ce3806d878147743c5",
     "semantic_hash": ""
   },
@@ -924,57 +924,69 @@
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-28-0909-sso-loop-guard.md": {
-    "mtime": 1793153630.0797522,
-    "seen": 1793153642.234528,
+    "mtime": 1793692244.9986062,
+    "seen": 1793693003.813352,
     "ast_hash": "6a0ecc77eb55a733f651f14322effcac",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-27-1315-ignore-graphify-out.md": {
-    "mtime": 1793153434.7944012,
-    "seen": 1793153642.234528,
+    "mtime": 1793692244.9964797,
+    "seen": 1793693003.813352,
     "ast_hash": "60db4143488b012e2cf2bc72f4e03bd8",
     "semantic_hash": ""
   },
   "lib/request-params.ts": {
-    "mtime": 1793176160.1560903,
-    "seen": 1793176479.768648,
-    "ast_hash": "7f9b1d9d72aa74cc17fc34f71692ff5b",
+    "mtime": 1793692245.030043,
+    "seen": 1793693003.813352,
+    "ast_hash": "c07c783c6930bda272227ca8ba8957a7",
     "semantic_hash": ""
   },
   "tests/request-params.test.mjs": {
-    "mtime": 1793176174.7744272,
-    "seen": 1793176479.768648,
-    "ast_hash": "51c1eaf6c731ddf61d61091866cfcaea",
+    "mtime": 1793692245.0408173,
+    "seen": 1793693003.813352,
+    "ast_hash": "1447abada52bf28f902a88093b508956",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-28-1534-non-iot-security-hardening.md": {
-    "mtime": 1793176471.1998675,
-    "seen": 1793176479.768648,
-    "ast_hash": "c5b3075a89f455599551a15db44491d0",
+    "mtime": 1793692244.999951,
+    "seen": 1793693003.813352,
+    "ast_hash": "01dad65385e2777daf5fe25a6786ef30",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-11-03-0702-sembunyikan-toko-demo-sangat-boros.md": {
-    "mtime": 1793689871.7759972,
-    "seen": 1793689888.7143257,
-    "ast_hash": "6b94d335bb8d4fd93a53417fcd037ecd",
+    "mtime": 1793692245.0020297,
+    "seen": 1793693003.813352,
+    "ast_hash": "7e7f3f6380c7be04552965cc1709b87c",
     "semantic_hash": ""
   },
   "lib/sparta-url.ts": {
-    "mtime": 1793691678.9266326,
-    "seen": 1793691976.857499,
-    "ast_hash": "bf1dccd483e27c384c21e7539b2243a3",
+    "mtime": 1793692245.035707,
+    "seen": 1793693003.813352,
+    "ast_hash": "de07676c2c6c4218ffa8e0f0e110beef",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-11-03-0745-tombol-kembali-ke-sparta.md": {
-    "mtime": 1793691957.1686866,
-    "seen": 1793691976.857499,
-    "ast_hash": "f22942dd0be9b55d21d75b3a3fbed39a",
+    "mtime": 1793692245.0029924,
+    "seen": 1793693003.813352,
+    "ast_hash": "fc586b7a3ce3e6adf4d64be926acb540",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-11-03-tombol-kembali-ke-sparta-design.md": {
-    "mtime": 1793691947.235955,
-    "seen": 1793691976.857499,
-    "ast_hash": "5d6f5b079f852383385091c8f234c44f",
+    "mtime": 1793692245.0049896,
+    "seen": 1793693003.813352,
+    "ast_hash": "bb17f729504a6d1676d978657953f092",
+    "semantic_hash": ""
+  },
+  "app/(dashboard)/loading.tsx": {
+    "mtime": 1793692907.6721392,
+    "seen": 1793693003.813352,
+    "ast_hash": "4a6d1d2bc21cff927cadccb516e51ecb",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-03-0803-cache-per-request-dan-loading.md": {
+    "mtime": 1793692995.7219298,
+    "seen": 1793693003.813352,
+    "ast_hash": "57bdd304ddf161d45fdb47ee1570f3d2",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {

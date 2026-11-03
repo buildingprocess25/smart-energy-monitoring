@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { getSpartaPool, getTelemetryPool } from '@/lib/db/pools'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed } from '@/lib/auth/access-rules'
@@ -69,7 +70,13 @@ interface SensorConfig {
   enabled?: boolean
 }
 
-export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
+// React cache() lasts one server request only, so every page load still reads live data.
+// It lets the page sections share one read instead of repeating it; route handlers are not memoized.
+export const getIotDeviceDataList = cache(loadIotDeviceDataList)
+export const getStores = cache(loadStores)
+export const getStoreById = cache(loadStoreById)
+
+async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
   const telemetryDb = getTelemetryPool()
   const now = Date.now()
 
@@ -330,7 +337,7 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
 }
 
 // Get only stores that actually have IoT devices registered in database
-export async function getStores(): Promise<Store[]> {
+async function loadStores(): Promise<Store[]> {
   const sparta = getSpartaPool()
 
   try {
@@ -491,7 +498,7 @@ export async function getStores(): Promise<Store[]> {
 }
 
 // Get single store details
-export async function getStoreById(storeId: string): Promise<Store | null> {
+async function loadStoreById(storeId: string): Promise<Store | null> {
   const stores = await getStores()
   const found = stores.find(
     (s) => s.id === storeId || s.code.toUpperCase() === storeId.toUpperCase()
