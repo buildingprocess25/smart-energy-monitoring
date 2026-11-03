@@ -32,10 +32,8 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Logo } from '@/components/logo'
 import { cn } from '@/lib/utils'
+import { SPARTA_AUDIT_URL, SPARTA_ENTRY_URL, canReturnToSparta } from '@/lib/sparta-url'
 
-const SPARTA_AUDIT_URL = process.env.NEXT_PUBLIC_SPARTA_AUDIT_URL?.replace(/\/+$/, '')
-// ADMIN and AUDITOR come from the SPARTA chooser page, so the link returns there.
-const SPARTA_ENTRY_URL = SPARTA_AUDIT_URL ? `${SPARTA_AUDIT_URL}/admin-entry` : '#'
 const REALTIME_METER_URL = process.env.NEXT_PUBLIC_REALTIME_METER_URL ?? '#'
 
 type NavItem = {
@@ -44,6 +42,8 @@ type NavItem = {
   icon: LucideIcon
   badge?: string
   external?: boolean
+  newTab?: boolean
+  spartaEntry?: boolean
   isActive?: (pathname: string) => boolean
 }
 
@@ -73,12 +73,14 @@ const navGroups: { label?: string; items: NavItem[] }[] = [
         icon: Zap,
         badge: 'Live',
         external: true,
+        newTab: true,
       },
       {
         title: 'SPARTA Energy',
-        href: SPARTA_ENTRY_URL,
+        href: SPARTA_ENTRY_URL ?? '',
         icon: ClipboardList,
         external: true,
+        spartaEntry: true,
       },
     ],
   },
@@ -116,8 +118,8 @@ function NavItemButton({
           item.external ? (
             <a
               href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              target={item.newTab ? '_blank' : undefined}
+              rel={item.newTab ? 'noopener noreferrer' : undefined}
               className="flex size-full items-center gap-2.5 overflow-hidden group-data-[collapsible=icon]:justify-center"
             >
               <Icon
@@ -134,7 +136,9 @@ function NavItemButton({
                   {item.badge}
                 </span>
               )}
-              <ExternalLink className="ml-auto size-3 shrink-0 opacity-40 transition-opacity group-hover/nav:opacity-90 group-data-[collapsible=icon]:hidden" />
+              {item.newTab && (
+                <ExternalLink className="ml-auto size-3 shrink-0 opacity-40 transition-opacity group-hover/nav:opacity-90 group-data-[collapsible=icon]:hidden" />
+              )}
             </a>
           ) : (
             <Link href={item.href} className="flex size-full items-center gap-2.5 overflow-hidden group-data-[collapsible=icon]:justify-center">
@@ -195,11 +199,10 @@ function initialsOf(name: string) {
 export function AppSidebar({ viewer }: { viewer: SidebarViewer }) {
   const pathname = usePathname()
   const roleLabel = ROLE_LABELS[viewer.role] ?? viewer.role
-  // GS users only have the monitoring portal; SPARTA pages send them back here.
   const visibleGroups = navGroups
     .map((group) => ({
       ...group,
-      items: group.items.filter((item) => viewer.role !== 'GS' || item.href !== SPARTA_ENTRY_URL),
+      items: group.items.filter((item) => !item.spartaEntry || canReturnToSparta(viewer.role)),
     }))
     .filter((group) => group.items.length > 0)
 

@@ -144,21 +144,21 @@
     "semantic_hash": "b62c22898ca3a74677175c1bd7bdc40e"
   },
   "components/layout/admin-shell.tsx": {
-    "mtime": 1793081779.0132148,
-    "seen": 1793153387.4440658,
-    "ast_hash": "d45b31e3f2cb01d3ae9a639a769c26b6",
+    "mtime": 1793691698.9050775,
+    "seen": 1793691976.857499,
+    "ast_hash": "cd3061044d2e3f43b37275b007801fba",
     "semantic_hash": ""
   },
   "components/layout/app-header.tsx": {
-    "mtime": 1792736680.0185761,
-    "seen": 1792738359.2613535,
-    "ast_hash": "8723273a7083abe870f5aafb0c48b83c",
-    "semantic_hash": "8723273a7083abe870f5aafb0c48b83c"
+    "mtime": 1793691696.7227643,
+    "seen": 1793691976.857499,
+    "ast_hash": "de1bec509b2faf41a6b26228a239149a",
+    "semantic_hash": ""
   },
   "components/layout/app-sidebar.tsx": {
-    "mtime": 1793081779.014215,
-    "seen": 1793153387.4440658,
-    "ast_hash": "27b0c41662577152c20a319fe6fb1c62",
+    "mtime": 1793691689.5968432,
+    "seen": 1793691976.857499,
+    "ast_hash": "ac8b247270246a1749f37daa942d3397",
     "semantic_hash": ""
   },
   "components/layout/breadcrumb-nav.tsx": {
@@ -957,6 +957,24 @@
     "mtime": 1793689871.7759972,
     "seen": 1793689888.7143257,
     "ast_hash": "6b94d335bb8d4fd93a53417fcd037ecd",
+    "semantic_hash": ""
+  },
+  "lib/sparta-url.ts": {
+    "mtime": 1793691678.9266326,
+    "seen": 1793691976.857499,
+    "ast_hash": "bf1dccd483e27c384c21e7539b2243a3",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-03-0745-tombol-kembali-ke-sparta.md": {
+    "mtime": 1793691957.1686866,
+    "seen": 1793691976.857499,
+    "ast_hash": "f22942dd0be9b55d21d75b3a3fbed39a",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-11-03-tombol-kembali-ke-sparta-design.md": {
+    "mtime": 1793691947.235955,
+    "seen": 1793691976.857499,
+    "ast_hash": "5d6f5b079f852383385091c8f234c44f",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {
