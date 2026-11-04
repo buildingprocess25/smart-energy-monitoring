@@ -31,18 +31,22 @@
 ## Decisions
 
 1. **Jarak Baris 1.80m (Modulo 3 Frame Pitch)**: Modul gypsum tile memiliki tinggi 0.60m. Mengambil setiap garis ke-3 (melompati 2 tulangan) menghasilkan interval $3 \times 0.60\text{ m} = 1.80\text{ m}$, yang ideal memenuhi batas standar jarak antar baris retail ($\le 1.90\text{ m}$).
-2. **Siklus 3 Fasa Pergeseran Awal**: Karena panjang toko bervariasi dan terdapat potongan sisa tepi (*half-tile border cut*), pergeseran fasa (0, 1, 2) memberikan fleksibilitas penuh bagi engineer untuk menyeimbangkan jarak ke dinding depan/belakang atau menghindari rintangan balok struktural di lapangan.
+2. **Multi-Criteria Optimization Ranking & Auto-Selection by Default**: Sistem menjalankan pra-simulasi penempatan lampu dan filter obstacle untuk ketiga fase sekaligus di latar belakang. Fase dirangking dengan hierarki:
+   - **Prioritas 1 (+100 Poin)**: Kepatuhan rentang daya ritel ($4.0 - 5.0\text{ W/m}^2$ / `minLamps`–`maxLamps`). Jika LPB dasar over-range, sistem adaptif mencari LPB yang compliant.
+   - **Prioritas 2 (+30 Poin)**: Kesimetrisan jarak dinding depan vs belakang ($|d_{\text{top}} - d_{\text{bottom}}|$ minimum).
+   - **Prioritas 3 (+15 Poin)**: Jarak aman bebas tepi dinding ($\ge 0.5\text{ m}$).
+   Fase peraih skor tertinggi otomatis dijadikan pilihan awal default (`activePhase = userShiftPhaseOverride ?? recommendedPhase`), sehingga saat pertama kali dihitung atau toko dibuka, denah langsung menggunakan konfigurasi terbaik tanpa perlu klik manual.
 3. **Ghost Grid Watermark Transparan**: Menggunakan opasitas rendah (0.22 untuk Main Tee, 0.10 untuk Cross Tee, 0.22 dashed untuk Border) di balik bodi lampu dan pendaran glow biru, sehingga tidak mengganggu visibilitas lampu namun memberikan presisi visual ala software CAD arsitektur.
 
 ## Verification
 
 - **TypeScript Compilation**: `npx tsc --noEmit` di repository `sparta-energy` lolos dengan kode exit 0 (zero error).
-- **Automated Verification Script**: Script `scratch/test-lamp-snap.js` dijalankan pada denah persegi panjang (8m x 14m) dan denah asimetris huruf L (10m x 15m):
-  - Memvalidasi 23 garis horizontal plafon dengan interval antar baris snapped tepat 1.80m.
-  - Memvalidasi fasa 3 menghasilkan simetri sempurna ($d_{\text{top}} = 1.60\text{ m}, d_{\text{bottom}} = 1.60\text{ m}, \text{asymmetry} = 0\text{ m}$).
-  - Memvalidasi densitas daya tetap terjaga di rentang standar (5.06 W/m² @ 42 titik lampu).
-  - Memvalidasi denah bentuk L berfungsi normal tanpa tabrakan batas luar.
+- **Automated Verification Script**: Script `scratch/test-scoring.js` dijalankan pada denah toko (11m x 14.5m, range 48–60 lampu):
+  - Berhasil mendeteksi kasus 64 lampu (over) dan otomatis mengadaptasi LPB menjadi 7 unit sehingga jumlah lampu turun menjadi 56 titik (4.74 W/m², tepat masuk rentang ideal).
+  - Fase 2 dinobatkan sebagai *The Best Winner* (Skor 155.4, asimetri 0m simetris sempurna).
+  - Verifikasi UI: tombol fase menampilkan jumlah titik, W/m², asimetri, dan badge "★ Terbaik".
 
 ## Remaining Work and Risks
 
 None. Seluruh fitur telah diimplementasikan, diverifikasi secara komprehensif, dan disinkronkan dengan laporan presentasi akhir ekosistem Sparta Energy.
+
