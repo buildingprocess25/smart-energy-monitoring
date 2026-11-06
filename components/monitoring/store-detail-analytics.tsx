@@ -26,8 +26,15 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from 'recharts'
-import { Store, StoreAnalyticsResult, DailyConsumption, RealMonthlyConsumption } from '@/lib/types'
+import {
+  Store,
+  StoreAnalyticsResult,
+  DailyConsumption,
+  RealMonthlyConsumption,
+  SangatBorosComparison,
+} from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TelemetryDatePicker } from '@/components/monitoring/telemetry-date-picker'
@@ -79,6 +86,74 @@ function CustomXAxisTick({ x, y, payload }: any) {
         </text>
       )}
     </g>
+  )
+}
+
+const BASELINE_COLOR = '#b45309' // amber-700: the standard is a reference, not a status
+const BASELINE_LABEL = 'Standar konsumsi energi'
+
+function formatPct(value: number) {
+  return Math.abs(value).toLocaleString('id-ID', { maximumFractionDigits: 1 })
+}
+
+function SangatBorosComparisonBar({ comparison }: { comparison: SangatBorosComparison }) {
+  const { store, avgDailyMainKwh, mainPanelDays, periodLabel, reductionVsPlnPct, vsStandardPct } =
+    comparison
+  const kwh = (n: number) => n.toLocaleString('id-ID', { maximumFractionDigits: 1 })
+
+  return (
+    <div className="mt-3.5 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-0.5">
+        <div className="flex flex-wrap items-center gap-1.5 font-semibold text-foreground">
+          Toko Sangat Boros peringkat {store.rank}
+          {store.isDemo && (
+            <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+              Uji coba
+            </Badge>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Tagihan PLN {kwh(store.actualPlnKwhPerMonth)} kWh/bln, standar{' '}
+          {kwh(store.standardKwhPerMonth)} kWh/bln ({kwh(store.standardKwhPerDay)} kWh/hari), selisih
+          +{formatPct(store.gapPercent)}%.
+        </p>
+      </div>
+
+      <div className="text-xs text-muted-foreground sm:max-w-sm sm:text-right">
+        {avgDailyMainKwh === null ? (
+          <p>
+            Belum ada data panel utama (fase R/S/T) di {periodLabel}, jadi penurunan belum bisa
+            dihitung. Sensor per equipment tidak dihitung sebagai total toko.
+          </p>
+        ) : (
+          <>
+            <p>
+              Panel utama R/S/T, {periodLabel}: rata-rata{' '}
+              <strong className="font-semibold text-foreground">{kwh(avgDailyMainKwh)} kWh/hari</strong>{' '}
+              dari {mainPanelDays} hari tercatat.
+            </p>
+            {reductionVsPlnPct !== null && (
+              <p
+                className={cn(
+                  'font-semibold',
+                  reductionVsPlnPct >= 0
+                    ? 'text-emerald-700 dark:text-emerald-400'
+                    : 'text-rose-700 dark:text-rose-400'
+                )}
+              >
+                {formatPct(reductionVsPlnPct)}% {reductionVsPlnPct >= 0 ? 'lebih rendah' : 'lebih tinggi'}{' '}
+                dari tagihan PLN per hari
+              </p>
+            )}
+            {vsStandardPct !== null && (
+              <p>
+                {formatPct(vsStandardPct)}% {vsStandardPct > 0 ? 'di atas' : 'di bawah'} standar
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -206,8 +281,10 @@ export function StoreDetailAnalytics({
       const dayFullDate = `${fullDay}, ${d} ${ID_MONTHS_FULL[m]} ${y}`
 
       let kwh = 0
+      let mainPanelKwh = 0
       if (dbDataMap.has(isoDate)) {
         kwh = dbDataMap.get(isoDate)!.kwh
+        mainPanelKwh = dbDataMap.get(isoDate)!.mainPanelKwh || 0
       }
 
       sumKwh += kwh
@@ -218,6 +295,7 @@ export function StoreDetailAnalytics({
         dayLabel,
         dayFullDate,
         kwh,
+        mainPanelKwh,
         cost: Math.round(kwh * PLN_TARIFF_PER_KWH),
       })
     }
@@ -241,6 +319,7 @@ export function StoreDetailAnalytics({
 
   const realMonthlyList = analytics?.monthlyHistory || []
   const monthlySummary = analytics?.monthlySummary
+  const sangatBoros = analytics?.sangatBoros || null
 
   return (
     <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs transition-all">
@@ -468,6 +547,8 @@ export function StoreDetailAnalytics({
         </div>
       )}
 
+      {sangatBoros && <SangatBorosComparisonBar comparison={sangatBoros} />}
+
       {/* Chart Section */}
       <div className="mt-4 flex-1">
         {isLoading ? (
@@ -670,6 +751,18 @@ export function StoreDetailAnalytics({
                             <p className="text-xs text-muted-foreground">
                               Est. Biaya PLN: Rp {data.cost.toLocaleString('id-ID')}
                             </p>
+                            {sangatBoros && (
+                              <div className="mt-1 border-t pt-1 text-xs text-muted-foreground">
+                                <p>
+                                  Panel utama R/S/T:{' '}
+                                  {(data.mainPanelKwh || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
+                                </p>
+                                <p>
+                                  {BASELINE_LABEL}:{' '}
+                                  {sangatBoros.store.standardKwhPerDay.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
+                                </p>
+                              </div>
+                            )}
                           </div>
                         )
                       }
@@ -682,6 +775,22 @@ export function StoreDetailAnalytics({
                     className="fill-emerald-600 hover:fill-emerald-500 dark:fill-emerald-500"
                     radius={[6, 6, 0, 0]}
                   />
+                  {sangatBoros && (
+                    <ReferenceLine
+                      y={sangatBoros.store.standardKwhPerDay}
+                      stroke={BASELINE_COLOR}
+                      strokeDasharray="6 4"
+                      strokeWidth={1.5}
+                      ifOverflow="extendDomain"
+                      label={{
+                        value: `${BASELINE_LABEL} · ${sangatBoros.store.standardKwhPerDay.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh/hari`,
+                        position: 'insideTopRight',
+                        fill: BASELINE_COLOR,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -762,6 +871,18 @@ export function StoreDetailAnalytics({
                             <p className="text-xs text-muted-foreground">
                               Est. Biaya PLN: Rp {data.cost.toLocaleString('id-ID')}
                             </p>
+                            {sangatBoros && (
+                              <div className="border-t pt-1 text-xs text-muted-foreground">
+                                <p>
+                                  Panel utama R/S/T:{' '}
+                                  {(data.mainPanelKwh || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
+                                </p>
+                                <p>
+                                  {BASELINE_LABEL}:{' '}
+                                  {sangatBoros.store.standardKwhPerMonth.toLocaleString('id-ID', { maximumFractionDigits: 0 })} kWh
+                                </p>
+                              </div>
+                            )}
                             {diff !== undefined && (
                               <div className="flex items-center justify-between border-t pt-1 text-[11px]">
                                 <span className="font-medium text-muted-foreground">MoM (vs Bulan Lalu):</span>
@@ -788,6 +909,22 @@ export function StoreDetailAnalytics({
                     fill="#10b981"
                     radius={[6, 6, 0, 0]}
                   />
+                  {sangatBoros && (
+                    <ReferenceLine
+                      y={sangatBoros.store.standardKwhPerMonth}
+                      stroke={BASELINE_COLOR}
+                      strokeDasharray="6 4"
+                      strokeWidth={1.5}
+                      ifOverflow="extendDomain"
+                      label={{
+                        value: `${BASELINE_LABEL} · ${sangatBoros.store.standardKwhPerMonth.toLocaleString('id-ID', { maximumFractionDigits: 0 })} kWh/bln`,
+                        position: 'insideTopRight',
+                        fill: BASELINE_COLOR,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </div>

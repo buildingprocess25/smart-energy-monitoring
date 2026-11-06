@@ -30,7 +30,8 @@ SPARTA Energy and Alfamart branding (`/assets/Building-Logo.png`). Clean Light m
 ## Evidence on Hand
 - `DESIGN.md`: Comprehensive UI/UX specification & visual direction.
 - `ARCHITECTURE_PLAN.md`: System architecture and integration plan.
-- `AGENTS.md` and `AI_RULES.md`: Repository governance and AI workflow rules.
+- `AI_CONTEXT.md`: Domain rules (store status, telemetry and energy calculations, PLN cost) and the codebase map.
+- `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `AI_RULES.md`: Repository governance, skill usage, graphify rules, and AI workflow rules.
 
 ## Product Principles
 - Seamless ecosystem integration with SPARTA Energy tools.

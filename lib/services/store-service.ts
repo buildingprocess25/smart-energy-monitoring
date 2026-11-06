@@ -1,4 +1,7 @@
+import { cache } from 'react'
 import { getSpartaPool, getTelemetryPool } from '@/lib/db/pools'
+import { getRequestScope } from '@/lib/auth/access'
+import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
 
 // Helper: Extract Store Code from IoT Device Name
@@ -67,9 +70,19 @@ interface SensorConfig {
   enabled?: boolean
 }
 
-export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
+// React cache() lasts one server request only, so every page load still reads live data.
+// It lets the page sections share one read instead of repeating it; route handlers are not memoized.
+export const getIotDeviceDataList = cache(loadIotDeviceDataList)
+export const getStores = cache(loadStores)
+export const getStoreById = cache(loadStoreById)
+
+async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
   const telemetryDb = getTelemetryPool()
   const now = Date.now()
+
+  // Every store, page and API route reads devices through here, so the role scope is applied once.
+  const scope = await getRequestScope()
+  if (scope.kind === 'none') return []
 
   try {
     let devRows: any[] = []
@@ -130,6 +143,7 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
     const results: IotDeviceData[] = []
 
     for (const dev of devRows) {
+      if (!isDeviceAllowed(scope, String(dev.id))) continue
       const storeCode = extractStoreCode(dev.name)
 
       let captureStateObj: any = null
@@ -323,7 +337,7 @@ export async function getIotDeviceDataList(): Promise<IotDeviceData[]> {
 }
 
 // Get only stores that actually have IoT devices registered in database
-export async function getStores(): Promise<Store[]> {
+async function loadStores(): Promise<Store[]> {
   const sparta = getSpartaPool()
 
   try {
@@ -484,12 +498,15 @@ export async function getStores(): Promise<Store[]> {
 }
 
 // Get single store details
-export async function getStoreById(storeId: string): Promise<Store | null> {
+async function loadStoreById(storeId: string): Promise<Store | null> {
   const stores = await getStores()
   const found = stores.find(
     (s) => s.id === storeId || s.code.toUpperCase() === storeId.toUpperCase()
   )
   if (found) return found
+
+  // A limited scope (GS) only reaches stores of its assigned devices, never other DB 1 stores.
+  if ((await getRequestScope()).kind !== 'all') return null
 
   // If queried by direct ID or code from SPARTA DB
   const sparta = getSpartaPool()
@@ -498,7 +515,7 @@ export async function getStoreById(storeId: string): Promise<Store | null> {
       `
       SELECT id, code, name, branch, pln_power_va, sales_area_m2, warehouse_area_m2, is_24_hours, latitude, longitude
       FROM stores
-      WHERE id::text = $1 OR code ILIKE $1
+      WHERE id::text = $1 OR UPPER(code) = UPPER($1)
       LIMIT 1
     `,
       [storeId]

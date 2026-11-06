@@ -1,4 +1,8 @@
-# Next.js Project Template
+# SPARTA Smart Energy Monitoring
+
+Portal monitoring energi toko Alfamart dari alat IoT energy meter, bagian dari
+ekosistem SPARTA Energy. Lihat `AI_CONTEXT.md` untuk konteks domain dan
+`ARCHITECTURE_PLAN.md` untuk arsitektur 3 proyek dan dual database.
 
 ## Required setup
 
@@ -7,11 +11,13 @@ pnpm install
 pnpm setup:git-hooks
 ```
 
-Read `AGENTS.md` and `AI_RULES.md` before changing the project. Every
+Read `AGENTS.md` (or `CLAUDE.md` for Claude Code) and `AI_RULES.md` before
+changing the project. The knowledge graph in `graphify-out/` is the first stop
+for codebase questions: `graphify query "<question>"`. Every
 substantive change needs a dated note in `docs/agent-notes/`; never bypass this
 guard with `git commit --no-verify`.
 
-This is a Next.js template with shadcn/ui.
+Built with Next.js 16 and shadcn/ui.
 
 ## Adding components
 
@@ -33,7 +39,8 @@ import { Button } from "@/components/ui/button";
 
 ## Prisma
 
-Set `DATABASE_URL` in `.env` only after confirming whether it targets
+Set `SPARTA_DATABASE_URL`, `TELEMETRY_DATABASE_URL`, and `DATABASE_URL` in
+`.env` (see `.env.example`) only after confirming whether it targets
 development or production. Use `pnpm prisma:validate` and
 `pnpm prisma:generate`; this template prohibits `prisma db push`,
 `prisma migrate dev`, and `prisma migrate deploy`.

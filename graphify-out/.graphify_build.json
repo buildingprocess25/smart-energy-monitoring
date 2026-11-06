@@ -1,0 +1,12 @@
+{
+  "excludes": [
+    ".agents",
+    ".claude",
+    ".codex",
+    ".cursor",
+    ".gemini",
+    ".github",
+    ".opencode",
+    "graphify-out"
+  ]
+}

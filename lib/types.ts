@@ -6,6 +6,7 @@ export interface DailyConsumption {
   dayLabel?: string
   dayFullDate?: string
   kwh: number
+  mainPanelKwh?: number // Only main panel phases R/S/T, excluding sub-metering sensors
   cost: number
 }
 
@@ -22,6 +23,7 @@ export interface RealMonthlyConsumption {
   year: number
   month: number
   kwh: number
+  mainPanelKwh?: number // Only main panel phases R/S/T, excluding sub-metering sensors
   cost: number
   diffPct?: number // MoM % difference vs previous month
   isLatest?: boolean
@@ -56,6 +58,42 @@ export interface StoreAnalyticsResult {
   dailyConsumption: DailyConsumption[]
   monthlyHistory?: RealMonthlyConsumption[]
   monthlySummary?: MonthlyTrendSummary
+  sangatBoros?: SangatBorosComparison | null
+}
+
+// One row of the read-only view v_toko_sangat_boros in DB 1 (owned by sparta-energy)
+export interface SangatBorosStore {
+  rank: number
+  storeCode: string
+  storeName: string
+  branch: string
+  latitude?: number
+  longitude?: number
+  auditId: string
+  calculatedAt: string // ISO string
+  gapPercent: number
+  actualPlnKwhPerMonth: number
+  standardKwhPerMonth: number
+  standardKwhPerDay: number
+  validationStatus: 'PENDING' | 'VALIDATED'
+  isDemo: boolean
+}
+
+export interface SangatBorosPriorityItem extends SangatBorosStore {
+  isInstalled: boolean
+  deviceCount: number
+}
+
+export type SangatBorosListStatus = 'ok' | 'missing' | 'error'
+
+// Main panel (R/S/T) daily average compared with the PLN bill and the standard
+export interface SangatBorosComparison {
+  store: SangatBorosStore
+  periodLabel: string // e.g. "Okt 2026"
+  mainPanelDays: number // days in the period with main panel kWh > 0
+  avgDailyMainKwh: number | null
+  reductionVsPlnPct: number | null // positive = lower than the PLN bill before IoT
+  vsStandardPct: number | null // positive = above the standard
 }
 
 export interface PhaseData {

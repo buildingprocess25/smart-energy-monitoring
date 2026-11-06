@@ -1,4 +1,4 @@
-FROM node:24-alpine AS base
+FROM node:22-alpine AS base
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
@@ -22,7 +22,7 @@ COPY . .
 RUN DATABASE_URL="postgresql://template:template@localhost:5432/template?schema=public" pnpm prisma:generate
 RUN pnpm build
 
-FROM node:24-alpine AS runner
+FROM node:22-alpine AS runner
 
 WORKDIR /app
 
