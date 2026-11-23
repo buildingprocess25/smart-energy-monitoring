@@ -65,7 +65,7 @@ pnpm format              # Prettier (ts, tsx)
 pnpm check:agent-note    # same check the pre-commit hook runs
 pnpm test:agent-note     # tests for that check
 pnpm test:access         # role and access-scope rules (node --test)
-pnpm test:data           # pure data modules: phase keys, live buffer, shared fetch, read-only, session records
+pnpm test:data           # pure data modules: phase keys, live buffer, shared fetch, stale cache, read-only, session records
 
 pnpm prisma:validate     # allowed: does not touch the database
 pnpm prisma:generate     # allowed: does not touch the database
@@ -146,7 +146,7 @@ lib/
 │   ├── telemetry-api.ts            # fetchTelemetryApi: server-side GET to Flask (TELEMETRY_API_URL)
 │   ├── sangat-boros-service.ts     # v_toko_sangat_boros (DB 1 view), install status, comparison
 │   └── telemetry-service.ts        # analytics, telemetry history, live phases, sessions, monthly cost
-├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts  # pure modules (tested by test:data)
+├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts, stale-cache.ts  # pure modules (tested by test:data)
 ├── db/read-only.ts                 # readOnlyQuery: BEGIN READ ONLY + 15 s statement_timeout on getTelemetryPool()
 ├── types.ts                        # Store, PhaseData, TelemetryPoint, AuditSession, MonthlyCostRecord, ...
 ├── mock-data.ts                    # legacy mock data, no longer imported
@@ -193,6 +193,7 @@ scripts/                            # agent-note check, asset copy
 - `getStoreAnalyticsData()`: daily/weekly/monthly energy, load profile, two-year comparison, anchored to the store's latest recorded date.
 - `getTelemetryHistory()`: paginated points (96 per day at 15 minutes) for a metric and time range.
 - `getLiveTelemetry()`, `getAuditSessions()`, `getDailyConsumptionTrend()`, `getMonthlyCostSummary()`.
+- `getMonthlyCostSummary()` scans all of `history` (about 12 s), so it sits behind `lib/stale-cache.ts`: after the first load it answers from cache and refreshes in the background. The overview page streams it and `getStoreAnalyticsData()` through `<Suspense>` instead of awaiting them. The permanent fix is in `docs/backlog.md`.
 
 **`lib/services/live-buffer-service.ts`, `telemetry-api.ts`**
 - `getStoreLiveBuffer()`: latest samples of a store's device from Flask `GET /api/live-buffer/<device_id>`, called only from the server. `lib/shared-fetch.ts` allows at most 1 call per device per 3 s and pauses 15 s after a failure. The store to device lookup is cached per (access scope, store) for 60 s, so a GS revocation reaches this route within 60 s.

@@ -10,20 +10,22 @@ import { NoAssignedDevices } from '@/components/layout/no-assigned-devices'
 export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
-  const [scope, stores, initialStoreAnalytics, monthlyCosts] = await Promise.all([
-    getRequestScope(),
-    getStores(),
-    getStoreAnalyticsData(),
-    getMonthlyCostSummary(),
-  ])
+  // Both aggregates scan history and take seconds, so they stream into their own Suspense boundaries.
+  const storeAnalyticsPromise = getStoreAnalyticsData().catch((error) => {
+    console.error('Error loading dashboard store analytics:', error)
+    return null
+  })
+  const monthlyCostsPromise = getMonthlyCostSummary()
+
+  const [scope, stores] = await Promise.all([getRequestScope(), getStores()])
 
   if (scope.kind === 'devices' && stores.length === 0) return <NoAssignedDevices />
 
   return (
     <DashboardOverview
       stores={stores}
-      initialStoreAnalytics={initialStoreAnalytics}
-      monthlyCosts={monthlyCosts}
+      storeAnalyticsPromise={storeAnalyticsPromise}
+      monthlyCostsPromise={monthlyCostsPromise}
     />
   )
 }

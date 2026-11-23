@@ -6,9 +6,8 @@ import { Store, PhaseData, StoreStatus } from '@/lib/types'
 import { createSharedFetch } from '@/lib/shared-fetch'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 
-// /capture/status is the same for every viewer (scope is applied afterwards), so Flask is
-// asked at most once per 5 s; after a failure pages fall back to DB capture_states for 15 s
-// instead of waiting on the timeout every request.
+// /capture/status is the same for every viewer (scope is applied afterwards): ask Flask at most every 5 s,
+// and after a failure use DB capture_states for 15 s instead of waiting on the timeout.
 const loadCaptureStatus = createSharedFetch(() => fetchTelemetryApi('/capture/status', 1500), {
   ttlMs: 5000,
   failureBackoffMs: 15000,

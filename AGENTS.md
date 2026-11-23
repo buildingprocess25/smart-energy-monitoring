@@ -215,6 +215,7 @@ scripts/                            # agent-note check, asset copy
 - `getStoreAnalyticsData()`: daily/weekly/monthly energy, load profile, two-year comparison, anchored to the store's latest recorded date.
 - `getTelemetryHistory()`: paginated points (96 per day at 15 minutes) for a metric and time range.
 - `getLiveTelemetry()`, `getAuditSessions()`, `getDailyConsumptionTrend()`, `getMonthlyCostSummary()`.
+- `getMonthlyCostSummary()` scans all of `history` (about 12 s), so it sits behind `lib/stale-cache.ts`: after the first load it answers from cache and refreshes in the background. The overview page streams it and `getStoreAnalyticsData()` through `<Suspense>` instead of awaiting them. The permanent fix is in `docs/backlog.md`.
 
 **`lib/services/sangat-boros-service.ts`**
 - `getSangatBorosStores()`: reads `v_toko_sangat_boros` (12 Sangat Boros stores). Returns status `missing` when the view does not exist yet, so pages keep working.

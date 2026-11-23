@@ -20,6 +20,7 @@ import {
 } from '@/lib/types'
 import { getStoreById, getStores } from './store-service'
 import { sensorColor as getSensorColor } from '@/lib/phase-keys'
+import { createStaleCache } from '@/lib/stale-cache'
 
 // SQL filter for queries that scan every device; params start at $1.
 function deviceScopeFilter(scope: AccessScope): { clause: string; params: string[][] } {
@@ -1319,23 +1320,32 @@ export async function getLiveTelemetry(storeId: string): Promise<PhaseData[]> {
   }
 }
 
-// In-memory cache for monthly cost summary across all stores (TTL: 5 minutes)
+// The query scans all of history (about 12 s in November 2026), so an expired summary refreshes in the background.
 // Keyed by access scope so a GS user never receives totals of devices outside their scope.
-const _monthlyCostCache = new Map<string, { data: MonthlyCostRecord[]; timestamp: number }>()
 const MONTHLY_COST_CACHE_TTL_MS = 5 * 60 * 1000
+const monthlyCostCache = createStaleCache<MonthlyCostRecord[]>({
+  ttlMs: MONTHLY_COST_CACHE_TTL_MS,
+  onError: (error) => console.error('Error refreshing monthly cost summary:', error),
+})
 
 // Fetch monthly energy consumption & cost history across all recorded months
 export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
-  const nowMs = Date.now()
   const scope = await getRequestScope()
   if (scope.kind === 'none') return []
-  const deviceFilter = deviceScopeFilter(scope)
   const cacheKey = scope.kind === 'all' ? 'all' : [...scope.deviceIds].sort().join(',')
-  const cached = _monthlyCostCache.get(cacheKey)
-  if (cached && nowMs - cached.timestamp < MONTHLY_COST_CACHE_TTL_MS) {
-    return cached.data
-  }
+  const deviceFilter = deviceScopeFilter(scope)
 
+  try {
+    return await monthlyCostCache(cacheKey, () => loadMonthlyCostSummary(deviceFilter))
+  } catch (error) {
+    console.error('Error in getMonthlyCostSummary:', error)
+    return []
+  }
+}
+
+async function loadMonthlyCostSummary(
+  deviceFilter: ReturnType<typeof deviceScopeFilter>
+): Promise<MonthlyCostRecord[]> {
   const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
 
@@ -1345,123 +1355,115 @@ export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
   ]
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
-  try {
-    const res = await aiven.query(`
-      WITH raw_combined AS (
-        SELECT 
-          device_id,
-          CASE
-            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-            ELSE phase
-          END as phase,
-          epoch,
-          energy
-        FROM (
-          SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
-          UNION ALL
-          SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
-        ) combined
-      ),
-      per_phase_month AS (
-        SELECT 
-          device_id,
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta,
-          COUNT(DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')) as active_days
-        FROM raw_combined
-        GROUP BY device_id, phase, month_key
-      ),
-      per_month AS (
-        SELECT 
-          month_key,
-          COUNT(DISTINCT device_id) as active_devices,
-          MAX(active_days) as max_days,
-          SUM(phase_delta) as delta_kwh
-        FROM per_phase_month
-        GROUP BY month_key
-      )
+  const res = await aiven.query(`
+    WITH raw_combined AS (
+      SELECT 
+        device_id,
+        CASE
+          WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+          WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+          WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+          ELSE phase
+        END as phase,
+        epoch,
+        energy
+      FROM (
+        SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
+        UNION ALL
+        SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
+      ) combined
+    ),
+    per_phase_month AS (
+      SELECT 
+        device_id,
+        phase,
+        TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
+        GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta,
+        COUNT(DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')) as active_days
+      FROM raw_combined
+      GROUP BY device_id, phase, month_key
+    ),
+    per_month AS (
       SELECT 
         month_key,
-        active_devices,
-        COALESCE(max_days, 1) as recorded_days,
-        ROUND(COALESCE(delta_kwh, 0)::numeric, 1) as delta_kwh
-      FROM per_month
-      WHERE month_key IS NOT NULL
-      ORDER BY month_key ASC
-    `, deviceFilter.params)
+        COUNT(DISTINCT device_id) as active_devices,
+        MAX(active_days) as max_days,
+        SUM(phase_delta) as delta_kwh
+      FROM per_phase_month
+      GROUP BY month_key
+    )
+    SELECT 
+      month_key,
+      active_devices,
+      COALESCE(max_days, 1) as recorded_days,
+      ROUND(COALESCE(delta_kwh, 0)::numeric, 1) as delta_kwh
+    FROM per_month
+    WHERE month_key IS NOT NULL
+    ORDER BY month_key ASC
+  `, deviceFilter.params)
 
-    const rows = res.rows || []
-    const now = new Date()
-    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const rows = res.rows || []
+  const now = new Date()
+  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-    if (rows.length === 0) {
-      const stores = await getStores()
-      const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
-      const cost = Math.round(totalKwh * PLN_TARIFF)
-      const y = now.getFullYear()
-      const m = now.getMonth()
+  if (rows.length === 0) {
+    const stores = await getStores()
+    const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
+    const cost = Math.round(totalKwh * PLN_TARIFF)
+    const y = now.getFullYear()
+    const m = now.getMonth()
 
-      const fallbackRecords: MonthlyCostRecord[] = [
-        {
-          monthKey: currentMonthKey,
-          monthLabel: `${monthNames[m]} ${y}`,
-          monthShortLabel: `${monthNamesShort[m]} ${y}`,
-          year: y,
-          month: m + 1,
-          kwh: Math.round(totalKwh * 10) / 10,
-          cost,
-          isCurrentMonth: true,
-          activeStoresCount: stores.filter((s) => s.status === 'live').length || stores.length,
-          avgDailyKwh: Math.round((totalKwh / 30) * 10) / 10,
-        },
-      ]
-      _monthlyCostCache.set(cacheKey, { data: fallbackRecords, timestamp: nowMs })
-      return fallbackRecords
-    }
-
-    const records: MonthlyCostRecord[] = []
-
-    for (let i = 0; i < rows.length; i++) {
-      const r = rows[i]
-      const [yStr, mStr] = (r.month_key || '').split('-')
-      const y = parseInt(yStr, 10) || now.getFullYear()
-      const m = parseInt(mStr, 10) || 1
-      const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
-      const cost = Math.round(kwh * PLN_TARIFF)
-      const recordedDays = parseInt(r.recorded_days, 10) || 1
-
-      const prev = i > 0 ? records[i - 1] : undefined
-      const prevCost = prev ? prev.cost : undefined
-      let diffPercentage: number | undefined = undefined
-      if (prevCost && prevCost > 0) {
-        diffPercentage = Math.round(((cost - prevCost) / prevCost) * 1000) / 10
-      }
-
-      records.push({
-        monthKey: r.month_key,
-        monthLabel: `${monthNames[m - 1]} ${y}`,
-        monthShortLabel: `${monthNamesShort[m - 1]} ${y}`,
+    const fallbackRecords: MonthlyCostRecord[] = [
+      {
+        monthKey: currentMonthKey,
+        monthLabel: `${monthNames[m]} ${y}`,
+        monthShortLabel: `${monthNamesShort[m]} ${y}`,
         year: y,
-        month: m,
-        kwh,
+        month: m + 1,
+        kwh: Math.round(totalKwh * 10) / 10,
         cost,
-        previousCost: prevCost,
-        diffPercentage,
-        isCurrentMonth: r.month_key === currentMonthKey || i === rows.length - 1,
-        activeStoresCount: parseInt(r.active_devices, 10) || 1,
-        avgDailyKwh: Math.round((kwh / Math.max(1, recordedDays)) * 10) / 10,
-      })
+        isCurrentMonth: true,
+        activeStoresCount: stores.filter((s) => s.status === 'live').length || stores.length,
+        avgDailyKwh: Math.round((totalKwh / 30) * 10) / 10,
+      },
+    ]
+    return fallbackRecords
+  }
+
+  const records: MonthlyCostRecord[] = []
+
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i]
+    const [yStr, mStr] = (r.month_key || '').split('-')
+    const y = parseInt(yStr, 10) || now.getFullYear()
+    const m = parseInt(mStr, 10) || 1
+    const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
+    const cost = Math.round(kwh * PLN_TARIFF)
+    const recordedDays = parseInt(r.recorded_days, 10) || 1
+
+    const prev = i > 0 ? records[i - 1] : undefined
+    const prevCost = prev ? prev.cost : undefined
+    let diffPercentage: number | undefined = undefined
+    if (prevCost && prevCost > 0) {
+      diffPercentage = Math.round(((cost - prevCost) / prevCost) * 1000) / 10
     }
 
-    const result = records.reverse()
-    _monthlyCostCache.set(cacheKey, { data: result, timestamp: nowMs })
-    return result
-  } catch (error) {
-    console.error('Error in getMonthlyCostSummary:', error)
-    return []
+    records.push({
+      monthKey: r.month_key,
+      monthLabel: `${monthNames[m - 1]} ${y}`,
+      monthShortLabel: `${monthNamesShort[m - 1]} ${y}`,
+      year: y,
+      month: m,
+      kwh,
+      cost,
+      previousCost: prevCost,
+      diffPercentage,
+      isCurrentMonth: r.month_key === currentMonthKey || i === rows.length - 1,
+      activeStoresCount: parseInt(r.active_devices, 10) || 1,
+      avgDailyKwh: Math.round((kwh / Math.max(1, recordedDays)) * 10) / 10,
+    })
   }
+
+  return records.reverse()
 }
 

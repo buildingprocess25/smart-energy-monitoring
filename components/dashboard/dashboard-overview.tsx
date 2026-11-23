@@ -1,5 +1,6 @@
 'use client'
 
+import { Suspense, use } from 'react'
 import Link from 'next/link'
 import {
   Zap,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react'
 import { Store, StoreAnalyticsResult, MonthlyCostRecord } from '@/lib/types'
 import { buttonVariants } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import { NetworkMapWidget } from './network-map-widget'
 import { StoreAnalyticsWidget } from './store-analytics-widget'
 import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
@@ -20,14 +22,71 @@ import { cn } from '@/lib/utils'
 
 interface DashboardOverviewProps {
   stores?: Store[]
-  initialStoreAnalytics?: StoreAnalyticsResult | null
-  monthlyCosts?: MonthlyCostRecord[]
+  storeAnalyticsPromise: Promise<StoreAnalyticsResult | null>
+  monthlyCostsPromise: Promise<MonthlyCostRecord[]>
+}
+
+function MonthlyCostSection({
+  monthlyCostsPromise,
+  totalCumulativeKwh,
+}: {
+  monthlyCostsPromise: Promise<MonthlyCostRecord[]>
+  totalCumulativeKwh: number
+}) {
+  return (
+    <MonthlyCostKpiCard
+      monthlyCosts={use(monthlyCostsPromise)}
+      totalCumulativeKwh={totalCumulativeKwh}
+    />
+  )
+}
+
+function StoreAnalyticsSection({
+  stores,
+  storeAnalyticsPromise,
+}: {
+  stores: Store[]
+  storeAnalyticsPromise: Promise<StoreAnalyticsResult | null>
+}) {
+  return <StoreAnalyticsWidget stores={stores} initialAnalytics={use(storeAnalyticsPromise)} />
+}
+
+function MonthlyCostFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex flex-col justify-between gap-3 rounded-xl border bg-card p-4 shadow-xs"
+    >
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Estimasi Biaya PLN
+      </span>
+      <Skeleton className="h-8 w-40 motion-reduce:animate-none" />
+      <span className="text-xs text-muted-foreground">Menghitung biaya bulanan</span>
+    </div>
+  )
+}
+
+function StoreAnalyticsFallback() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-xs lg:col-span-8"
+    >
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-5 w-56 motion-reduce:animate-none" />
+        <p className="text-xs text-muted-foreground">Memuat analitik energi toko</p>
+      </div>
+      <Skeleton className="h-64 w-full motion-reduce:animate-none" />
+    </div>
+  )
 }
 
 export function DashboardOverview({
   stores = [],
-  initialStoreAnalytics = null,
-  monthlyCosts = [],
+  storeAnalyticsPromise,
+  monthlyCostsPromise,
 }: DashboardOverviewProps) {
   // Hitung total energi
   const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
@@ -111,10 +170,12 @@ export function DashboardOverview({
         </div>
 
         {/* KPI 2: Estimasi Biaya PLN (Per Bulan dengan Selector & Riwayat) */}
-        <MonthlyCostKpiCard
-          monthlyCosts={monthlyCosts}
-          totalCumulativeKwh={totalKwh}
-        />
+        <Suspense fallback={<MonthlyCostFallback />}>
+          <MonthlyCostSection
+            monthlyCostsPromise={monthlyCostsPromise}
+            totalCumulativeKwh={totalKwh}
+          />
+        </Suspense>
 
         {/* KPI 3 */}
         <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-blue-500/30 hover:shadow-sm">
@@ -175,10 +236,9 @@ export function DashboardOverview({
       {/* Bento Grid: Charts & Analytics */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Widget Analisis Toko Terpilih (Profil 24 Jam & Tren 7 Hari) */}
-        <StoreAnalyticsWidget
-          stores={stores}
-          initialAnalytics={initialStoreAnalytics}
-        />
+        <Suspense fallback={<StoreAnalyticsFallback />}>
+          <StoreAnalyticsSection stores={stores} storeAnalyticsPromise={storeAnalyticsPromise} />
+        </Suspense>
 
         {/* Status Perangkat & Distribusi Wilayah (Col 4) */}
         <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs lg:col-span-4">
