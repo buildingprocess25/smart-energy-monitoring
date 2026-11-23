@@ -13,6 +13,7 @@ import React from 'react'
 
 const ROUTE_LABELS: Record<string, string> = {
   monitoring: 'Monitoring Toko',
+  'sesi-rekaman': 'Sesi Rekaman',
 }
 
 export function BreadcrumbNav() {

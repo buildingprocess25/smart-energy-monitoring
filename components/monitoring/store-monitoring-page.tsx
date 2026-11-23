@@ -12,6 +12,7 @@ import {
   TelemetryPoint,
 } from '@/lib/types'
 import { StoreHero } from './store-hero'
+import { LiveTelemetryChart } from './live-telemetry-chart'
 import { TelemetryChart, METRIC_CONFIG } from './telemetry-chart'
 import { SessionSelector } from './session-selector'
 import { TelemetryDatePicker } from './telemetry-date-picker'
@@ -353,6 +354,7 @@ export function StoreMonitoringPage({
     <div className="flex flex-col gap-6 pb-12">
       {/* Store Header Info */}
       <StoreHero store={store} />
+      {store.deviceId && store.status !== 'unassigned' && <LiveTelemetryChart key={store.id} storeId={store.id} />}
 
       {/* Sub-Tab Navigation Bar */}
       <div className="flex items-center gap-2 border-b pb-0">

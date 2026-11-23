@@ -19,34 +19,7 @@ import {
   MonthlyTrendSummary,
 } from '@/lib/types'
 import { getStoreById, getStores } from './store-service'
-
-const DEFAULT_PALETTE = [
-  '#10b981', // emerald-500
-  '#3b82f6', // blue-500
-  '#f59e0b', // amber-500
-  '#a855f7', // purple-500
-  '#ec4899', // pink-500
-  '#06b6d4', // cyan-500
-  '#f97316', // orange-500
-  '#64748b', // slate-500
-]
-
-function getSensorColor(phase: string, name: string, index: number): string {
-  const p = phase.toUpperCase()
-  const n = (name || '').toLowerCase()
-
-  if (n.includes('fase r') || n.includes('phase r') || p === 'R') return '#10b981' // Green (R)
-  if (n.includes('fase s') || n.includes('phase s') || p === 'S') return '#3b82f6' // Blue (S)
-  if (n.includes('fase t') || n.includes('phase t') || p === 'T') return '#f59e0b' // Amber/Yellow (T)
-  if (n.includes('ac') || n.includes('air conditioner') || n.includes('hvac') || n.includes('cooler')) return '#06b6d4' // Cyan (AC/Cooling)
-  if (n.includes('chiller') || n.includes('showcase') || n.includes('refrigerat')) return '#3b82f6' // Blue (Cold Chain)
-  if (n.includes('freezer')) return '#6366f1' // Indigo (Freezer)
-  if (n.includes('lampu') || n.includes('light') || n.includes('penerangan')) return '#eab308' // Yellow (Lighting)
-  if (n.includes('heater') || n.includes('cooker') || n.includes('oven') || n.includes('microwave')) return '#f97316' // Orange (Heating)
-  if (n.includes('dummy') || p === 'L6') return '#94a3b8' // Slate (Dummy)
-
-  return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]
-}
+import { sensorColor as getSensorColor } from '@/lib/phase-keys'
 
 // SQL filter for queries that scan every device; params start at $1.
 function deviceScopeFilter(scope: AccessScope): { clause: string; params: string[][] } {
