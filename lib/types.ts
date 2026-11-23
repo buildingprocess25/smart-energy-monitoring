@@ -185,3 +185,68 @@ export interface MonthlyCostRecord {
   avgDailyKwh?: number
 }
 
+export interface LiveBufferResult {
+  sensors: SensorMeta[]
+  points: TelemetryPoint[]
+  offline: boolean
+  lastEpoch: number | null
+}
+
+export interface SessionRecord {
+  timestamp: string // "HH:MM:SS DD/MM/YYYY" WIB, as stored by Flask
+  epoch: number
+  offline: boolean
+  voltage: number
+  current: number
+  power: number
+  frequency: number
+  energy: number // cumulative counter, not a delta
+  powerFactor: number
+}
+
+export interface SessionPhaseRecords {
+  phase: string // raw key as stored, e.g. "L12", "CT"
+  name: string
+  records: SessionRecord[]
+}
+
+export interface SessionInfo {
+  id: string
+  name: string
+  deviceId: string
+  deviceName: string
+  startTime: string
+  endTime: string | null
+  recordCount: number
+}
+
+export interface SessionRecordsResult {
+  session: SessionInfo
+  phases: SessionPhaseRecords[]
+}
+
+export interface RecordingSessionSummary {
+  id: string
+  name: string
+  deviceId: string
+  deviceName: string
+  storeId: string | null
+  storeCode: string | null
+  storeName: string | null
+  startEpoch: number
+  endEpoch: number
+  recordCount: number
+  phases: string[]
+}
+
+export interface SessionSummaryStats {
+  totalRecords: number
+  onlineRecords: number
+  offlineRecords: number
+  avgVoltage: number
+  avgCurrent: number
+  avgPower: number
+  avgFrequency: number
+  avgPowerFactor: number
+  energyKwh: number
+}

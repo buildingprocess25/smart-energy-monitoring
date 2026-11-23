@@ -64,6 +64,14 @@ export function parseDeviceIds(raw: string | null | undefined): string[] {
     .filter(Boolean)
 }
 
+// Same scope, same key, whatever the order of the device ids. Used to key shared caches,
+// so two callers with different scopes never share an entry.
+export function scopeKey(scope: AccessScope): string {
+  return JSON.stringify(
+    scope.kind === 'devices' ? { kind: 'devices', deviceIds: [...scope.deviceIds].sort() } : { kind: scope.kind }
+  )
+}
+
 export function isDeviceAllowed(scope: AccessScope, deviceId: string): boolean {
   if (scope.kind === 'all') return true
   if (scope.kind === 'devices') return scope.deviceIds.includes(deviceId)

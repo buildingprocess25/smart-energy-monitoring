@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isIsoDate, parseDateParam, parseHistoryParams } from '../lib/request-params.ts'
+import { isIsoDate, parseDateParam, parseHistoryParams, parseSinceParam, parseSessionId } from '../lib/request-params.ts'
 
 const parse = (query) => parseHistoryParams(new URLSearchParams(query))
 
@@ -38,4 +38,20 @@ test('parseHistoryParams rejects bad input', () => {
   assert.equal(parse('pageSize=501').ok, false)
   assert.equal(parse('pageSize=-5').ok, false)
   assert.equal(parse(`sessionId=${'x'.repeat(201)}`).ok, false)
+})
+
+test('parseSinceParam accepts a missing value or a positive epoch in ms', () => {
+  assert.deepEqual(parseSinceParam(null), { ok: true, value: null })
+  assert.deepEqual(parseSinceParam(''), { ok: true, value: null })
+  assert.deepEqual(parseSinceParam('1762657200000'), { ok: true, value: 1762657200000 })
+  assert.equal(parseSinceParam('-1').ok, false)
+  assert.equal(parseSinceParam('12abc').ok, false)
+  assert.equal(parseSinceParam('1e20').ok, false)
+})
+
+test('parseSessionId accepts ids the history table can hold', () => {
+  assert.deepEqual(parseSessionId('sess_1762657200'), { ok: true, value: 'sess_1762657200' })
+  assert.equal(parseSessionId('').ok, false)
+  assert.equal(parseSessionId('a'.repeat(51)).ok, false)
+  assert.equal(parseSessionId("x' OR 1=1").ok, false)
 })

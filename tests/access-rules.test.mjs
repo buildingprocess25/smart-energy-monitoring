@@ -8,6 +8,7 @@ import {
   isDeviceAllowed,
   isValidInternalToken,
   anonymousPageTarget,
+  scopeKey,
 } from '../lib/auth/access-rules.ts'
 
 test('anonymousPageTarget sends to sparta once, then stops the loop', () => {
@@ -66,4 +67,17 @@ test('isValidInternalToken rejects missing configuration and mismatches', () => 
   assert.equal(isValidInternalToken('', ''), false)
   assert.equal(isValidInternalToken('abc', undefined), false)
   assert.equal(isValidInternalToken(null, 'abc'), false)
+})
+
+test('scopeKey gives one key per scope, whatever the order of the device ids', () => {
+  const a = scopeKey({ kind: 'devices', deviceIds: ['EM-2', 'EM-1'] })
+  const b = scopeKey({ kind: 'devices', deviceIds: ['EM-1', 'EM-2'] })
+  assert.equal(a, b)
+  assert.notEqual(scopeKey({ kind: 'all' }), a)
+  assert.notEqual(scopeKey({ kind: 'devices', deviceIds: ['EM-1'] }), a)
+  assert.notEqual(scopeKey({ kind: 'devices', deviceIds: ['EM-1'] }), scopeKey({ kind: 'devices', deviceIds: ['EM-3'] }))
+  const none = scopeKey({ kind: 'none' })
+  assert.notEqual(none, scopeKey({ kind: 'all' }))
+  assert.notEqual(none, scopeKey({ kind: 'devices', deviceIds: [] }))
+  assert.equal(scopeKey({ kind: 'all' }), JSON.stringify({ kind: 'all' }))
 })

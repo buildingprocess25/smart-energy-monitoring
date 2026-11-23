@@ -141,6 +141,9 @@ Routes (App Router):
   `getStoreAnalyticsData`, `getMonthlyCostSummary`)
 - `/monitoring` → `app/(dashboard)/monitoring/page.tsx`
 - `/monitoring/[storeId]` → `app/(dashboard)/monitoring/[storeId]/page.tsx`
+  (termasuk grafik live)
+- `/sesi-rekaman` → `app/(dashboard)/sesi-rekaman/page.tsx` (daftar sesi
+  rekaman, memanggil `getRecordingSessions`)
 - Layout dashboard → `app/(dashboard)/layout.tsx` (AdminShell)
 
 API routes (read-only JSON):
@@ -151,6 +154,10 @@ API routes (read-only JSON):
 - `GET /api/stores/[storeId]/history` → `getTelemetryHistory`
 - `GET /api/stores/[storeId]/telemetry` → `getLiveTelemetry`
 - `GET /api/stores/[storeId]/overview-analytics` → `getStoreAnalyticsData`
+- `GET /api/stores/[storeId]/live` → `getStoreLiveBuffer` (proxy server ke
+  `GET /api/live-buffer/<device_id>` Flask, dengan cache bersama)
+- `GET /api/sessions/[sessionId]/records` → `getSessionRecords` (baca `history`,
+  transaksi READ ONLY)
 - `GET /api/assets/[filename]` → aset logo (hanya nama file gambar polos dari `public/assets`)
 
 Komponen:
@@ -166,7 +173,9 @@ Komponen:
 - Detail toko → `components/monitoring/store-monitoring-page.tsx`,
   `store-hero.tsx`, `store-detail-analytics.tsx`, `phase-gauge-grid.tsx`,
   `circular-gauge.tsx`, `telemetry-chart.tsx`, `telemetry-date-picker.tsx`,
-  `session-selector.tsx`
+  `session-selector.tsx`, `live-telemetry-chart.tsx` (grafik live, polling 5
+  detik, berhenti saat tab tersembunyi)
+- Sesi rekaman → `components/sessions/session-table.tsx`
 - UI primitives (shadcn) → `components/ui/*`
 
 Data dan infrastruktur:
@@ -175,10 +184,32 @@ Data dan infrastruktur:
   alias `getAivenPool`)
 - Toko dan device → `lib/services/store-service.ts`
 - Telemetri, analitik, biaya → `lib/services/telemetry-service.ts`
+- Data live Flask → `lib/services/live-buffer-service.ts`,
+  `lib/services/telemetry-api.ts` (fetch ke Flask, env `TELEMETRY_API_URL`)
+- Sesi rekaman → `lib/services/session-service.ts` (query `history` lewat
+  `lib/db/read-only.ts`)
+- Modul murni (dites `pnpm test:data`) → `lib/phase-keys.ts`,
+  `lib/live-buffer.ts`, `lib/session-records.ts`, `lib/shared-fetch.ts`,
+  `lib/db/read-only.ts`. Antar modul murni, import memakai path relatif dengan
+  ekstensi `.ts` (`allowImportingTsExtensions`) dan `import type` untuk tipe,
+  tanpa `@/`.
 - Toko Sangat Boros (view DB 1) → `lib/services/sangat-boros-service.ts`
 - Tipe data → `lib/types.ts`
 - Data mock lama (tidak dipakai lagi) → `lib/mock-data.ts`
 - Utilitas → `lib/utils.ts`, `hooks/use-mobile.ts`
+
+## Alur IoT dan Flask
+
+- Ingestion MQTT dan semua penulisan ke DB 2 tetap di Flask
+  `smart-energy-meter-vps`. Portal hanya membaca.
+- Grafik live memanggil route server `/api/stores/[storeId]/live`, yang
+  meneruskan ke Flask `GET /api/live-buffer/<device_id>`. Maksimal 1 panggilan
+  per perangkat per 3 detik, dan jeda 15 detik setelah gagal.
+- Query `history` untuk sesi berjalan di transaksi READ ONLY dengan timeout 15
+  detik.
+- Jangan jalankan `smart-energy-meter-vps` di lokal: Flask lokal ikut merekam
+  dari MQTT dan datanya menjadi dobel.
+- Export Excel/JSON dan Buka File Rekaman belum ada (ditunda).
 
 ## Product UX Direction
 

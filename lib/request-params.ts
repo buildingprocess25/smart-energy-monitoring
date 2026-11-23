@@ -65,3 +65,20 @@ export function parseHistoryParams(params: URLSearchParams): ParseResult<History
     value: { rangeType: rawRange as RangeType, date: date.value, sessionId, page, pageSize },
   }
 }
+
+// Epoch in ms, no later than year 2100.
+const MAX_EPOCH_MS = 4_102_444_800_000
+
+export function parseSinceParam(raw: string | null): ParseResult<number | null> {
+  if (raw === null || raw === '') return { ok: true, value: null }
+  if (!/^\d{1,13}$/.test(raw)) return { ok: false, error: 'since harus epoch dalam milidetik.' }
+  const value = Number(raw)
+  if (value > MAX_EPOCH_MS) return { ok: false, error: 'since di luar rentang.' }
+  return { ok: true, value }
+}
+
+// history.session_id is VARCHAR(50).
+export function parseSessionId(raw: string): ParseResult<string> {
+  if (!/^[A-Za-z0-9_\-:.]{1,50}$/.test(raw)) return { ok: false, error: 'ID sesi tidak valid.' }
+  return { ok: true, value: raw }
+}
