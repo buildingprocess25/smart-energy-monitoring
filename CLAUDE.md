@@ -25,7 +25,7 @@ Domain terms to keep: toko, cabang, perangkat (device), sesi rekaman (capture se
 | New feature, component, or behavior change | `brainstorming`, then `writing-plans` |
 | Executing a written plan | `executing-plans` or `subagent-driven-development`; `dispatching-parallel-agents` for independent parts |
 | Isolated feature work | `using-git-worktrees` |
-| Any UI creation, revision, redesign, or polish | `impeccable` (required), `shadcn`, `antislop` + `antislop-ui`, `web-design-guidelines` |
+| Any UI creation, revision, redesign, or polish | `impeccable` (required), `shadcn`, `antislop` + `antislop-ui`, `web-design-guidelines`, `frontend-design` (aesthetic direction for new UI) |
 | Responsive layout, accessibility, contrast | `antislop-layoutmobile`, `antislop-human` |
 | UI copy, labels, docs prose | `antislop-copywriting` |
 | Writing or cleaning code comments | `antislop-code` |
@@ -65,13 +65,14 @@ pnpm format              # Prettier (ts, tsx)
 pnpm check:agent-note    # same check the pre-commit hook runs
 pnpm test:agent-note     # tests for that check
 pnpm test:access         # role and access-scope rules (node --test)
+pnpm test:data           # pure data modules: phase keys, live buffer, shared fetch, read-only, session records
 
 pnpm prisma:validate     # allowed: does not touch the database
 pnpm prisma:generate     # allowed: does not touch the database
 pnpm copy:assets         # copy brand assets into public/assets
 ```
 
-Unit tests use `node --test` on pure modules without `@/` imports (`tests/*.test.mjs`). Verify the rest with `pnpm typecheck`, `pnpm lint`, and the running app (`next-dev-loop`).
+Unit tests use `node --test` on pure modules without `@/` imports (`tests/*.test.mjs`). Pure modules in `lib/` import each other with relative paths that keep the `.ts` extension (allowed by `allowImportingTsExtensions` in `tsconfig.json`) and use `import type` for types. Verify the rest with `pnpm typecheck`, `pnpm lint`, and the running app (`next-dev-loop`).
 
 ### Environment Setup
 
@@ -80,6 +81,7 @@ Copy `.env.example` to `.env` and ask which environment each URL points to befor
 ```
 SPARTA_DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/energy?sslmode=disable        # DB 1, stores
 TELEMETRY_DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/energy-meter?sslmode=disable # DB 2, telemetry
+TELEMETRY_API_URL=http://HOST:5000/api               # server-only, live buffer; required in the Dokploy runtime env (the NEXT_PUBLIC_ fallback only works in pnpm dev)
 NEXT_PUBLIC_TELEMETRY_API_URL=http://HOST:5000/api   # smart-energy-meter-vps API (capture status)
 NEXT_PUBLIC_TELEMETRY_WS_URL=ws://HOST:5000/ws
 NEXT_PUBLIC_REALTIME_METER_URL=https://energy-meter.sparta-alfamart.web.id/
@@ -107,14 +109,17 @@ app/
 ├── (dashboard)/
 │   ├── layout.tsx                  # AdminShell (sidebar + header)
 │   ├── page.tsx                    # / overview (force-dynamic)
-│   └── monitoring/
-│       ├── page.tsx                # /monitoring store list
-│       └── [storeId]/page.tsx      # /monitoring/[storeId] store detail
+│   ├── monitoring/
+│   │   ├── page.tsx                # /monitoring store list
+│   │   └── [storeId]/page.tsx      # /monitoring/[storeId] store detail
+│   └── sesi-rekaman/page.tsx       # /sesi-rekaman recording session list
 ├── api/
+│   ├── sessions/[sessionId]/records/route.ts  # getSessionRecords (history, READ ONLY)
 │   ├── assets/[filename]/route.ts  # serves brand assets
 │   └── stores/
 │       ├── route.ts                # getStores
 │       └── [storeId]/
+│           ├── live/route.ts       # getStoreLiveBuffer (server proxy to Flask live buffer, shared cache)
 │           ├── route.ts            # getStoreById + getAuditSessions + getLiveTelemetry
 │           ├── history/route.ts    # getTelemetryHistory (paginated, by metric and range)
 │           ├── telemetry/route.ts  # getLiveTelemetry (latest phase values)
@@ -126,7 +131,8 @@ components/
 ├── ui/                             # shadcn/ui primitives (do not hand-edit spacing)
 ├── layout/                         # admin-shell, app-sidebar, app-header, breadcrumb-nav, theme-toggle
 ├── dashboard/                      # overview widgets: kpi summary, monthly cost card, map, gallery, table
-├── monitoring/                     # store detail: gauges, telemetry chart, date picker, session selector
+├── monitoring/                     # store detail: gauges, telemetry chart, live chart, date picker, session selector
+├── sessions/                       # session-table (recording session list)
 ├── logo.tsx
 └── theme-provider.tsx
 
@@ -135,8 +141,13 @@ lib/
 ├── db/pools.ts                     # pg pools: getSpartaPool (DB 1), getTelemetryPool (DB 2)
 ├── services/
 │   ├── store-service.ts            # getStores, getStoreById, getIotDeviceDataList
+│   ├── live-buffer-service.ts      # getStoreLiveBuffer: Flask GET /api/live-buffer/<id> with shared cache
+│   ├── session-service.ts          # getRecordingSessions, getSessionRecords (READ ONLY queries on history)
+│   ├── telemetry-api.ts            # fetchTelemetryApi: server-side GET to Flask (TELEMETRY_API_URL)
 │   ├── sangat-boros-service.ts     # v_toko_sangat_boros (DB 1 view), install status, comparison
 │   └── telemetry-service.ts        # analytics, telemetry history, live phases, sessions, monthly cost
+├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts  # pure modules (tested by test:data)
+├── db/read-only.ts                 # readOnlyQuery: BEGIN READ ONLY + 15 s statement_timeout on getTelemetryPool()
 ├── types.ts                        # Store, PhaseData, TelemetryPoint, AuditSession, MonthlyCostRecord, ...
 ├── mock-data.ts                    # legacy mock data, no longer imported
 └── utils.ts                        # cn()
@@ -168,18 +179,26 @@ scripts/                            # agent-note check, asset copy
 - `getAivenPool` is a backward-compatible alias of `getTelemetryPool`. Telemetry moved from Aiven to the Biznet VPS PostgreSQL in October 2026.
 - `sslmode=disable` in the URL turns SSL off; otherwise SSL is on with `rejectUnauthorized: false`.
 - This app never writes to either database and never changes their schema.
+- Ingestion and every write to DB 2 stay in Flask (`smart-energy-meter-vps`). Never run that project locally: it would subscribe to MQTT and record a second copy of the data.
+- Export Excel/JSON of sessions and "Buka File Rekaman" are not built yet (postponed).
 
 ### Services
 
 **`lib/services/store-service.ts`**
 - `getStores()`: merges DB 1 stores with DB 2 devices, groups several devices that share a store code into one store, and sets the status.
 - `getStoreById()`: one store with its IoT state.
-- `getIotDeviceDataList()`: devices plus capture status from `NEXT_PUBLIC_TELEMETRY_API_URL/capture/status`.
+- `getIotDeviceDataList()`: devices plus capture status from Flask `GET /api/capture/status` through `fetchTelemetryApi()` (`TELEMETRY_API_URL`), shared for 5 s with a 15 s pause after a failure; falls back to DB `capture_states`.
 
 **`lib/services/telemetry-service.ts`**
 - `getStoreAnalyticsData()`: daily/weekly/monthly energy, load profile, two-year comparison, anchored to the store's latest recorded date.
 - `getTelemetryHistory()`: paginated points (96 per day at 15 minutes) for a metric and time range.
 - `getLiveTelemetry()`, `getAuditSessions()`, `getDailyConsumptionTrend()`, `getMonthlyCostSummary()`.
+
+**`lib/services/live-buffer-service.ts`, `telemetry-api.ts`**
+- `getStoreLiveBuffer()`: latest samples of a store's device from Flask `GET /api/live-buffer/<device_id>`, called only from the server. `lib/shared-fetch.ts` allows at most 1 call per device per 3 s and pauses 15 s after a failure. The store to device lookup is cached per (access scope, store) for 60 s, so a GS revocation reaches this route within 60 s.
+
+**`lib/services/session-service.ts`**
+- `getRecordingSessions()` (cached 30 s per scope) and `getSessionRecords()` read `history` through `readOnlyQuery()` (`BEGIN READ ONLY`, 15 s statement timeout, 200,000 record cap). No `INSERT`, `UPDATE`, or `DELETE` here.
 
 **`lib/services/sangat-boros-service.ts`**
 - `getSangatBorosStores()`: reads `v_toko_sangat_boros` (12 Sangat Boros stores). Returns status `missing` when the view does not exist yet, so pages keep working.

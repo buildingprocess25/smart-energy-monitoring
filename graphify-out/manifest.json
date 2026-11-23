@@ -156,16 +156,16 @@
     "semantic_hash": ""
   },
   "components/layout/app-sidebar.tsx": {
-    "mtime": 1793692244.9950755,
-    "seen": 1793693003.813352,
-    "ast_hash": "ac8b247270246a1749f37daa942d3397",
+    "mtime": 1794210750.4905589,
+    "seen": 1794211069.575472,
+    "ast_hash": "44afca2f7cf149f7bd223e7cc2d68902",
     "semantic_hash": ""
   },
   "components/layout/breadcrumb-nav.tsx": {
-    "mtime": 1792736680.0205748,
-    "seen": 1792738359.2613535,
-    "ast_hash": "9e5050ea848d1695ef970be5eac3adc3",
-    "semantic_hash": "9e5050ea848d1695ef970be5eac3adc3"
+    "mtime": 1794210750.49156,
+    "seen": 1794211069.575472,
+    "ast_hash": "ee9ab50b2a6f68d0244ae75d98fd7c2c",
+    "semantic_hash": ""
   },
   "components/layout/theme-toggle.tsx": {
     "mtime": 1792736680.0205748,
@@ -210,10 +210,10 @@
     "semantic_hash": "86d19dd2f714d7cc88117ed30ba5e225"
   },
   "components/monitoring/store-monitoring-page.tsx": {
-    "mtime": 1792736680.0285814,
-    "seen": 1792738359.2613535,
-    "ast_hash": "3953fe5fa3696f271e23a8b5bb264aab",
-    "semantic_hash": "3953fe5fa3696f271e23a8b5bb264aab"
+    "mtime": 1794210588.8964324,
+    "seen": 1794210648.9200835,
+    "ast_hash": "7e364b6f790aa892f4b4cd7660f5a494",
+    "semantic_hash": ""
   },
   "components/monitoring/telemetry-chart.tsx": {
     "mtime": 1792736680.0295858,
@@ -336,21 +336,21 @@
     "semantic_hash": "a6d373dbb0484749573ae16ab10b3558"
   },
   "lib/services/store-service.ts": {
-    "mtime": 1793692883.6996238,
-    "seen": 1793693003.813352,
-    "ast_hash": "f9bb2f98479e79c1070242799ae4b426",
+    "mtime": 1795426339.0104747,
+    "seen": 1795426397.505286,
+    "ast_hash": "cd366a396c05034a44928bb8ed338546",
     "semantic_hash": ""
   },
   "lib/services/telemetry-service.ts": {
-    "mtime": 1793081779.0350802,
-    "seen": 1793153387.4440658,
-    "ast_hash": "0ea4e4a00d656d8a665e2732b3a83690",
+    "mtime": 1794209323.6349638,
+    "seen": 1794209449.8737786,
+    "ast_hash": "d4d68cadbeea25045146bb03bb115c03",
     "semantic_hash": ""
   },
   "lib/types.ts": {
-    "mtime": 1793081779.036079,
-    "seen": 1793153387.4440658,
-    "ast_hash": "c73cc4ff6e2440a551928b3f53f57926",
+    "mtime": 1794210264.5278285,
+    "seen": 1794210394.3112547,
+    "ast_hash": "8fa403f785a873148366aa8a8008bd61",
     "semantic_hash": ""
   },
   "lib/utils.ts": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1793692245.0398245,
-    "seen": 1793693003.813352,
-    "ast_hash": "7fccaa5904a4ac82303bb4d457d7d792",
+    "mtime": 1794211004.6036992,
+    "seen": 1794211069.575472,
+    "ast_hash": "7349a92e300b7c599162c9a685eb1e18",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -408,21 +408,21 @@
     "semantic_hash": "7ce08acea3ab98c34012634430864ca0"
   },
   "skills-lock.json": {
-    "mtime": 1792736680.1347756,
-    "seen": 1792738359.2613535,
-    "ast_hash": "0cfc998efb7422d17374ddfa1098d8f5",
-    "semantic_hash": "0cfc998efb7422d17374ddfa1098d8f5"
+    "mtime": 1795407162.6902707,
+    "seen": 1795407206.1745613,
+    "ast_hash": "74713496ce52784802e5ce00c0045c15",
+    "semantic_hash": ""
   },
   "tsconfig.json": {
-    "mtime": 1792736680.1357775,
-    "seen": 1792738359.2613535,
-    "ast_hash": "f031e1bf14375f11567de3bc872ca62b",
-    "semantic_hash": "f031e1bf14375f11567de3bc872ca62b"
+    "mtime": 1794209303.6613693,
+    "seen": 1794209449.8737786,
+    "ast_hash": "60ca094b0abaca976b8e29aaeadc1a04",
+    "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1793692244.9785287,
-    "seen": 1793693003.813352,
-    "ast_hash": "dad5ec4891a9a51db10ff4fc95d50991",
+    "mtime": 1795426255.3519714,
+    "seen": 1795426397.505286,
+    "ast_hash": "e2087215166cb69a00e0c25c5f10c976",
     "semantic_hash": ""
   },
   "AI_RULES.md": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "ARCHITECTURE_PLAN.md": {
-    "mtime": 1793081778.9987044,
-    "seen": 1793153387.4440658,
-    "ast_hash": "0c94f5ec76b89342864dea77adb569f7",
+    "mtime": 1795426255.3335133,
+    "seen": 1795426397.505286,
+    "ast_hash": "b18b3bc16bfd1f134fed81460b6590cc",
     "semantic_hash": ""
   },
   "DESIGN.md": {
@@ -738,15 +738,15 @@
     "semantic_hash": "fba415f0fdf3512e074fc55b28ed42da"
   },
   "AI_CONTEXT.md": {
-    "mtime": 1793692244.9808433,
-    "seen": 1793693003.813352,
-    "ast_hash": "ec7ff901139c760011f445b23b756e83",
+    "mtime": 1794211010.2568178,
+    "seen": 1794211069.575472,
+    "ast_hash": "8a083e0be4896908bf40fe0f71841343",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1793692244.9824798,
-    "seen": 1793693003.813352,
-    "ast_hash": "6948090bfb61677fca328aa1e8491541",
+    "mtime": 1795426255.3429713,
+    "seen": 1795426397.505286,
+    "ast_hash": "9c755e9e918f5b67949a2b570861d0e0",
     "semantic_hash": ""
   },
   "GEMINI.md": {
@@ -864,9 +864,9 @@
     "semantic_hash": ""
   },
   "lib/auth/access-rules.ts": {
-    "mtime": 1793153442.870896,
-    "seen": 1793153642.234528,
-    "ast_hash": "09733facdc8de067ef76acf420c6823f",
+    "mtime": 1794211515.8628,
+    "seen": 1794211629.6782708,
+    "ast_hash": "7d5a52fa7b2214818b9a2f843303bf92",
     "semantic_hash": ""
   },
   "lib/auth/access.ts": {
@@ -888,9 +888,9 @@
     "semantic_hash": ""
   },
   "tests/access-rules.test.mjs": {
-    "mtime": 1793153442.875003,
-    "seen": 1793153642.234528,
-    "ast_hash": "819f3943b389d022acfe0a465de7fdaf",
+    "mtime": 1794211504.4515991,
+    "seen": 1794211629.6782708,
+    "ast_hash": "227da64cc05317ca91734f6bd13c5e6b",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-26-0920-portal-akses-role.md": {
@@ -936,15 +936,15 @@
     "semantic_hash": ""
   },
   "lib/request-params.ts": {
-    "mtime": 1793692245.030043,
-    "seen": 1793693003.813352,
-    "ast_hash": "c07c783c6930bda272227ca8ba8957a7",
+    "mtime": 1794209936.9801133,
+    "seen": 1794210394.3112547,
+    "ast_hash": "392d02a946af1471f2f7239ee2c88159",
     "semantic_hash": ""
   },
   "tests/request-params.test.mjs": {
-    "mtime": 1793692245.0408173,
-    "seen": 1793693003.813352,
-    "ast_hash": "1447abada52bf28f902a88093b508956",
+    "mtime": 1794209920.6749706,
+    "seen": 1794210394.3112547,
+    "ast_hash": "45a93f78e2508fa1e682921216455a0a",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-28-1534-non-iot-security-hardening.md": {
@@ -978,21 +978,153 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/loading.tsx": {
-    "mtime": 1793692907.6721392,
-    "seen": 1793693003.813352,
-    "ast_hash": "4a6d1d2bc21cff927cadccb516e51ecb",
+    "mtime": 1793846457.855485,
+    "seen": 1794207423.1615417,
+    "ast_hash": "babfa9138ae803a97ba6ad36774b457a",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-11-03-0803-cache-per-request-dan-loading.md": {
-    "mtime": 1793692995.7219298,
-    "seen": 1793693003.813352,
-    "ast_hash": "57bdd304ddf161d45fdb47ee1570f3d2",
+    "mtime": 1793846457.8564904,
+    "seen": 1794207423.1635416,
+    "ast_hash": "d53136abdbb4f896e0a704f24bf8bfb5",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-09-pindah-fitur-smart-energy-meter.md": {
+    "mtime": 1794211460.9935415,
+    "seen": 1794211491.08117,
+    "ast_hash": "1238718fef7e3037c55f64ab48f9c262",
+    "semantic_hash": ""
+  },
+  "lib/phase-keys.ts": {
+    "mtime": 1794209548.3637326,
+    "seen": 1794209558.9402514,
+    "ast_hash": "c8c2fc1ef851bf266f2860682c12ff87",
+    "semantic_hash": ""
+  },
+  "tests/phase-keys.test.mjs": {
+    "mtime": 1794209549.7221456,
+    "seen": 1794209558.9402514,
+    "ast_hash": "9e26427a923bd6462884db22fef4ac42",
+    "semantic_hash": ""
+  },
+  "lib/live-buffer.ts": {
+    "mtime": 1794209803.915574,
+    "seen": 1794209856.4229288,
+    "ast_hash": "ffe317e155945434aad33864ea34b5c3",
+    "semantic_hash": ""
+  },
+  "tests/live-buffer.test.mjs": {
+    "mtime": 1794209804.7112648,
+    "seen": 1794209856.4229288,
+    "ast_hash": "20ef675c2c240a96b88bb29d27fa9bf2",
+    "semantic_hash": ""
+  },
+  "app/api/sessions/[sessionId]/records/route.ts": {
+    "mtime": 1794210301.5927677,
+    "seen": 1794210394.310235,
+    "ast_hash": "14872ffee268cbeafe728cf9367adbf3",
+    "semantic_hash": ""
+  },
+  "app/api/stores/[storeId]/live/route.ts": {
+    "mtime": 1794209937.1376703,
+    "seen": 1794210394.310235,
+    "ast_hash": "a64fe212754cf735bc127d129250d168",
+    "semantic_hash": ""
+  },
+  "lib/db/read-only.ts": {
+    "mtime": 1794211515.8638065,
+    "seen": 1794211629.6782708,
+    "ast_hash": "57ca8dc5996c3c1eff670891b89629ba",
+    "semantic_hash": ""
+  },
+  "lib/services/live-buffer-service.ts": {
+    "mtime": 1794211525.1100905,
+    "seen": 1794211629.6782708,
+    "ast_hash": "734f77efed3d28ae02dd1e360d3249e0",
+    "semantic_hash": ""
+  },
+  "lib/services/session-service.ts": {
+    "mtime": 1794211515.8638065,
+    "seen": 1794211629.6782708,
+    "ast_hash": "ac94d3e59ebf9aa4e94f006ed750602a",
+    "semantic_hash": ""
+  },
+  "lib/services/telemetry-api.ts": {
+    "mtime": 1794211515.8648076,
+    "seen": 1794211629.6782708,
+    "ast_hash": "0fa48d52126d2555c2c6e1b4840220ce",
+    "semantic_hash": ""
+  },
+  "lib/session-records.ts": {
+    "mtime": 1794210264.4722662,
+    "seen": 1794210394.3112547,
+    "ast_hash": "52f1702b4b4ef10bc33f97ab9c9b2429",
+    "semantic_hash": ""
+  },
+  "lib/shared-fetch.ts": {
+    "mtime": 1794209936.9434996,
+    "seen": 1794210394.3112547,
+    "ast_hash": "b0001e5ff749c36a0da86f1c5de6691d",
+    "semantic_hash": ""
+  },
+  "tests/read-only.test.mjs": {
+    "mtime": 1794211504.452627,
+    "seen": 1794211629.6782708,
+    "ast_hash": "d865cab716c6ca83910e902eac8399d3",
+    "semantic_hash": ""
+  },
+  "tests/session-records.test.mjs": {
+    "mtime": 1794210248.352906,
+    "seen": 1794210394.3112547,
+    "ast_hash": "3581e39a45039c6d06062df46409ca85",
+    "semantic_hash": ""
+  },
+  "tests/shared-fetch.test.mjs": {
+    "mtime": 1794209920.299081,
+    "seen": 1794210394.3112547,
+    "ast_hash": "a522970ce381199dbd48fa9f78f3549b",
+    "semantic_hash": ""
+  },
+  "components/monitoring/live-telemetry-chart.tsx": {
+    "mtime": 1794210604.6313233,
+    "seen": 1794210648.9200835,
+    "ast_hash": "b462d182b1fe3e34be9e9e7bc99fcc8d",
+    "semantic_hash": ""
+  },
+  "app/(dashboard)/sesi-rekaman/page.tsx": {
+    "mtime": 1794210857.0840642,
+    "seen": 1794211069.575472,
+    "ast_hash": "5bc53110b0af8513bd384aa232454cf9",
+    "semantic_hash": ""
+  },
+  "components/sessions/session-table.tsx": {
+    "mtime": 1794210750.3614624,
+    "seen": 1794211069.575472,
+    "ast_hash": "734a3b5dfab82cfb0c1b3826ac11ce08",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-09-1455-pindah-fitur-smart-energy-meter-tahap-1.md": {
+    "mtime": 1794211555.9509296,
+    "seen": 1794211629.6787834,
+    "ast_hash": "bcbdcfe04b23c42d16f1a577e40e8ec6",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-23-0412-tambah-skill-frontend-design.md": {
+    "mtime": 1795407178.314324,
+    "seen": 1795407206.1745613,
+    "ast_hash": "4fa801c13f9879d2c0417a87a82c4946",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-23-0932-alamat-api-flask-dan-cache-capture-status.md": {
+    "mtime": 1795426664.0182557,
+    "seen": 1795426685.3596919,
+    "ast_hash": "fb7ae4c21b7d1d210bafccc237469be4",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {
-    "mtime": 1792736680.108769,
-    "seen": 1793689399.001792,
-    "ast_hash": "84773cf91f020ac14ca0d75e7167e000",
+    "mtime": 1794209950.5969865,
+    "seen": 1794210394.3112547,
+    "ast_hash": "d877d1e6bf0104bf8bc4e7597443df60",
     "semantic_hash": ""
   }
 }

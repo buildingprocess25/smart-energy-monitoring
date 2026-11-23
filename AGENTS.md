@@ -209,7 +209,7 @@ scripts/                            # agent-note check, asset copy
 **`lib/services/store-service.ts`**
 - `getStores()`: merges DB 1 stores with DB 2 devices, groups several devices that share a store code into one store, and sets the status.
 - `getStoreById()`: one store with its IoT state.
-- `getIotDeviceDataList()`: devices plus capture status from `NEXT_PUBLIC_TELEMETRY_API_URL/capture/status`.
+- `getIotDeviceDataList()`: devices plus capture status from Flask `GET /api/capture/status` through `fetchTelemetryApi()` (`TELEMETRY_API_URL`), shared for 5 s with a 15 s pause after a failure; falls back to DB `capture_states`.
 
 **`lib/services/telemetry-service.ts`**
 - `getStoreAnalyticsData()`: daily/weekly/monthly energy, load profile, two-year comparison, anchored to the store's latest recorded date.

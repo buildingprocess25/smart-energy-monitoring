@@ -91,7 +91,8 @@ Dokploy, tidak pernah di repo.
 | `TELEMETRY_DATABASE_URL` | Koneksi PostgreSQL ke `devices`, `telemetry`, `history`. Dibaca oleh `getTelemetryPool()`. | **DB 2 (`energy_meter`)** |
 | `DATABASE_URL` | Fallback untuk `getTelemetryPool()` jika `TELEMETRY_DATABASE_URL` kosong. | **DB 2** |
 | `AIVEN_DATABASE_URL_LEGACY` | Referensi DB Aiven lama, hanya untuk skrip migrasi data. Tidak dibaca aplikasi. | Aiven (legacy) |
-| `NEXT_PUBLIC_TELEMETRY_API_URL` | API `smart-energy-meter-vps`, dipakai untuk `/capture/status` (status rekaman device). | `smart-energy-meter-vps` |
+| `NEXT_PUBLIC_TELEMETRY_API_URL` | Fallback `TELEMETRY_API_URL`, hanya berlaku di `pnpm dev`. | `smart-energy-meter-vps` |
+| `TELEMETRY_API_URL` | Base URL API `smart-energy-meter-vps` (berakhir `/api`), khusus server. Dipakai route `live` untuk `GET /api/live-buffer/<device_id>` dan `getIotDeviceDataList()` untuk `GET /api/capture/status` (status rekaman, di-cache 5 detik). Fallback ke `NEXT_PUBLIC_TELEMETRY_API_URL`. Di Dokploy pakai App Name service Flask (`http://<app-name>:5000/api`); di lokal pakai domain dashboard lama (`https://<domain>/api`), karena port 5000 di IP VPS tidak terbuka untuk publik. Wajib diisi di environment runtime Dokploy: `NEXT_PUBLIC_*` ditanam saat `next build` dan image dibangun tanpa variabel itu, jadi fallback hanya berlaku di `pnpm dev`. | `smart-energy-meter-vps` |
 | `NEXT_PUBLIC_TELEMETRY_WS_URL` | WebSocket `smart-energy-meter-vps` untuk data live. | `smart-energy-meter-vps` |
 | `NEXT_PUBLIC_REALTIME_METER_URL` | URL portal IoT hardware (`https://energy-meter.sparta-alfamart.web.id/`). | External Quick Switcher |
 | `NEXT_PUBLIC_SPARTA_AUDIT_URL` | URL portal audit manual (`sparta-energy`). | External Quick Switcher |
@@ -123,6 +124,39 @@ app/api/stores/**/route.ts  ──┘    lib/services/telemetry-service.ts ─�
   dev server harus di-restart.
 * Prisma 7 sudah terpasang (`prisma.config.ts`) tetapi belum punya model;
   skema kedua database dimiliki proyek lain.
+
+### Pengaman alur IoT (Tahap 1: Sesi Rekaman dan grafik live)
+
+Portal kini menampilkan grafik live per toko dan daftar sesi rekaman. Ingestion
+MQTT dan semua penulisan ke DB 2 (`telemetry`, `history`, `devices`) tetap di
+Flask `smart-energy-meter-vps`. Portal hanya menambah pembacaan:
+
+* **Data live:** `GET /api/live-buffer/<device_id>` ke Flask lewat route server
+  `app/api/stores/[storeId]/live`, bukan dari browser. Cache bersama di
+  `lib/shared-fetch.ts` membatasi panggilan ke maksimal 1 per perangkat per 3
+  detik per container portal, berapa pun jumlah tab. Timeout 3 detik. Setelah
+  gagal, perangkat itu tidak dipanggil lagi selama 15 detik.
+* **Toko ke perangkat:** route `live` mencari `deviceId` toko lewat
+  `getStoreById()` paling banyak 1 kali per (scope akses, toko) per 60 detik,
+  dengan jeda 15 detik setelah gagal. Tanpa cache ini setiap poll memanggil
+  Flask `/capture/status` dan menjalankan query DB 1 dan DB 2 tanpa timeout.
+  Kunci cache memuat scope, jadi GS tidak pernah mendapat perangkat di luar
+  scope-nya. Akses GS yang dicabut baru berlaku di route ini paling lama 60
+  detik kemudian.
+* **Sesi rekaman:** tabel `history` dibaca di dalam transaksi `BEGIN READ ONLY`
+  (`lib/db/read-only.ts`) dengan `statement_timeout` 15 detik. Postgres menolak
+  penulisan apa pun di transaksi itu. Batas 200.000 record per sesi, dan daftar
+  sesi di-cache 30 detik per scope.
+* **Koneksi:** tidak ada pool baru, semua lewat `getTelemetryPool()` (`max: 10`).
+* **Jangan jalankan `smart-energy-meter-vps` di lokal.** Flask lokal ikut
+  subscribe MQTT dan menulis ke database yang sama, sehingga datanya terekam
+  dua kali. Untuk development, arahkan `TELEMETRY_API_URL` ke Flask di VPS dan
+  hanya kirim request `GET`.
+* Batas 3 detik berlaku per container. Portal saat ini satu container di
+  Dokploy.
+
+Export Excel/JSON sesi dan Buka File Rekaman belum dibuat. Penulisan (kontrol
+capture, rename, hapus) direncanakan di Tahap 2.
 
 ---
 

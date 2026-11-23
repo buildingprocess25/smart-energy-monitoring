@@ -3,6 +3,16 @@ import { getSpartaPool, getTelemetryPool } from '@/lib/db/pools'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
+import { createSharedFetch } from '@/lib/shared-fetch'
+import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
+
+// /capture/status is the same for every viewer (scope is applied afterwards), so Flask is
+// asked at most once per 5 s; after a failure pages fall back to DB capture_states for 15 s
+// instead of waiting on the timeout every request.
+const loadCaptureStatus = createSharedFetch(() => fetchTelemetryApi('/capture/status', 1500), {
+  ttlMs: 5000,
+  failureBackoffMs: 15000,
+})
 
 // Helper: Extract Store Code from IoT Device Name
 // Examples: "Dc Cianjur ( 2JC2 )" -> "2JC2", "EM-0002 [TI90] RUKO ELEVEE" -> "TI90"
@@ -112,27 +122,19 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
       devRows = devRes.rows
     }
 
-    // Fetch active capture states from Flask IoT Engine API in parallel (with fast 1.5s timeout)
+    // Active capture states from Flask, shared across requests (see loadCaptureStatus)
     const liveApiCaptureMap = new Map<string, { active: boolean; session_name?: string }>()
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_TELEMETRY_API_URL || 'http://103.127.99.241:5000/api'
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 1500)
-      const res = await fetch(`${apiUrl}/capture/status`, {
-        signal: controller.signal,
-        cache: 'no-store',
-      })
-      clearTimeout(timeoutId)
-      if (res.ok) {
-        const data = await res.json()
-        if (data && data.devices) {
-          for (const [did, dinfo] of Object.entries(data.devices as Record<string, any>)) {
-            if (dinfo && (dinfo.active || dinfo.finalizing)) {
-              liveApiCaptureMap.set(did, {
-                active: true,
-                session_name: dinfo.session_name,
-              })
-            }
+      const data = (await loadCaptureStatus('all')) as {
+        devices?: Record<string, { active?: boolean; finalizing?: boolean; session_name?: string } | null>
+      } | null
+      if (data && data.devices) {
+        for (const [did, dinfo] of Object.entries(data.devices)) {
+          if (dinfo && (dinfo.active || dinfo.finalizing)) {
+            liveApiCaptureMap.set(did, {
+              active: true,
+              session_name: dinfo.session_name,
+            })
           }
         }
       }
