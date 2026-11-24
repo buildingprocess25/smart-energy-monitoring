@@ -145,7 +145,7 @@ lib/
 │   ├── telemetry-api.ts            # fetchTelemetryApi: server-side GET to Flask (TELEMETRY_API_URL)
 │   ├── sangat-boros-service.ts     # v_toko_sangat_boros (DB 1 view), install status, comparison
 │   └── telemetry-service.ts        # analytics, telemetry history, live phases, sessions, monthly cost
-├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts, stale-cache.ts  # pure modules (tested by test:data)
+├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts, stale-cache.ts, energy-index.ts, jakarta-range.ts, format-energy.ts  # pure modules (tested by test:data)
 ├── db/read-only.ts                 # readOnlyQuery: BEGIN READ ONLY + 15 s statement_timeout on getTelemetryPool()
 ├── types.ts                        # Store, PhaseData, TelemetryPoint, AuditSession, MonthlyCostRecord, ...
 ├── mock-data.ts                    # legacy mock data, no longer imported
@@ -191,8 +191,8 @@ scripts/                            # agent-note check, asset copy
 **`lib/services/telemetry-service.ts`**
 - `getStoreAnalyticsData()`: daily/weekly/monthly energy, load profile, two-year comparison, anchored to the store's latest recorded date.
 - `getTelemetryHistory()`: paginated points (96 per day at 15 minutes) for a metric and time range.
-- `getLiveTelemetry()`, `getAuditSessions()`, `getDailyConsumptionTrend()`, `getMonthlyCostSummary()`.
-- `getMonthlyCostSummary()` scans all of `history` (about 12 s), so it sits behind `lib/stale-cache.ts`: after the first load it answers from cache and refreshes in the background. The overview page streams it and `getStoreAnalyticsData()` through `<Suspense>` instead of awaiting them. The permanent fix is in `docs/backlog.md`.
+- `getLiveTelemetry()`, `getAuditSessions()`, `getMonthlyCostSummary()`.
+- `getEnergyIndex()` (`lib/services/energy-service.ts`, pure rules in `lib/energy-index.ts`) is the only source for energy totals, daily and monthly kWh, cost, recorded dates and the load profile. It reads `history` and `telemetry` once as 15-minute buckets, then only rows past the last id every 60 s, with a full read every 6 h; it lives on `globalThis` because pages, API routes and `instrumentation.ts` are bundled apart. It holds every device, so callers ask only for devices in scope. Do not add new `MAX(energy) - MIN(energy)` queries over long periods: they miss counter resets.
 
 **`lib/services/live-buffer-service.ts`, `telemetry-api.ts`**
 - `getStoreLiveBuffer()`: latest samples of a store's device from Flask `GET /api/live-buffer/<device_id>`, called only from the server. `lib/shared-fetch.ts` allows at most 1 call per device per 3 s and pauses 15 s after a failure. The store to device lookup is cached per (access scope, store) for 60 s, so a GS revocation reaches this route within 60 s.
@@ -235,6 +235,7 @@ Details and reasons are in `AI_CONTEXT.md`.
 - **Dates:** group and filter by `Asia/Jakarta` in SQL (`TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta'`). Default views open on the latest recorded date, not today and not a hardcoded date.
 - **Phases:** normalize `L12/L1/R` to R, `L13/L2/S` to S, `L14/L3/T` to T (the MQTT topics changed on 28 August 2026). Exclude `L6` and any phase containing `dummy`.
 - **Energy:** consumption is the delta of the cumulative `energy` counter per interval, not the raw counter. If a delta exceeds what the average power allows for that interval, treat it as a counter reset and use average power × interval.
+- **Bad samples:** sensor frames with voltage above 300 V or current above 500 A, and offline rows, are never used (`VALID_SAMPLE_SQL`). Time without records (more than 30 minutes) adds no energy, and month comparisons are per recorded hour.
 - **Sources:** combine `telemetry` and `history` when computing energy so the record has no gaps.
 - **Cost:** PLN tariff is `1444.7` rupiah per kWh (`PLN_TARIFF` in `telemetry-service.ts`).
 - **Store total:** only main panel phases R/S/T count as the store's total consumption (`mainPanelKwh`). Sub-metering sensors are excluded from baselines and reduction percentages so nothing is counted twice.

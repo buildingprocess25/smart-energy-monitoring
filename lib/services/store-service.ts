@@ -5,6 +5,8 @@ import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
 import { createSharedFetch } from '@/lib/shared-fetch'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
+import { getEnergyIndexWithin } from '@/lib/services/energy-service'
+import type { EnergyTotal } from '@/lib/energy-index'
 
 // /capture/status is the same for every viewer (scope is applied afterwards): ask Flask at most every 5 s,
 // and after a failure use DB capture_states for 15 s instead of waiting on the timeout.
@@ -60,7 +62,7 @@ interface IotDeviceData {
   online: boolean
   lastSeen: string
   phases: PhaseData[]
-  kwhTotal: number
+  energy: EnergyTotal | null
   isRecording: boolean
   recordingSessionName?: string
   latitude?: number
@@ -68,15 +70,89 @@ interface IotDeviceData {
   storeId?: string
 }
 
-// Fetch latest metrics from IoT Telemetry Database (Biznet VPS)
-// In-memory cache for device energy totals to prevent redundant 1.2M row table scans
-const _deviceEnergyCache = new Map<string, { kwh: number; timestamp: number }>()
-const DEVICE_CACHE_TTL_MS = 2 * 60 * 1000 // 2 minutes TTL
-
 interface SensorConfig {
   name: string
   phase: string
   enabled?: boolean
+}
+
+type LatestRow = {
+  device_id: string
+  phase: string
+  phase_name?: string | null
+  voltage: number | null
+  current: number | null
+  power: number | null
+  power_factor: number | null
+}
+
+// One query for all devices; only devices without telemetry rows fall back to history.
+async function loadLatestRows(deviceIds: string[]): Promise<Map<string, LatestRow[]>> {
+  const pool = getTelemetryPool()
+  const byDevice = new Map<string, LatestRow[]>()
+  try {
+    const res = await pool.query<LatestRow>(
+      `SELECT DISTINCT ON (device_id, phase) device_id, phase, voltage, current, power, power_factor
+       FROM telemetry
+       WHERE device_id = ANY($1::text[])
+       ORDER BY device_id, phase, epoch DESC`,
+      [deviceIds]
+    )
+    for (const row of res.rows) {
+      const rows = byDevice.get(row.device_id)
+      if (rows) rows.push(row)
+      else byDevice.set(row.device_id, [row])
+    }
+  } catch (error) {
+    console.warn('Error querying telemetry:', error)
+  }
+
+  await Promise.all(
+    deviceIds
+      .filter((id) => !byDevice.has(id))
+      .map(async (id) => {
+        try {
+          const res = await pool.query<LatestRow>(
+            `SELECT DISTINCT ON (phase) device_id, phase, phase_name, voltage, current, power, power_factor
+             FROM (
+               SELECT device_id, phase, phase_name, voltage, current, power, power_factor, epoch
+               FROM history
+               WHERE device_id = $1
+               ORDER BY id DESC
+               LIMIT 30
+             ) sub
+             ORDER BY phase, epoch DESC`,
+            [id]
+          )
+          byDevice.set(id, res.rows)
+        } catch (error) {
+          console.warn('Error querying history fallback:', error)
+        }
+      })
+  )
+  return byDevice
+}
+
+const ENERGY_WAIT_MS = 1000
+
+function loadEnergyIndex() {
+  return getEnergyIndexWithin(ENERGY_WAIT_MS).catch((error) => {
+    console.error('Error loading energy index:', error)
+    return null
+  })
+}
+
+// A store with a main panel counts R/S/T only, so sub-meters are not counted twice.
+function storeEnergy(devices: { energy: EnergyTotal | null }[]): Pick<Store, 'kwhTotal' | 'energyBasis'> {
+  const totals = devices.flatMap((d) => (d.energy ? [d.energy] : []))
+  const main = totals.filter((t) => t.hasMain)
+  const kwh = main.length > 0
+    ? main.reduce((sum, t) => sum + t.main, 0)
+    : totals.reduce((sum, t) => sum + t.all, 0)
+  return {
+    kwhTotal: Math.round(kwh * 10) / 10,
+    energyBasis: main.length > 0 ? 'main' : kwh > 0 ? 'sensor' : 'none',
+  }
 }
 
 // React cache() lasts one server request only, so every page load still reads live data.
@@ -87,13 +163,14 @@ export const getStoreById = cache(loadStoreById)
 
 async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
   const telemetryDb = getTelemetryPool()
-  const now = Date.now()
 
   // Every store, page and API route reads devices through here, so the role scope is applied once.
   const scope = await getRequestScope()
   if (scope.kind === 'none') return []
 
   try {
+    const captureStatus = loadCaptureStatus('all').catch(() => null)
+    const energyIndex = loadEnergyIndex()
     let devRows: any[] = []
     try {
       const devRes = await telemetryDb.query(`
@@ -124,7 +201,7 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
     // Active capture states from Flask, shared across requests (see loadCaptureStatus)
     const liveApiCaptureMap = new Map<string, { active: boolean; session_name?: string }>()
     try {
-      const data = (await loadCaptureStatus('all')) as {
+      const data = (await captureStatus) as {
         devices?: Record<string, { active?: boolean; finalizing?: boolean; session_name?: string } | null>
       } | null
       if (data && data.devices) {
@@ -141,6 +218,8 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
       // Graceful fallback to DB capture_states
     }
 
+    const allowedIds = devRows.map((d) => String(d.id)).filter((id) => isDeviceAllowed(scope, id))
+    const [latestRows, energy] = await Promise.all([loadLatestRows(allowedIds), energyIndex])
     const results: IotDeviceData[] = []
 
     for (const dev of devRows) {
@@ -191,84 +270,15 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
         }
       })
 
-      // 1. Fetch latest telemetry from telemetry table (fast, ~1ms)
-      let telemRows: any[] = []
-      try {
-        const telemRes = await telemetryDb.query(
-          `
-          SELECT DISTINCT ON (phase) phase, voltage, current, power, power_factor, energy, timestamp, epoch
-          FROM telemetry
-          WHERE device_id = $1
-          ORDER BY phase, epoch DESC
-        `,
-          [dev.id]
-        )
-        telemRows = telemRes.rows
-      } catch (tErr) {
-        console.warn('Error querying telemetry:', tErr)
-      }
-
-      // If telemetry table has no rows (device offline/archived), fallback to latest history records using index (fast, ~2ms)
-      if (telemRows.length === 0) {
-        try {
-          const histRes = await telemetryDb.query(
-            `
-            SELECT DISTINCT ON (phase) phase, phase_name, voltage, current, power, power_factor, energy, timestamp, epoch
-            FROM (
-              SELECT phase, phase_name, voltage, current, power, power_factor, energy, timestamp, epoch
-              FROM history
-              WHERE device_id = $1
-              ORDER BY id DESC
-              LIMIT 30
-            ) sub
-            ORDER BY phase, epoch DESC
-          `,
-            [dev.id]
-          )
-          telemRows = histRes.rows
-        } catch (hErr) {
-          console.warn('Error querying history fallback:', hErr)
-        }
-      }
-
-      // 2. Query or retrieve cached total energy
-      let calculatedKwhTotal = 0
-      const cached = _deviceEnergyCache.get(dev.id)
-      if (cached && now - cached.timestamp < DEVICE_CACHE_TTL_MS) {
-        calculatedKwhTotal = cached.kwh
-      } else {
-        try {
-          const energyRes = await telemetryDb.query(
-            `
-            SELECT COALESCE(SUM(phase_delta), 0) as total_kwh
-            FROM (
-              SELECT session_id, phase, GREATEST(0, MAX(energy) - MIN(energy)) as phase_delta
-              FROM history 
-              WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-              GROUP BY session_id, phase
-            ) sub
-          `,
-            [dev.id]
-          )
-
-          if (energyRes.rows.length > 0) {
-            calculatedKwhTotal = parseFloat(energyRes.rows[0].total_kwh) || 0
-          }
-          _deviceEnergyCache.set(dev.id, { kwh: calculatedKwhTotal, timestamp: now })
-        } catch (eErr) {
-          console.warn('Error calculating total energy:', eErr)
-        }
-      }
+      const telemRows = latestRows.get(String(dev.id)) ?? []
 
       const phases: PhaseData[] = []
-      let fallbackInstantEnergy = 0
 
       for (const row of telemRows) {
-        const v = parseFloat(row.voltage) || 0
-        const a = parseFloat(row.current) || 0
-        const w = parseFloat(row.power) || 0
-        const pf = parseFloat(row.power_factor) || 0
-        const kwh = parseFloat(row.energy) || 0
+        const v = Number(row.voltage) || 0
+        const a = Number(row.current) || 0
+        const w = Number(row.power) || 0
+        const pf = Number(row.power_factor) || 0
 
         const sInfo = sensorMap.get(row.phase)
         let sensorName = sInfo?.name || row.phase_name
@@ -279,11 +289,6 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
           else if (row.phase === 'L13' || row.phase === 'L2' || row.phase === 'S') sensorName = 'Fase S'
           else if (row.phase === 'L14' || row.phase === 'L3' || row.phase === 'T') sensorName = 'Fase T'
           else sensorName = `Sensor ${row.phase}`
-        }
-
-        const isDummy = sensorName.toLowerCase().includes('dummy')
-        if (!isDummy) {
-          fallbackInstantEnergy += kwh
         }
 
         phases.push({
@@ -305,11 +310,6 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
         return a.phase.localeCompare(b.phase, undefined, { numeric: true })
       })
 
-      const finalKwhTotal =
-        calculatedKwhTotal > 0
-          ? calculatedKwhTotal
-          : fallbackInstantEnergy
-
       results.push({
         deviceId: dev.id,
         deviceName: dev.name,
@@ -321,7 +321,7 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
           { phase: 'L2', phaseName: 'Fase S', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
           { phase: 'L3', phaseName: 'Fase T', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
         ],
-        kwhTotal: Math.round(finalKwhTotal * 10) / 10,
+        energy: energy ? energy.total(String(dev.id)) : null,
         isRecording,
         recordingSessionName,
         latitude: lat,
@@ -398,8 +398,6 @@ async function loadStores(): Promise<Store[]> {
         })
       })
 
-      // Aggregate total energy across all store devices
-      const kwhTotal = matchingDevices.reduce((sum, d) => sum + (d.kwhTotal || 0), 0)
       const deviceCount = matchingDevices.length > 0 ? matchingDevices.length : 1
 
       // Find the most recent lastSeen
@@ -425,7 +423,7 @@ async function loadStores(): Promise<Store[]> {
         latitude,
         longitude,
         status,
-        kwhTotal: Math.round(kwhTotal * 10) / 10,
+        ...storeEnergy(matchingDevices),
         deviceCount,
         lastUpdate: latestLastSeen,
         phases: allPhases.length > 0 ? allPhases : [
@@ -458,7 +456,6 @@ async function loadStores(): Promise<Store[]> {
           d.phases.forEach((p) => allPhases.push(p))
         })
 
-        const totalKwh = devGroup.reduce((sum, d) => sum + (d.kwhTotal || 0), 0)
         const primaryDev = devGroup.find((d) => d.isRecording) || devGroup.find((d) => d.online) || devGroup[0]
 
         let latestLastSeen = new Date(0).toISOString()
@@ -479,7 +476,7 @@ async function loadStores(): Promise<Store[]> {
           latitude: primaryDev.latitude || -6.86805,
           longitude: primaryDev.longitude || 107.10027,
           status,
-          kwhTotal: Math.round(totalKwh * 10) / 10,
+          ...storeEnergy(devGroup),
           deviceCount: devGroup.length,
           lastUpdate: latestLastSeen,
           phases: allPhases,
@@ -537,7 +534,7 @@ async function loadStoreById(storeId: string): Promise<Store | null> {
       latitude: s.latitude ? parseFloat(s.latitude) : undefined,
       longitude: s.longitude ? parseFloat(s.longitude) : undefined,
       status: iot ? 'live' : 'unassigned',
-      kwhTotal: iot?.kwhTotal || 0,
+      ...storeEnergy(iot ? [iot] : []),
       deviceCount: iot ? 1 : 0,
       lastUpdate: iot?.lastSeen || new Date().toISOString(),
       phases: iot?.phases || [

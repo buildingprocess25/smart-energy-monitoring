@@ -1,5 +1,6 @@
 'use client'
 
+import { formatStoreKwh } from '@/lib/format-energy'
 import { useState, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -301,7 +302,7 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                     Total Energi
                   </span>
                   <span className="text-sm font-bold text-foreground mt-0.5">
-                    {(selectedStore.kwhTotal || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}{' '}
+                    {formatStoreKwh(selectedStore)}{' '}
                     <span className="text-[10px] font-normal text-muted-foreground">
                       kWh
                     </span>

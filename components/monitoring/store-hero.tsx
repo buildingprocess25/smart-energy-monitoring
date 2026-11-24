@@ -1,3 +1,4 @@
+import { formatStoreKwh } from '@/lib/format-energy'
 import { Building2, Zap, Hash, Activity } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from '@/components/dashboard/status-badge'
@@ -38,7 +39,7 @@ export function StoreHero({ store }: StoreHeroProps) {
           <div className="flex flex-col">
             <span className="text-xs text-muted-foreground">Total Energi</span>
             <span className="font-bold leading-none tracking-tight">
-              {store.kwhTotal.toLocaleString('id-ID')} <span className="text-xs font-normal text-muted-foreground">kWh</span>
+              {formatStoreKwh(store)} <span className="text-xs font-normal text-muted-foreground">kWh</span>
             </span>
           </div>
         </div>

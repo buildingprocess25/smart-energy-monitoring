@@ -1,11 +1,12 @@
 import 'server-only'
-import type { RecordingSessionSummary, SessionRecordsResult } from '@/lib/types'
+import type { RecordingSessionSummary, SessionRecordsResult, Store } from '@/lib/types'
 import type { AccessScope } from '@/lib/auth/access-rules'
 import { getTelemetryPool } from '@/lib/db/pools'
 import { readOnlyQuery } from '@/lib/db/read-only'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed, scopeKey } from '@/lib/auth/access-rules'
 import { createSharedFetch } from '@/lib/shared-fetch'
+import { createStaleCache } from '@/lib/stale-cache'
 import { getStores } from '@/lib/services/store-service'
 import { groupSessionRows, type HistoryRow } from '@/lib/session-records'
 
@@ -27,7 +28,7 @@ type SessionListRow = {
 
 // Queries run one after another on a single connection at a time, inside READ ONLY
 // transactions with a 15 s statement timeout, so Flask's INSERTs never wait on the portal.
-async function loadRecordingSessions(scope: AccessScope): Promise<RecordingSessionSummary[]> {
+async function loadSessionRows(scope: AccessScope) {
   const filter = scope.kind === 'devices' ? 'WHERE device_id = ANY($1::text[])' : ''
   const params = scope.kind === 'devices' ? [scope.deviceIds] : []
   const pool = getTelemetryPool()
@@ -47,14 +48,18 @@ async function loadRecordingSessions(scope: AccessScope): Promise<RecordingSessi
     params
   )
   const devRes = await readOnlyQuery<{ id: string; name: string | null }>(pool, `SELECT id, name FROM devices`, [])
-  const stores = await getStores()
+  return { sessions: res.rows, devices: devRes.rows }
+}
 
+type SessionRows = Awaited<ReturnType<typeof loadSessionRows>>
+
+function toSummaries({ sessions, devices }: SessionRows, stores: Store[]): RecordingSessionSummary[] {
   const deviceNames = new Map<string, string>(
-    devRes.rows.filter((d) => d.name).map((d) => [d.id, d.name as string])
+    devices.filter((d) => d.name).map((d) => [d.id, d.name as string])
   )
   const storeByDevice = new Map(stores.filter((s) => s.deviceId).map((s) => [s.deviceId as string, s]))
 
-  return res.rows.map((r) => {
+  return sessions.map((r) => {
     const store = storeByDevice.get(r.device_id)
     return {
       id: r.session_id,
@@ -72,16 +77,23 @@ async function loadRecordingSessions(scope: AccessScope): Promise<RecordingSessi
   })
 }
 
-// The full-table GROUP BY runs at most once per 30 s per access scope.
+// The full-table GROUP BY takes seconds, so an expired list is served while one refresh runs.
 // The key carries the scope, so a GS user never gets another scope's list.
-const sharedSessions = createSharedFetch(
-  (key) => loadRecordingSessions(JSON.parse(key) as AccessScope),
-  { ttlMs: 30_000, failureBackoffMs: 30_000 }
-)
+const sharedSessions = createSharedFetch((key) => loadSessionRows(JSON.parse(key) as AccessScope), {
+  ttlMs: 0,
+  failureBackoffMs: 30_000,
+})
+const sessionRowsCache = createStaleCache<SessionRows>({ ttlMs: 60_000 })
+
 export async function getRecordingSessions(): Promise<RecordingSessionSummary[]> {
   const scope = await getRequestScope()
   if (scope.kind === 'none') return []
-  return sharedSessions(scopeKey(scope))
+  const key = scopeKey(scope)
+  const [rows, stores] = await Promise.all([
+    sessionRowsCache(key, () => sharedSessions(key)),
+    getStores(),
+  ])
+  return toSummaries(rows, stores)
 }
 
 type SessionMetaRow = {

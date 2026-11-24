@@ -41,52 +41,40 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
-const PLN_TARIFF_PER_KWH = 1444.7
 
 interface MonthlyCostKpiCardProps {
   monthlyCosts?: MonthlyCostRecord[]
-  totalCumulativeKwh?: number
   className?: string
 }
 
-export function MonthlyCostKpiCard({
-  monthlyCosts = [],
-  totalCumulativeKwh = 0,
+export function MonthlyCostKpiCard({ monthlyCosts = [], className }: MonthlyCostKpiCardProps) {
+  if (monthlyCosts.length > 0) {
+    return <MonthlyCostCard enrichedMonthlyCosts={monthlyCosts} className={className} />
+  }
+  return (
+    <div
+      className={cn(
+        'flex flex-col justify-between gap-3 rounded-xl border bg-card p-4 shadow-xs',
+        className
+      )}
+    >
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Estimasi Biaya PLN
+      </span>
+      <p className="text-sm text-muted-foreground">
+        Biaya belum bisa dihitung. Muat ulang halaman, atau cek apakah panel utama sudah merekam.
+      </p>
+    </div>
+  )
+}
+
+function MonthlyCostCard({
+  enrichedMonthlyCosts,
   className,
-}: MonthlyCostKpiCardProps) {
-  // Ensure we have at least one monthly cost record
-  const enrichedMonthlyCosts = useMemo(() => {
-    if (monthlyCosts.length > 0) return monthlyCosts
-
-    const now = new Date()
-    const monthNames = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ]
-    const monthNamesShort = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-    ]
-    const m = now.getMonth()
-    const y = now.getFullYear()
-    const key = `${y}-${String(m + 1).padStart(2, '0')}`
-
-    const kwh = totalCumulativeKwh > 0 ? totalCumulativeKwh : 0
-    return [
-      {
-        monthKey: key,
-        monthLabel: `${monthNames[m]} ${y}`,
-        monthShortLabel: `${monthNamesShort[m]} ${y}`,
-        year: y,
-        month: m + 1,
-        kwh: Math.round(kwh * 10) / 10,
-        cost: Math.round(kwh * PLN_TARIFF_PER_KWH),
-        isCurrentMonth: true,
-        avgDailyKwh: Math.round((kwh / 30) * 10) / 10,
-      } as MonthlyCostRecord,
-    ]
-  }, [monthlyCosts, totalCumulativeKwh])
-
+}: {
+  enrichedMonthlyCosts: MonthlyCostRecord[]
+  className?: string
+}) {
   // Default selection: newest/current month (first in descending array)
   const [selectedKey, setSelectedKey] = useState<string>(
     enrichedMonthlyCosts[0]?.monthKey || 'all'
@@ -225,7 +213,7 @@ export function MonthlyCostKpiCard({
             )}
             <span>
               {activeRecord.diffPercentage > 0 ? '+' : ''}
-              {activeRecord.diffPercentage.toFixed(1)}% vs bln lalu
+              {activeRecord.diffPercentage.toLocaleString('id-ID')}% per jam terekam vs bln lalu
             </span>
           </div>
         ) : (

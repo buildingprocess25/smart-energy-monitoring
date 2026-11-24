@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { formatStoreKwh } from '@/lib/format-energy'
 import { ArrowRight, Zap, Building2, Clock, Cpu } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from './status-badge'
@@ -98,7 +99,7 @@ export function StoreCard({ store }: StoreCardProps) {
                 kWh Total
               </span>
               <span className="mt-0.5 font-semibold text-sm text-foreground">
-                {store.kwhTotal.toLocaleString('id-ID')}
+                {formatStoreKwh(store)}
               </span>
             </div>
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { formatStoreKwh } from '@/lib/format-energy'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
@@ -326,9 +327,7 @@ export function NetworkMapLeaflet({
                         Total Energi
                       </span>
                       <span className="font-bold font-mono text-slate-800 text-xs">
-                        {store.kwhTotal?.toLocaleString('id-ID', {
-                          maximumFractionDigits: 1,
-                        }) ?? 0}{' '}
+                        {formatStoreKwh(store)}{' '}
                         kWh
                       </span>
                     </div>

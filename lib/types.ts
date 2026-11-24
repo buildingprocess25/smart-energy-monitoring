@@ -115,6 +115,8 @@ export interface Store {
   longitude?: number
   status: StoreStatus
   kwhTotal: number
+  // 'main': R/S/T of the main panel. 'sensor': sub-meters only. 'none': no reading available.
+  energyBasis?: 'main' | 'sensor' | 'none'
   deviceCount: number
   lastUpdate: string // ISO string or time string
   phases: PhaseData[]

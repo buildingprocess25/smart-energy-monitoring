@@ -1,6 +1,7 @@
-import { Zap, Activity, Cpu, TrendingUp } from 'lucide-react'
+import { Zap, Activity, Cpu } from 'lucide-react'
 import { Store, MonthlyCostRecord } from '@/lib/types'
 import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
+import { formatKwh, mainPanelKwh } from '@/lib/format-energy'
 
 interface DashboardKpiSummaryProps {
   stores: Store[]
@@ -9,7 +10,7 @@ interface DashboardKpiSummaryProps {
 
 export function DashboardKpiSummary({ stores, monthlyCosts = [] }: DashboardKpiSummaryProps) {
   // 1. Total Energi Terukur (kWh)
-  const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
+  const totalKwh = mainPanelKwh(stores)
 
   // 3. Toko Live Monitoring
   const liveStoresCount = stores.filter((s) => s.status === 'live').length
@@ -36,25 +37,17 @@ export function DashboardKpiSummary({ stores, monthlyCosts = [] }: DashboardKpiS
         </div>
         <div className="mt-3">
           <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {totalKwh.toLocaleString('id-ID', {
-              maximumFractionDigits: 1,
-            })}{' '}
+            {formatKwh(totalKwh)}{' '}
             <span className="text-sm font-normal text-muted-foreground">
               kWh
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
-            <TrendingUp className="size-3.5" />
-            <span className="font-medium">Akumulasi seluruh sesi</span>
-          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Panel utama, selama perangkat merekam</p>
         </div>
       </div>
 
       {/* KPI 2: Estimasi Biaya Listrik */}
-      <MonthlyCostKpiCard
-        monthlyCosts={monthlyCosts}
-        totalCumulativeKwh={totalKwh}
-      />
+      <MonthlyCostKpiCard monthlyCosts={monthlyCosts} />
 
       {/* KPI 3: Toko Live Monitoring */}
       <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-blue-500/30 hover:shadow-sm">

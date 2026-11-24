@@ -1,7 +1,5 @@
 import { getTelemetryPool as getAivenPool } from '@/lib/db/pools'
 import { compareWithSangatBoros, getSangatBorosByCode } from '@/lib/services/sangat-boros-service'
-import { getRequestScope } from '@/lib/auth/access'
-import type { AccessScope } from '@/lib/auth/access-rules'
 import {
   Store,
   AuditSession,
@@ -10,7 +8,6 @@ import {
   SensorMeta,
   TelemetryHistoryResult,
   TimeRangeType,
-  PaginationMeta,
   DailyConsumption,
   StoreAnalyticsResult,
   LoadProfilePoint,
@@ -18,147 +15,27 @@ import {
   RealMonthlyConsumption,
   MonthlyTrendSummary,
 } from '@/lib/types'
-import { getStoreById, getStores } from './store-service'
+import { getIotDeviceDataList, getStoreById, getStores } from './store-service'
+import { getEnergyIndex, VALID_SAMPLE_SQL } from './energy-service'
+import { jakartaRange } from '@/lib/jakarta-range'
 import { sensorColor as getSensorColor } from '@/lib/phase-keys'
 import { createStaleCache } from '@/lib/stale-cache'
 
-// SQL filter for queries that scan every device; params start at $1.
-function deviceScopeFilter(scope: AccessScope): { clause: string; params: string[][] } {
-  if (scope.kind === 'devices') {
-    return { clause: ' AND device_id = ANY($1::text[])', params: [scope.deviceIds] }
-  }
-  return { clause: '', params: [] }
+// Compared per recorded hour, so a partly recorded month is never set against a full one.
+function hourlyAverageDiffPct(
+  current: { kwh: number; hours: number },
+  previous: { kwh: number; hours: number }
+): number | undefined {
+  if (current.hours === 0 || previous.hours === 0 || previous.kwh <= 0) return undefined
+  const before = previous.kwh / previous.hours
+  return Math.round(((current.kwh / current.hours - before) / before) * 1000) / 10
 }
-
-// Fetch real daily energy consumption trend across recorded days
-export async function getDailyConsumptionTrend(): Promise<DailyConsumption[]> {
-  const aiven = getAivenPool()
-  const PLN_TARIFF = 1444.7
-  const scope = await getRequestScope()
-  if (scope.kind === 'none') return []
-  const deviceFilter = deviceScopeFilter(scope)
-
-  try {
-    // Query combined daily delta energy per phase across telemetry & history sources with phase normalization
-    const res = await aiven.query(`
-      WITH raw_combined AS (
-        SELECT 
-          device_id,
-          CASE
-            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-            ELSE phase
-          END as phase,
-          epoch,
-          energy
-        FROM (
-          SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
-          UNION ALL
-          SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
-        ) combined
-      ),
-      per_phase_day AS (
-        SELECT 
-          device_id,
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
-          GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta
-        FROM raw_combined
-        GROUP BY device_id, phase, day_date, day_name
-      ),
-      per_device_day AS (
-        SELECT 
-          device_id,
-          day_date,
-          day_name,
-          SUM(phase_delta) as delta_kwh
-        FROM per_phase_day
-        GROUP BY device_id, day_date, day_name
-      )
-      SELECT 
-        day_date,
-        day_name,
-        ROUND(COALESCE(SUM(delta_kwh), 0)::numeric, 1) as delta_kwh
-      FROM per_device_day
-      GROUP BY day_date, day_name
-      ORDER BY day_date ASC
-    `, deviceFilter.params)
-
-    const rows = res.rows
-    if (rows.length === 0) return []
-
-    const dayNameMap: Record<string, string> = {
-      Mon: 'Sen',
-      Tue: 'Sel',
-      Wed: 'Rab',
-      Thu: 'Kam',
-      Fri: 'Jum',
-      Sat: 'Sab',
-      Sun: 'Min',
-    }
-
-    const dayFullMap: Record<string, string> = {
-      Mon: 'Senin',
-      Tue: 'Selasa',
-      Wed: 'Rabu',
-      Thu: 'Kamis',
-      Fri: 'Jumat',
-      Sat: 'Sabtu',
-      Sun: 'Minggu',
-    }
-
-    const monthNames = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ]
-
-    return rows.map((r) => {
-      const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
-      const shortDay = dayNameMap[r.day_name] || r.day_name
-      const fullDay = dayFullMap[r.day_name] || r.day_name
-      
-      let dayLabel = shortDay
-      let dayFullDate = `${fullDay}, ${r.day_date}`
-      if (r.day_date) {
-        const parts = r.day_date.split('-')
-        if (parts.length === 3) {
-          const y = parseInt(parts[0], 10)
-          const m = parseInt(parts[1], 10) - 1
-          const d = parseInt(parts[2], 10)
-          const dd = String(d).padStart(2, '0')
-          const mm = String(m + 1).padStart(2, '0')
-          dayLabel = `${shortDay} (${dd}/${mm})`
-          dayFullDate = `${fullDay}, ${d} ${monthNames[m]} ${y}`
-        }
-      }
-
-      return {
-        day: shortDay,
-        dayDate: r.day_date,
-        dayLabel,
-        dayFullDate,
-        kwh,
-        cost: Math.round(kwh * PLN_TARIFF),
-      }
-    })
-  } catch (error) {
-    console.error('Error in getDailyConsumptionTrend:', error)
-    return []
-  }
-}
-
-// In-memory cache for store analytics (TTL: 15 minutes)
-const _analyticsCache = new Map<string, { data: StoreAnalyticsResult; timestamp: number }>()
-const ANALYTICS_CACHE_TTL_MS = 15 * 60 * 1000
 
 // Fetch store-specific analytics: 24h load profile on latest/selected recorded date & daily consumption
 export async function getStoreAnalyticsData(
   storeCodeOrId?: string,
   targetDate?: string
 ): Promise<StoreAnalyticsResult | null> {
-  const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
 
   // 1. Dapatkan data store
@@ -179,20 +56,6 @@ export async function getStoreAnalyticsData(
   const branch = store.branch || 'CIANJUR'
   const isLive = store.status === 'live'
 
-  // Check in-memory cache
-  const cacheKey = `${deviceId}_${targetDate || 'default'}`
-  const cached = _analyticsCache.get(cacheKey)
-  if (cached && Date.now() - cached.timestamp < ANALYTICS_CACHE_TTL_MS) {
-    // Sangat Boros comes from SPARTA and can change with a new calculation, so it is never cached
-    const sangatBorosStore = await getSangatBorosByCode(storeCode)
-    return {
-      ...cached.data,
-      sangatBoros: sangatBorosStore
-        ? compareWithSangatBoros(sangatBorosStore, cached.data.dailyConsumption, cached.data.anchorDate)
-        : null,
-    }
-  }
-
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
   const monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -206,137 +69,16 @@ export async function getStoreAnalyticsData(
   }
 
   try {
-    // 2. Run queries in parallel: available dates, daily delta, and monthly partitions
-    const datesQueryPromise = aiven.query(`
-      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date
-      FROM (
-        SELECT epoch FROM history WHERE device_id = $1
-        UNION ALL
-        SELECT epoch FROM telemetry WHERE device_id = $1
-      ) sub
-      ORDER BY day_date DESC
-    `, [deviceId])
-
-    const dailyQueryPromise = aiven.query(`
-      WITH raw_combined AS (
-        SELECT 
-          CASE
-            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-            ELSE phase
-          END as phase,
-          epoch,
-          power,
-          energy
-        FROM (
-          SELECT phase, epoch, power, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-          UNION ALL
-          SELECT phase, epoch, power, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-        ) combined
-      ),
-      per_phase_day AS (
-        SELECT 
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as day_date,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'Dy') as day_name,
-          CASE 
-            WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 24 * 1.8 + 5.0, 10.0) THEN (MAX(energy) - MIN(energy))
-            ELSE GREATEST(0, (AVG(power) / 1000.0) * 24)
-          END as phase_delta
-        FROM raw_combined
-        GROUP BY phase, day_date, day_name
-      )
-      SELECT
-        day_date,
-        day_name,
-        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh,
-        ROUND(COALESCE(SUM(phase_delta) FILTER (WHERE phase IN ('R', 'S', 'T')), 0)::numeric, 1) as main_kwh
-      FROM per_phase_day
-      GROUP BY day_date, day_name
-      ORDER BY day_date ASC
-    `, [deviceId])
-
-    const monthlyQueryPromise = aiven.query(`
-      WITH raw_combined AS (
-        SELECT 
-          CASE
-            WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-            WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-            WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-            ELSE phase
-          END as phase,
-          epoch,
-          power,
-          energy
-        FROM (
-          SELECT phase, epoch, power, energy FROM telemetry WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-          UNION ALL
-          SELECT phase, epoch, power, energy FROM history WHERE device_id = $1 AND energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'
-        ) combined
-      ),
-      per_phase_month AS (
-        SELECT 
-          phase,
-          TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
-          EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as yr,
-          EXTRACT(MONTH FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) as mo,
-          CASE 
-            WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0) * 720 * 1.8 + 50.0, 50.0) THEN (MAX(energy) - MIN(energy))
-            ELSE GREATEST(0, (AVG(power) / 1000.0) * 720)
-          END as phase_delta
-        FROM raw_combined
-        GROUP BY phase, month_key, yr, mo
-      )
-      SELECT 
-        month_key,
-        yr::int as yr,
-        mo::int as mo,
-        ROUND(COALESCE(SUM(phase_delta), 0)::numeric, 1) as delta_kwh,
-        ROUND(COALESCE(SUM(phase_delta) FILTER (WHERE phase IN ('R', 'S', 'T')), 0)::numeric, 1) as main_kwh
-      FROM per_phase_month
-      GROUP BY month_key, yr, mo
-      HAVING COALESCE(SUM(phase_delta), 0) > 0
-      ORDER BY month_key ASC
-    `, [deviceId])
-
-    // Preload load curve if targetDate is provided
-    const loadQueryPromise = targetDate
-      ? aiven.query(`
-          SELECT 
-            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:00') as hour_str,
-            ROUND(AVG(total_power)::numeric, 1) as avg_power
-          FROM (
-            SELECT 
-              epoch,
-              SUM(power) as total_power
-            FROM (
-              SELECT epoch, phase, power FROM history 
-              WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
-              UNION ALL
-              SELECT epoch, phase, power FROM telemetry 
-              WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
-            ) p
-            GROUP BY epoch
-          ) grouped_epoch
-          GROUP BY hour_str
-          ORDER BY hour_str ASC
-        `, [deviceId, targetDate])
-      : null
-
-    const [datesRes, dailyRes, monthlyYearRes, preloadedLoadRes, sangatBorosStore] = await Promise.all([
-      datesQueryPromise,
-      dailyQueryPromise,
-      monthlyQueryPromise,
-      loadQueryPromise,
+    const [energy, sangatBorosStore] = await Promise.all([
+      getEnergyIndex(),
       getSangatBorosByCode(storeCode),
     ])
-
-    let availableDates: string[] = datesRes.rows.map((r) => r.day_date).filter(Boolean)
+    const dailyEnergy = energy.daily(deviceId)
+    const availableDates = energy.dates(deviceId)
     const todayJakarta = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
     // Tentukan anchor date: Selalu prioritaskan tanggal terbaru yang tercatat (availableDates[0]) jika tidak ada targetDate spesifik
-    let anchorDate = targetDate || availableDates[0] || todayJakarta
+    const anchorDate = targetDate || availableDates[0] || todayJakarta
 
     let anchorDateLabel = anchorDate
     if (anchorDate) {
@@ -349,32 +91,7 @@ export async function getStoreAnalyticsData(
       }
     }
 
-    // 3. Query Profil Beban 24 Jam pada anchorDate (jika belum di-preload)
-    const loadRes = preloadedLoadRes || await aiven.query(`
-      SELECT 
-        TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:00') as hour_str,
-        ROUND(AVG(total_power)::numeric, 1) as avg_power
-      FROM (
-        SELECT 
-          epoch,
-          SUM(power) as total_power
-        FROM (
-          SELECT epoch, phase, power FROM history 
-          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
-          UNION ALL
-          SELECT epoch, phase, power FROM telemetry 
-          WHERE device_id = $1 AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') = $2 AND phase != 'L6'
-        ) p
-        GROUP BY epoch
-      ) grouped_epoch
-      GROUP BY hour_str
-      ORDER BY hour_str ASC
-    `, [deviceId, anchorDate])
-
-    const loadMap = new Map<string, number>()
-    loadRes.rows.forEach((r) => {
-      loadMap.set(r.hour_str, parseFloat(r.avg_power) || 0)
-    })
+    const hourlyWatts = energy.loadProfile(deviceId, anchorDate)
 
     const loadProfile24h: LoadProfilePoint[] = []
     let peakPowerWatts = 0
@@ -384,7 +101,7 @@ export async function getStoreAnalyticsData(
 
     for (let h = 0; h < 24; h++) {
       const hourStr = `${String(h).padStart(2, '0')}:00`
-      let pWatts = loadMap.get(hourStr) || 0
+      const pWatts = hourlyWatts[h]
       
       if (pWatts > 0) {
         peakPowerWatts = Math.max(peakPowerWatts, pWatts)
@@ -404,16 +121,19 @@ export async function getStoreAnalyticsData(
     const avgPowerWatts = validLoadCount > 0 ? Math.round(totalLoadSum / validLoadCount) : 0
     const basePowerWatts = minPowerWatts !== Infinity ? Math.round(minPowerWatts) : 0
 
-    // 4. Map Daily Consumption Trend
-    const dailyConsumption: DailyConsumption[] = dailyRes.rows.map((r) => {
-      const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
-      const shortDay = dayNameMap[r.day_name] || r.day_name
-      const fullDay = dayFullMap[r.day_name] || r.day_name
+    const dailyConsumption: DailyConsumption[] = dailyEnergy.map((r) => {
+      const kwh = Math.round(r.kwh * 10) / 10
+      const dayKey = new Date(`${r.date}T00:00:00Z`).toLocaleDateString('en-US', {
+        weekday: 'short',
+        timeZone: 'UTC',
+      })
+      const shortDay = dayNameMap[dayKey]
+      const fullDay = dayFullMap[dayKey]
 
       let dayLabel = shortDay
-      let dayFullDate = `${fullDay}, ${r.day_date}`
-      if (r.day_date) {
-        const parts = r.day_date.split('-')
+      let dayFullDate = `${fullDay}, ${r.date}`
+      if (r.date) {
+        const parts = r.date.split('-')
         if (parts.length === 3) {
           const y = parseInt(parts[0], 10)
           const m = parseInt(parts[1], 10) - 1
@@ -427,89 +147,42 @@ export async function getStoreAnalyticsData(
 
       return {
         day: shortDay,
-        dayDate: r.day_date,
+        dayDate: r.date,
         dayLabel,
         dayFullDate,
         kwh,
-        mainPanelKwh: Math.max(parseFloat(r.main_kwh) || 0, 0),
+        mainPanelKwh: Math.round(r.mainKwh * 10) / 10,
         cost: Math.round(kwh * PLN_TARIFF),
       }
     })
 
-    // 5. Query Real Monthly Aggregation recorded in database for this store
-    let monthlyHistory: RealMonthlyConsumption[] = []
-    const monthShortLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-
-    if (monthlyYearRes.rows.length > 0) {
-      monthlyYearRes.rows.forEach((r, idx) => {
-        const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
-        const cost = Math.round(kwh * PLN_TARIFF)
-        const m = r.mo || 1
-        const y = r.yr || 2026
-        const monthLabel = `${monthShortLabels[m - 1]} ${y}`
-        
-        let diffPct: number | undefined = undefined
-        if (idx > 0) {
-          const prevKwh = monthlyHistory[idx - 1].kwh
-          if (prevKwh > 0) {
-            diffPct = Math.round(((kwh - prevKwh) / prevKwh) * 1000) / 10
-          }
-        }
-
-        monthlyHistory.push({
-          monthKey: r.month_key,
-          monthLabel,
-          year: y,
-          month: m,
-          kwh,
-          mainPanelKwh: Math.max(parseFloat(r.main_kwh) || 0, 0),
-          cost,
-          diffPct,
-          isLatest: idx === monthlyYearRes.rows.length - 1,
-        })
-      })
-    } else {
-      // Fallback: Aggregate from store's daily consumption
-      const monthMap = new Map<string, number>()
-      const mainMonthMap = new Map<string, number>()
-      dailyConsumption.forEach((d) => {
-        if (d.dayDate) {
-          const mKey = d.dayDate.substring(0, 7) // "YYYY-MM"
-          monthMap.set(mKey, (monthMap.get(mKey) || 0) + d.kwh)
-          mainMonthMap.set(mKey, (mainMonthMap.get(mKey) || 0) + (d.mainPanelKwh || 0))
-        }
-      })
-
-      const sortedKeys = Array.from(monthMap.keys()).sort()
-      sortedKeys.forEach((mKey, idx) => {
-        const [yStr, mStr] = mKey.split('-')
-        const y = parseInt(yStr, 10) || 2026
-        const m = parseInt(mStr, 10) || 1
-        const kwh = Math.round((monthMap.get(mKey) || 0) * 10) / 10
-        const cost = Math.round(kwh * PLN_TARIFF)
-        const monthLabel = `${monthShortLabels[m - 1]} ${y}`
-
-        let diffPct: number | undefined = undefined
-        if (idx > 0) {
-          const prevKwh = monthlyHistory[idx - 1].kwh
-          if (prevKwh > 0) {
-            diffPct = Math.round(((kwh - prevKwh) / prevKwh) * 1000) / 10
-          }
-        }
-
-        monthlyHistory.push({
-          monthKey: mKey,
-          monthLabel,
-          year: y,
-          month: m,
-          kwh,
-          mainPanelKwh: Math.round((mainMonthMap.get(mKey) || 0) * 10) / 10,
-          cost,
-          diffPct,
-          isLatest: idx === sortedKeys.length - 1,
-        })
-      })
+    const monthShortLabels = monthNamesShort
+    const monthTotals = new Map<string, { kwh: number; main: number; hours: number }>()
+    for (const day of dailyEnergy) {
+      const key = day.date.slice(0, 7)
+      const month = monthTotals.get(key) ?? { kwh: 0, main: 0, hours: 0 }
+      month.kwh += day.kwh
+      month.main += day.mainKwh
+      month.hours += day.hours
+      monthTotals.set(key, month)
     }
+
+    const recordedMonths = [...monthTotals.entries()].filter(([, m]) => m.kwh > 0)
+    const monthlyHistory: RealMonthlyConsumption[] = recordedMonths.map(([monthKey, m], idx) => {
+      const [year, month] = monthKey.split('-').map(Number)
+      const prev = idx > 0 ? recordedMonths[idx - 1][1] : undefined
+      return {
+        monthKey,
+        monthLabel: `${monthShortLabels[month - 1]} ${year}`,
+        year,
+        month,
+        kwh: Math.round(m.kwh * 10) / 10,
+        mainPanelKwh: Math.round(m.main * 10) / 10,
+        cost: Math.round(m.kwh * PLN_TARIFF),
+        diffPct: prev ? hourlyAverageDiffPct(m, prev) : undefined,
+        isLatest: idx === recordedMonths.length - 1,
+      }
+    })
 
     const totalMonthlyKwh = monthlyHistory.reduce((sum, m) => sum + m.kwh, 0)
     const totalMonthlyCost = monthlyHistory.reduce((sum, m) => sum + m.cost, 0)
@@ -525,15 +198,6 @@ export async function getStoreAnalyticsData(
       latestMonthKwh: latestItem?.kwh || 0,
       momDiffPct: latestItem?.diffPct,
       trendStatus: (latestItem?.diffPct ?? 0) <= 0 ? 'hemat' : ((latestItem?.diffPct ?? 0) > 8 ? 'waspada' : 'stabil'),
-    }
-
-    // Ensure availableDates includes all recorded dates from both dates query and daily aggregation
-    if (availableDates.length === 0 && dailyConsumption.length > 0) {
-      const set = new Set<string>()
-      dailyConsumption.forEach((d) => {
-        if (d.dayDate) set.add(d.dayDate)
-      })
-      availableDates = Array.from(set).sort().reverse()
     }
 
     const result: StoreAnalyticsResult = {
@@ -559,15 +223,25 @@ export async function getStoreAnalyticsData(
         : null,
     }
 
-    // Save to cache
-    _analyticsCache.set(cacheKey, { data: result, timestamp: Date.now() })
-
     return result
   } catch (error) {
     console.error('Error in getStoreAnalyticsData:', error)
     return null
   }
 }
+
+type AuditSessionRow = {
+  session_id: string
+  session_name: string | null
+  start_time: string | null
+  end_time: string | null
+  total_rows: string
+}
+
+const auditSessionCache = createStaleCache<AuditSessionRow[]>({
+  ttlMs: 30_000,
+  onError: (error) => console.error('Error refreshing audit sessions:', error),
+})
 
 // Fetch list of audit recording sessions for a store
 export async function getAuditSessions(storeId: string): Promise<AuditSession[]> {
@@ -579,7 +253,8 @@ export async function getAuditSessions(storeId: string): Promise<AuditSession[]>
   const deviceId = store.deviceId
   const aiven = getAivenPool()
   try {
-    const res = await aiven.query(
+    const rows = await auditSessionCache(deviceId, async () => {
+      const res = await aiven.query<AuditSessionRow>(
       `
       SELECT session_id, session_name, MIN(timestamp) as start_time, MAX(timestamp) as end_time, MIN(epoch) as min_epoch, MAX(epoch) as max_epoch, COUNT(*) as total_rows
       FROM history
@@ -588,13 +263,11 @@ export async function getAuditSessions(storeId: string): Promise<AuditSession[]>
       ORDER BY MAX(epoch) DESC
     `,
       [deviceId]
-    )
+      )
+      return res.rows
+    })
 
-    if (res.rows.length === 0) {
-      return []
-    }
-
-    return res.rows.map((row, index) => ({
+    return rows.map((row, index) => ({
       id: row.session_id,
       storeId: storeId,
       label: row.session_name || `Sesi ${row.start_time}`,
@@ -617,16 +290,16 @@ export interface TelemetryQueryOptions {
   pageSize?: number
 }
 
-interface CachedHistoryPayload {
+interface HistoryPayload {
   sensors: SensorMeta[]
   points: TelemetryPoint[]
   availableDates: string[]
-  timestamp: number
 }
 
-// In-memory cache for aggregated telemetry history (TTL: 30 minutes)
-const _historyCache = new Map<string, CachedHistoryPayload>()
-const CACHE_TTL_MS = 30 * 60 * 1000
+const logHistoryError = (error: unknown) => console.error('Error refreshing telemetry history:', error)
+// A period that still receives samples goes stale quickly; the rest hardly changes.
+const growingHistoryCache = createStaleCache<HistoryPayload>({ ttlMs: 60_000, onError: logHistoryError })
+const settledHistoryCache = createStaleCache<HistoryPayload>({ ttlMs: 30 * 60_000, onError: logHistoryError })
 
 // Fetch dynamic telemetry history points for day (1-hr), week (1-day), or session (15-min paginated)
 export async function getTelemetryHistory(
@@ -639,7 +312,6 @@ export async function getTelemetryHistory(
   }
 
   const deviceId = store.deviceId
-  const aiven = getAivenPool()
 
   // Parse options
   let rangeType: TimeRangeType = 'day'
@@ -659,57 +331,46 @@ export async function getTelemetryHistory(
     pageSize = options.pageSize && options.pageSize > 0 ? options.pageSize : 96
   }
 
-  // Generate cache key
-  const cacheKey = `${deviceId}_${rangeType}_${targetSessionId || targetDate || 'default'}`
-  const cached = _historyCache.get(cacheKey)
-
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    let returnPoints = cached.points
-    let paginationMeta: PaginationMeta | undefined = undefined
-
-    if (rangeType === 'session') {
-      const totalPoints = cached.points.length
-      const totalPages = Math.max(Math.ceil(totalPoints / pageSize), 1)
-      const validPage = Math.min(Math.max(page, 1), totalPages)
-
-      // Page 1 = Latest window (paling baru), Page 2+ = Mundur ke waktu sebelumnya
-      const endIndex = Math.max(totalPoints - (validPage - 1) * pageSize, 0)
-      const startIndex = Math.max(endIndex - pageSize, 0)
-
-      returnPoints = cached.points.slice(startIndex, endIndex)
-      paginationMeta = {
-        page: validPage,
-        totalPages,
-        totalPoints,
-        pageSize,
-      }
-    }
-
-    return {
-      sensors: cached.sensors,
-      points: returnPoints,
-      availableDates: cached.availableDates,
-      pagination: paginationMeta,
-    }
-  }
+  // The default request follows the newest recorded date, so it never counts as settled.
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+  const isSettled =
+    rangeType !== 'session' && targetDate !== undefined && jakartaRange(rangeType, targetDate).to <= jakartaRange('day', today).from
+  const cache = isSettled ? settledHistoryCache : growingHistoryCache
 
   try {
-    // 1. Get available dates sorted from newest (DESC) across history & telemetry
-    const datesRes = await aiven.query(
-      `
-      SELECT DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD') as date_str
-      FROM (
-        SELECT epoch FROM history WHERE device_id = $1
-        UNION ALL
-        SELECT epoch FROM telemetry WHERE device_id = $1
-      ) sub
-      ORDER BY date_str DESC
-    `,
-      [deviceId]
+    const { sensors, points: allPoints, availableDates } = await cache(
+      JSON.stringify([deviceId, rangeType, rangeType === 'session' ? targetSessionId : targetDate]),
+      () => loadHistory(deviceId, rangeType, targetDate, targetSessionId)
     )
+    if (rangeType !== 'session') return { sensors, points: allPoints, availableDates }
 
-    const availableDates: string[] = datesRes.rows.map((r) => r.date_str)
+    // Page 1 is the latest window; later pages go back in time.
+    const totalPoints = allPoints.length
+    const totalPages = Math.max(Math.ceil(totalPoints / pageSize), 1)
+    const validPage = Math.min(Math.max(page, 1), totalPages)
+    const endIndex = Math.max(totalPoints - (validPage - 1) * pageSize, 0)
+    const startIndex = Math.max(endIndex - pageSize, 0)
+    return {
+      sensors,
+      points: allPoints.slice(startIndex, endIndex),
+      availableDates,
+      pagination: { page: validPage, totalPages, totalPoints, pageSize },
+    }
+  } catch (error) {
+    console.error('Error in getTelemetryHistory:', error)
+    return { sensors: [], points: [], availableDates: [] }
+  }
+}
 
+async function loadHistory(
+  deviceId: string,
+  rangeType: TimeRangeType,
+  targetDate: string | undefined,
+  targetSessionId: string | undefined
+): Promise<HistoryPayload> {
+    const aiven = getAivenPool()
+    const energy = await getEnergyIndex()
+    const availableDates = energy.dates(deviceId)
     const todayJakarta = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
     // Set default target date to newest available date from database, or today's date
@@ -717,27 +378,26 @@ export async function getTelemetryHistory(
       targetDate = availableDates[0] || todayJakarta
     }
 
-    // 2. Fetch distinct sensors SCOPED to the active query with phase normalization
-    let sensorWhere = `WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'`
-    const sensorParams: any[] = [deviceId]
-
-    if (rangeType === 'session' && targetSessionId) {
-      sensorWhere += ` AND session_id = $2`
-      sensorParams.push(targetSessionId)
-    } else if (rangeType === 'day' && targetDate) {
-      sensorWhere += ` AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date = $2::date`
-      sensorParams.push(targetDate)
-    } else if (rangeType === 'week' && targetDate) {
-      sensorWhere += ` AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date 
-                     AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')`
-      sensorParams.push(targetDate)
-    } else if (rangeType === 'month' && targetDate) {
-      sensorWhere += ` AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') = TO_CHAR($2::date, 'YYYY-MM')`
-      sensorParams.push(targetDate)
-    } else if (rangeType === 'year' && targetDate) {
-      sensorWhere += ` AND EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) = EXTRACT(YEAR FROM $2::date)`
-      sensorParams.push(targetDate)
+    if (rangeType === 'session' && !targetSessionId) {
+      const latest = await aiven.query<{ session_id: string }>(
+        `SELECT session_id FROM history WHERE device_id = $1 ORDER BY id DESC LIMIT 1`,
+        [deviceId]
+      )
+      targetSessionId = latest.rows[0]?.session_id ?? ''
     }
+
+    // Epoch bounds, not a date expression per row, so an index on epoch can be used.
+    const range = rangeType === 'session' ? null : jakartaRange(rangeType, targetDate)
+    const queryParams: (string | number)[] = range
+      ? [deviceId, range.from, range.to]
+      : [deviceId, targetSessionId ?? '']
+    const periodWhere = range ? 'epoch >= $2 AND epoch < $3' : 'session_id = $2'
+    const sensorSources = range
+      ? `SELECT phase, phase_name FROM history WHERE device_id = $1 AND ${periodWhere}
+          UNION ALL
+          SELECT phase, NULL as phase_name FROM telemetry WHERE device_id = $1 AND ${periodWhere}`
+      : `SELECT phase, phase_name FROM history WHERE device_id = $1 AND ${periodWhere}`
+    const sensorWhere = `WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'`
 
     const sensorSql = `
       WITH raw_combined AS (
@@ -750,9 +410,7 @@ export async function getTelemetryHistory(
           END as phase,
           phase_name
         FROM (
-          SELECT phase, phase_name, epoch, session_id FROM history WHERE device_id = $1
-          UNION ALL
-          SELECT phase, NULL as phase_name, epoch, NULL as session_id FROM telemetry WHERE device_id = $1
+          ${sensorSources}
         ) combined_sensors
         ${sensorWhere}
       )
@@ -773,7 +431,12 @@ export async function getTelemetryHistory(
       ORDER BY phase ASC
     `
 
-    let sensorRes = await aiven.query(sensorSql, sensorParams)
+    const pointsPromise = aiven.query(buildPointsQuery(), queryParams)
+    const devSensorPromise = aiven.query(`SELECT sensors FROM devices WHERE id = $1`, [deviceId])
+    // Handled here so a failure of the sensor query does not leave these unhandled.
+    pointsPromise.catch(() => undefined)
+    devSensorPromise.catch(() => undefined)
+    let sensorRes = await aiven.query(sensorSql, queryParams)
 
     // Fallback if no records in that specific scope: query all device sensors
     if (sensorRes.rows.length === 0) {
@@ -816,10 +479,7 @@ export async function getTelemetryHistory(
     }
 
     // Get device sensor config from devices table to resolve human-readable names if needed
-    const devSensorRes = await aiven.query(
-      `SELECT sensors FROM devices WHERE id = $1`,
-      [deviceId]
-    )
+    const devSensorRes = await devSensorPromise
     const deviceSensorsMap = new Map<string, string>()
     if (devSensorRes.rows.length > 0 && devSensorRes.rows[0].sensors) {
       let slist = devSensorRes.rows[0].sensors
@@ -856,15 +516,10 @@ export async function getTelemetryHistory(
       }
     })
 
-    let pointsQuery = ''
-    let queryParams: any[] = [deviceId]
-    let paginationMeta: PaginationMeta | undefined = undefined
-
-    // 3. Construct specific SQL query per range mode with phase normalization
+    function buildPointsQuery(): string {
     if (rangeType === 'day') {
       // Harian: Rata-rata per 1 jam (24 jam) menggabungkan telemetry + history
-      queryParams.push(targetDate || todayJakarta)
-      pointsQuery = `
+      return `
         WITH raw_day AS (
           SELECT 
             epoch, 
@@ -876,7 +531,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date = $2::date
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
@@ -888,7 +543,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date = $2::date
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -927,8 +582,7 @@ export async function getTelemetryHistory(
       `
     } else if (rangeType === 'week') {
       // Mingguan: Rata-rata per 1 hari (7 hari terakhir dari tanggal terpilih) menggabungkan telemetry + history
-      queryParams.push(targetDate || todayJakarta)
-      pointsQuery = `
+      return `
         WITH raw_week AS (
           SELECT 
             epoch, 
@@ -940,9 +594,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 
-            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')
-            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
@@ -954,9 +606,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 
-            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date >= ($2::date - interval '6 days')
-            AND (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')::date <= $2::date
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -995,8 +645,7 @@ export async function getTelemetryHistory(
       `
     } else if (rangeType === 'month') {
       // Bulanan: Rata-rata per 1 hari dalam bulan targetDate (~30 titik data harian)
-      queryParams.push(targetDate || todayJakarta)
-      pointsQuery = `
+      return `
         WITH raw_month AS (
           SELECT 
             epoch, 
@@ -1008,8 +657,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 
-            AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') = TO_CHAR($2::date, 'YYYY-MM')
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
@@ -1021,8 +669,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 
-            AND TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') = TO_CHAR($2::date, 'YYYY-MM')
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -1061,8 +708,7 @@ export async function getTelemetryHistory(
       `
     } else if (rangeType === 'year') {
       // Tahunan: Rata-rata per bulan dalam tahun targetDate (12 titik bulan)
-      queryParams.push(targetDate || todayJakarta)
-      pointsQuery = `
+      return `
         WITH raw_year AS (
           SELECT 
             epoch, 
@@ -1074,8 +720,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 
-            AND EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) = EXTRACT(YEAR FROM $2::date)
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
@@ -1087,8 +732,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 
-            AND EXTRACT(YEAR FROM (TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta')) = EXTRACT(YEAR FROM $2::date)
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -1153,18 +797,7 @@ export async function getTelemetryHistory(
       `
     } else {
       // Sesi Audit: Fast integer aggregation with phase normalization
-      if (!targetSessionId) {
-        const latestSessRes = await aiven.query(
-          `SELECT session_id FROM history WHERE device_id = $1 ORDER BY epoch DESC LIMIT 1`,
-          [deviceId]
-        )
-        if (latestSessRes.rows.length > 0) {
-          targetSessionId = latestSessRes.rows[0].session_id
-        }
-      }
-
-      queryParams.push(targetSessionId || '')
-      pointsQuery = `
+      return `
         WITH raw_sess AS (
           SELECT 
             epoch,
@@ -1176,7 +809,7 @@ export async function getTelemetryHistory(
             END as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND session_id = $2
+          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         agg AS (
           SELECT 
@@ -1208,7 +841,9 @@ export async function getTelemetryHistory(
       `
     }
 
-    const pointsRes = await aiven.query(pointsQuery, queryParams)
+    }
+
+    const pointsRes = await pointsPromise
 
     // Group rows by bucket_id into single time points with dynamic sensor properties
     const bucketMap = new Map<string, TelemetryPoint>()
@@ -1246,45 +881,26 @@ export async function getTelemetryHistory(
       }
     }
 
-    const allPoints = Array.from(bucketMap.values())
-
-    // Save to in-memory cache for blazing fast subsequent pagination & metric switching
-    _historyCache.set(cacheKey, {
-      sensors,
-      points: allPoints,
-      availableDates,
-      timestamp: Date.now(),
-    })
-
-    let points = allPoints
-
-    // For session mode: apply pagination (Page 1 = Latest window, Page 2+ = Mundur ke waktu sebelumnya)
-    if (rangeType === 'session') {
-      const totalPoints = points.length
-      const totalPages = Math.max(Math.ceil(totalPoints / pageSize), 1)
-      const validPage = Math.min(Math.max(page, 1), totalPages)
-      const endIndex = Math.max(totalPoints - (validPage - 1) * pageSize, 0)
-      const startIndex = Math.max(endIndex - pageSize, 0)
-
-      points = points.slice(startIndex, endIndex)
-      paginationMeta = {
-        page: validPage,
-        totalPages,
-        totalPoints,
-        pageSize,
+    // The counter delta over a long period misses resets, so these totals come from the energy index.
+    if (rangeType === 'week' || rangeType === 'month' || rangeType === 'year') {
+      const keyLength = rangeType === 'year' ? 7 : 10
+      const byPeriod = new Map<string, Record<string, number>>()
+      for (const day of energy.daily(deviceId)) {
+        const period = byPeriod.get(day.date.slice(0, keyLength)) ?? {}
+        for (const [phase, kwh] of Object.entries(day.phases)) period[phase] = (period[phase] ?? 0) + kwh
+        byPeriod.set(day.date.slice(0, keyLength), period)
+      }
+      for (const [key, point] of bucketMap) {
+        let total = 0
+        for (const [phase, kwh] of Object.entries(byPeriod.get(key) ?? {})) {
+          point[`${phase}_energy`] = Math.round(kwh * 100) / 100
+          total += kwh
+        }
+        point.totalEnergy = Math.round(total * 100) / 100
       }
     }
 
-    return {
-      sensors,
-      points,
-      availableDates,
-      pagination: paginationMeta,
-    }
-  } catch (error) {
-    console.error('Error in getTelemetryHistory:', error)
-    return { sensors: [], points: [], availableDates: [] }
-  }
+    return { sensors, points: Array.from(bucketMap.values()), availableDates }
 }
 
 // Fetch realtime phase data
@@ -1320,150 +936,63 @@ export async function getLiveTelemetry(storeId: string): Promise<PhaseData[]> {
   }
 }
 
-// The query scans all of history (about 12 s in November 2026), so an expired summary refreshes in the background.
-// Keyed by access scope so a GS user never receives totals of devices outside their scope.
-const MONTHLY_COST_CACHE_TTL_MS = 5 * 60 * 1000
-const monthlyCostCache = createStaleCache<MonthlyCostRecord[]>({
-  ttlMs: MONTHLY_COST_CACHE_TTL_MS,
-  onError: (error) => console.error('Error refreshing monthly cost summary:', error),
-})
-
-// Fetch monthly energy consumption & cost history across all recorded months
+// Monthly energy and cost of the devices in the viewer's scope; empty when nothing was recorded.
 export async function getMonthlyCostSummary(): Promise<MonthlyCostRecord[]> {
-  const scope = await getRequestScope()
-  if (scope.kind === 'none') return []
-  const cacheKey = scope.kind === 'all' ? 'all' : [...scope.deviceIds].sort().join(',')
-  const deviceFilter = deviceScopeFilter(scope)
-
-  try {
-    return await monthlyCostCache(cacheKey, () => loadMonthlyCostSummary(deviceFilter))
-  } catch (error) {
-    console.error('Error in getMonthlyCostSummary:', error)
-    return []
-  }
-}
-
-async function loadMonthlyCostSummary(
-  deviceFilter: ReturnType<typeof deviceScopeFilter>
-): Promise<MonthlyCostRecord[]> {
-  const aiven = getAivenPool()
   const PLN_TARIFF = 1444.7
-
   const monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ]
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
-  const res = await aiven.query(`
-    WITH raw_combined AS (
-      SELECT 
-        device_id,
-        CASE
-          WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-          WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-          WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-          ELSE phase
-        END as phase,
-        epoch,
-        energy
-      FROM (
-        SELECT device_id, phase, epoch, energy FROM telemetry WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
-        UNION ALL
-        SELECT device_id, phase, epoch, energy FROM history WHERE energy > 0 AND phase != 'L6' AND phase NOT ILIKE '%dummy%'${deviceFilter.clause}
-      ) combined
-    ),
-    per_phase_month AS (
-      SELECT 
-        device_id,
-        phase,
-        TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM') as month_key,
-        GREATEST(0, (MAX(energy) - MIN(energy))) as phase_delta,
-        COUNT(DISTINCT TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD')) as active_days
-      FROM raw_combined
-      GROUP BY device_id, phase, month_key
-    ),
-    per_month AS (
-      SELECT 
-        month_key,
-        COUNT(DISTINCT device_id) as active_devices,
-        MAX(active_days) as max_days,
-        SUM(phase_delta) as delta_kwh
-      FROM per_phase_month
-      GROUP BY month_key
-    )
-    SELECT 
-      month_key,
-      active_devices,
-      COALESCE(max_days, 1) as recorded_days,
-      ROUND(COALESCE(delta_kwh, 0)::numeric, 1) as delta_kwh
-    FROM per_month
-    WHERE month_key IS NOT NULL
-    ORDER BY month_key ASC
-  `, deviceFilter.params)
-
-  const rows = res.rows || []
-  const now = new Date()
-  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-  if (rows.length === 0) {
-    const stores = await getStores()
-    const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
-    const cost = Math.round(totalKwh * PLN_TARIFF)
-    const y = now.getFullYear()
-    const m = now.getMonth()
-
-    const fallbackRecords: MonthlyCostRecord[] = [
-      {
-        monthKey: currentMonthKey,
-        monthLabel: `${monthNames[m]} ${y}`,
-        monthShortLabel: `${monthNamesShort[m]} ${y}`,
-        year: y,
-        month: m + 1,
-        kwh: Math.round(totalKwh * 10) / 10,
-        cost,
-        isCurrentMonth: true,
-        activeStoresCount: stores.filter((s) => s.status === 'live').length || stores.length,
-        avgDailyKwh: Math.round((totalKwh / 30) * 10) / 10,
-      },
-    ]
-    return fallbackRecords
-  }
-
-  const records: MonthlyCostRecord[] = []
-
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i]
-    const [yStr, mStr] = (r.month_key || '').split('-')
-    const y = parseInt(yStr, 10) || now.getFullYear()
-    const m = parseInt(mStr, 10) || 1
-    const kwh = Math.max(parseFloat(r.delta_kwh) || 0, 0)
-    const cost = Math.round(kwh * PLN_TARIFF)
-    const recordedDays = parseInt(r.recorded_days, 10) || 1
-
-    const prev = i > 0 ? records[i - 1] : undefined
-    const prevCost = prev ? prev.cost : undefined
-    let diffPercentage: number | undefined = undefined
-    if (prevCost && prevCost > 0) {
-      diffPercentage = Math.round(((cost - prevCost) / prevCost) * 1000) / 10
+  const rows: { monthKey: string; kwh: number; hours: number; devices: number }[] = []
+  try {
+    const [devices, energy] = await Promise.all([getIotDeviceDataList(), getEnergyIndex()])
+    const months = new Map<string, { kwh: number; hours: number; devices: Set<string> }>()
+    for (const { deviceId } of devices) {
+      // Sub-meters measure part of a main panel, so they are not added to the bill.
+      if (!energy.total(deviceId).hasMain) continue
+      for (const day of energy.daily(deviceId)) {
+        if (day.mainKwh <= 0) continue
+        const key = day.date.slice(0, 7)
+        const month = months.get(key) ?? { kwh: 0, hours: 0, devices: new Set<string>() }
+        month.kwh += day.mainKwh
+        month.hours += day.hours
+        month.devices.add(deviceId)
+        months.set(key, month)
+      }
     }
-
-    records.push({
-      monthKey: r.month_key,
-      monthLabel: `${monthNames[m - 1]} ${y}`,
-      monthShortLabel: `${monthNamesShort[m - 1]} ${y}`,
-      year: y,
-      month: m,
-      kwh,
-      cost,
-      previousCost: prevCost,
-      diffPercentage,
-      isCurrentMonth: r.month_key === currentMonthKey || i === rows.length - 1,
-      activeStoresCount: parseInt(r.active_devices, 10) || 1,
-      avgDailyKwh: Math.round((kwh / Math.max(1, recordedDays)) * 10) / 10,
-    })
+    for (const [monthKey, m] of [...months.entries()].sort(([a], [b]) => a.localeCompare(b))) {
+      rows.push({ monthKey, kwh: m.kwh, hours: m.hours, devices: m.devices.size })
+    }
+  } catch (error) {
+    console.error('Error in getMonthlyCostSummary:', error)
+    return []
   }
 
-  return records.reverse()
+  const currentMonthKey = new Date()
+    .toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
+    .slice(0, 7)
+
+  return rows
+    .map((r, i): MonthlyCostRecord => {
+      const [y, m] = r.monthKey.split('-').map(Number)
+      const prev = i > 0 ? rows[i - 1] : undefined
+      return {
+        monthKey: r.monthKey,
+        monthLabel: `${monthNames[m - 1]} ${y}`,
+        monthShortLabel: `${monthNamesShort[m - 1]} ${y}`,
+        year: y,
+        month: m,
+        kwh: Math.round(r.kwh * 10) / 10,
+        cost: Math.round(r.kwh * PLN_TARIFF),
+        previousCost: prev ? Math.round(prev.kwh * PLN_TARIFF) : undefined,
+        diffPercentage: prev ? hourlyAverageDiffPct(r, prev) : undefined,
+        isCurrentMonth: r.monthKey === currentMonthKey,
+        activeStoresCount: r.devices,
+        avgDailyKwh: r.hours > 0 ? Math.round((r.kwh / r.hours) * 24 * 10) / 10 : 0,
+      }
+    })
+    .reverse()
 }
 

@@ -4,13 +4,10 @@ import { Suspense, use } from 'react'
 import Link from 'next/link'
 import {
   Zap,
-  Coins,
   Activity,
   Cpu,
-  TrendingUp,
   ArrowRight,
   Building2,
-  CheckCircle2,
 } from 'lucide-react'
 import { Store, StoreAnalyticsResult, MonthlyCostRecord } from '@/lib/types'
 import { buttonVariants } from '@/components/ui/button'
@@ -19,6 +16,7 @@ import { NetworkMapWidget } from './network-map-widget'
 import { StoreAnalyticsWidget } from './store-analytics-widget'
 import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
 import { cn } from '@/lib/utils'
+import { formatKwh, formatStoreKwh, mainPanelKwh } from '@/lib/format-energy'
 
 interface DashboardOverviewProps {
   stores?: Store[]
@@ -28,15 +26,12 @@ interface DashboardOverviewProps {
 
 function MonthlyCostSection({
   monthlyCostsPromise,
-  totalCumulativeKwh,
 }: {
   monthlyCostsPromise: Promise<MonthlyCostRecord[]>
-  totalCumulativeKwh: number
 }) {
   return (
     <MonthlyCostKpiCard
       monthlyCosts={use(monthlyCostsPromise)}
-      totalCumulativeKwh={totalCumulativeKwh}
     />
   )
 }
@@ -89,7 +84,7 @@ export function DashboardOverview({
   monthlyCostsPromise,
 }: DashboardOverviewProps) {
   // Hitung total energi
-  const totalKwh = stores.reduce((acc, s) => acc + (s.kwhTotal || 0), 0)
+  const totalKwh = mainPanelKwh(stores)
   const liveCount = stores.filter((s) => s.status === 'live').length
   const totalCount = stores.length || 1
   const livePercentage = (liveCount / totalCount) * 100
@@ -101,7 +96,7 @@ export function DashboardOverview({
   // Hitung konsumsi per cabang
   const branchMap: Record<string, number> = {}
   stores.forEach((s) => {
-    if (s.branch) {
+    if (s.branch && s.energyBasis === 'main') {
       branchMap[s.branch] = (branchMap[s.branch] || 0) + (s.kwhTotal || 0)
     }
   })
@@ -157,15 +152,12 @@ export function DashboardOverview({
           </div>
           <div className="mt-3">
             <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {totalKwh.toLocaleString('id-ID', { maximumFractionDigits: 1 })}{' '}
+              {formatKwh(totalKwh)}{' '}
               <span className="text-sm font-normal text-muted-foreground">
                 kWh
               </span>
             </div>
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700 dark:text-emerald-400">
-              <TrendingUp className="size-3.5" />
-              <span className="font-medium">+3.2% vs pekan lalu</span>
-            </div>
+            <p className="mt-2 text-xs text-muted-foreground">Panel utama, selama perangkat merekam</p>
           </div>
         </div>
 
@@ -173,7 +165,6 @@ export function DashboardOverview({
         <Suspense fallback={<MonthlyCostFallback />}>
           <MonthlyCostSection
             monthlyCostsPromise={monthlyCostsPromise}
-            totalCumulativeKwh={totalKwh}
           />
         </Suspense>
 
@@ -258,9 +249,9 @@ export function DashboardOverview({
                     Cabang {branch.name}
                   </span>
                   <span className="font-bold text-foreground">
-                    {branch.kwh.toLocaleString('id-ID')} kWh{' '}
+                    {formatKwh(branch.kwh)} kWh{' '}
                     <span className="font-normal text-muted-foreground">
-                      ({branch.percentage.toFixed(1)}%)
+                      ({formatKwh(branch.percentage)}%)
                     </span>
                   </span>
                 </div>
@@ -274,12 +265,9 @@ export function DashboardOverview({
             ))}
           </div>
 
-          <div className="mt-4 rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Semua data terhubung dengan telemetri live &amp; historis.</span>
-            </div>
-          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Hanya toko dengan sensor panel utama (R/S/T).
+          </p>
         </div>
 
         {/* Peta Sebaran Alat IoT Aktif (Col 12) */}
@@ -334,7 +322,10 @@ export function DashboardOverview({
                       Cabang {store.branch}
                     </td>
                     <td className="p-4 text-right font-bold text-foreground">
-                      {(store.kwhTotal || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
+                      {formatStoreKwh(store)} kWh
+                      {store.energyBasis === 'sensor' && (
+                        <span className="block text-xs font-normal text-muted-foreground">sensor peralatan</span>
+                      )}
                     </td>
                     <td className="p-4 text-center">
                       <span

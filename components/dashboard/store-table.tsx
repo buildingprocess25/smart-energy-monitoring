@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { formatStoreKwh } from '@/lib/format-energy'
 import { ArrowRight, Zap, Clock, Cpu } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from './status-badge'
@@ -94,7 +95,7 @@ export function StoreTable({ stores }: StoreTableProps) {
                 {!isUnassigned ? (
                   <span className="flex items-center justify-end gap-1 font-semibold text-foreground">
                     <Zap className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                    {store.kwhTotal.toLocaleString('id-ID')}
+                    {formatStoreKwh(store)}
                     <span className="text-xs font-normal text-muted-foreground">
                       kWh
                     </span>

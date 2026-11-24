@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { SangatBorosListStatus, SangatBorosPriorityItem, Store, StoreStatus } from '@/lib/types'
+import { MonthlyCostRecord, SangatBorosListStatus, SangatBorosPriorityItem, Store, StoreStatus } from '@/lib/types'
 import { SangatBorosPriority } from '@/components/monitoring/sangat-boros-priority'
 import { DashboardKpiSummary } from './dashboard-kpi-summary'
 import { GalleryToolbar } from './gallery-toolbar'
@@ -10,10 +10,11 @@ import { StoreTable } from './store-table'
 
 interface StoreGalleryProps {
   initialStores?: Store[]
+  monthlyCosts?: MonthlyCostRecord[]
   sangatBoros?: { status: SangatBorosListStatus; items: SangatBorosPriorityItem[] }
 }
 
-export function StoreGallery({ initialStores = [], sangatBoros }: StoreGalleryProps) {
+export function StoreGallery({ initialStores = [], monthlyCosts, sangatBoros }: StoreGalleryProps) {
   const [search, setSearch] = useState('')
   const [branchFilter, setBranchFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<StoreStatus | 'all'>('all')
@@ -72,7 +73,7 @@ export function StoreGallery({ initialStores = [], sangatBoros }: StoreGalleryPr
       </div>
 
       {/* KPI Stats Summary Cards */}
-      <DashboardKpiSummary stores={stores} />
+      <DashboardKpiSummary stores={stores} monthlyCosts={monthlyCosts} />
 
       {sangatBoros && (
         <div className="border-t pt-4">
