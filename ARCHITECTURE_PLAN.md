@@ -95,6 +95,8 @@ Dokploy, tidak pernah di repo.
 | `TELEMETRY_API_URL` | Base URL API `smart-energy-meter-vps` (berakhir `/api`), khusus server. Dipakai route `live` untuk `GET /api/live-buffer/<device_id>` dan `getIotDeviceDataList()` untuk `GET /api/capture/status` (status rekaman, di-cache 5 detik). Fallback ke `NEXT_PUBLIC_TELEMETRY_API_URL`. Di Dokploy pakai App Name service Flask (`http://<app-name>:5000/api`); di lokal pakai domain dashboard lama (`https://<domain>/api`), karena port 5000 di IP VPS tidak terbuka untuk publik. Wajib diisi di environment runtime Dokploy: `NEXT_PUBLIC_*` ditanam saat `next build` dan image dibangun tanpa variabel itu, jadi fallback hanya berlaku di `pnpm dev`. | `smart-energy-meter-vps` |
 | `NEXT_PUBLIC_TELEMETRY_WS_URL` | WebSocket `smart-energy-meter-vps` untuk data live. | `smart-energy-meter-vps` |
 | `NEXT_PUBLIC_SPARTA_AUDIT_URL` | URL portal audit manual (`sparta-energy`). | External Quick Switcher |
+| `MYECO_API_KEY` | Kunci Open API myECO, khusus server, hanya baca. IP server harus ada di whitelist myECO. | myECO |
+| `MYECO_API_URL` | Opsional, bawaan `https://devmyeco.my.id`. | myECO |
 | `BETTER_AUTH_SECRET` | Secret SSO bersama `sparta-energy` (rencana, belum dipakai kode). | Shared Secret |
 | `BETTER_AUTH_URL` | Base URL portal monitoring untuk SSO (rencana). | Auth App URL |
 

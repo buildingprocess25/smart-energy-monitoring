@@ -211,6 +211,10 @@ scripts/                            # agent-note check, asset copy
 - Period summaries compare per recorded hour; spikes compare an hour with the same hour on up to 28 earlier recorded days (`SPIKE_LIMITS`); the daily limit is the SPARTA standard, otherwise 120% of the store's median full day. Rupiah and limits are for main panels only.
 - `/perangkat` shows the branch, store, sensor tree (`getDeviceTree()`). Charts are shared by overview and store detail in `components/analytics/`.
 
+**`lib/services/myeco-service.ts`** (rules in `lib/myeco.ts`, client in `lib/myeco-client.ts`, both pure)
+- AC meters from the myECO Open API for the stores in `MYECO_STORES` (meter id to store code), flagged myECO, for scope `all` only. One list call per 15 s serves every viewer; hourly logs are cached 5 minutes; power samples live in memory (1 hour). They are sub-meters: never add them to store totals, cost or the LIVE count. Stores without an own device show only this section.
+- `MYECO_API_KEY` stays on the server and out of logs (`MyEcoError` has fixed messages).
+
 **`lib/services/workbook-service.ts`, `report-template-store.ts`, `report-mail-service.ts`**
 - `/laporan/excel`: custom workbooks (sheets, columns, stores, periods). Rules are pure in `lib/workbook.ts`; column labels in `REPORT_COLUMNS` are saved in templates, so do not rename them.
 - Templates, schedules and send results are JSON files in `REPORT_DATA_DIR` (Dokploy volume at `/data`), never in a database. Only ADMIN sees or changes them.

@@ -12,15 +12,15 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/monitoring/[storeId]/page.tsx": {
-    "mtime": 1795491759.3749256,
-    "seen": 1795493020.1681333,
-    "ast_hash": "48c414401a9aee5c8d9731f3610400e2",
+    "mtime": 1795507630.8101642,
+    "seen": 1795508031.0377035,
+    "ast_hash": "fd102979f3dba9a9df9349d97f12d78d",
     "semantic_hash": ""
   },
   "app/(dashboard)/monitoring/page.tsx": {
-    "mtime": 1795491759.3760989,
-    "seen": 1795493020.1681333,
-    "ast_hash": "667efe24d4e1d58cac42fc41ee43918b",
+    "mtime": 1795507630.8111968,
+    "seen": 1795508031.0377035,
+    "ast_hash": "d07c6ebd9635edfb381aed3e0af17139",
     "semantic_hash": ""
   },
   "app/(dashboard)/page.tsx": {
@@ -204,9 +204,9 @@
     "semantic_hash": ""
   },
   "components/monitoring/store-hero.tsx": {
-    "mtime": 1795491759.4117484,
-    "seen": 1795493020.1681333,
-    "ast_hash": "beafa4181e3d0c36ed507e3b563a5c17",
+    "mtime": 1795507630.8101642,
+    "seen": 1795508031.038709,
+    "ast_hash": "b4e6bb393992882ace9ea3576a8b344d",
     "semantic_hash": ""
   },
   "components/monitoring/store-monitoring-page.tsx": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1795505954.4905114,
-    "seen": 1795506461.0518644,
-    "ast_hash": "513c10aad5f9dc1288877e8a1273f420",
+    "mtime": 1795507538.0982552,
+    "seen": 1795508031.038709,
+    "ast_hash": "f5834339c4cfc1e35b1c079408ab1903",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "ARCHITECTURE_PLAN.md": {
-    "mtime": 1795485889.6474564,
-    "seen": 1795486713.3034046,
-    "ast_hash": "1603efe11b5bfe281a8802a090878700",
+    "mtime": 1795507630.8124623,
+    "seen": 1795508031.038709,
+    "ast_hash": "68e248965ea8c7acb8e7c9bb526a8400",
     "semantic_hash": ""
   },
   "DESIGN.md": {
@@ -744,9 +744,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1795506368.300941,
-    "seen": 1795506461.0518644,
-    "ast_hash": "d068d0702a46dcf119db840e92e71f6c",
+    "mtime": 1795507630.8137279,
+    "seen": 1795508031.038709,
+    "ast_hash": "85dee04a9bd72ceec795322db1791b18",
     "semantic_hash": ""
   },
   "GEMINI.md": {
@@ -1803,6 +1803,54 @@
     "mtime": 1795506368.299942,
     "seen": 1795506461.0518644,
     "ast_hash": "e090b8ea36df9fd3eb514a67be146bf5",
+    "semantic_hash": ""
+  },
+  "app/api/stores/[storeId]/myeco/route.ts": {
+    "mtime": 1795507628.9964116,
+    "seen": 1795508031.038709,
+    "ast_hash": "4f6ef43ca234c071b2aa842832b078fe",
+    "semantic_hash": ""
+  },
+  "components/monitoring/myeco-ac-section.tsx": {
+    "mtime": 1795507890.0648592,
+    "seen": 1795508031.038709,
+    "ast_hash": "84aeef78e03481796cbf986676df84d8",
+    "semantic_hash": ""
+  },
+  "components/monitoring/myeco-badge.tsx": {
+    "mtime": 1795507629.477178,
+    "seen": 1795508031.038709,
+    "ast_hash": "68f5a48abe883f718e7ebbe6dc8a9266",
+    "semantic_hash": ""
+  },
+  "components/monitoring/myeco-store-list.tsx": {
+    "mtime": 1795507629.7449825,
+    "seen": 1795508031.038709,
+    "ast_hash": "c2795a80f400d0f18ea40f0b68fd44e9",
+    "semantic_hash": ""
+  },
+  "lib/myeco-client.ts": {
+    "mtime": 1795507536.7926807,
+    "seen": 1795508031.038709,
+    "ast_hash": "9cbd613f6a493a81d291676b2b15b54b",
+    "semantic_hash": ""
+  },
+  "lib/myeco.ts": {
+    "mtime": 1795507537.0123825,
+    "seen": 1795508031.038709,
+    "ast_hash": "919ef14ddc930d21c13d83edd26ca009",
+    "semantic_hash": ""
+  },
+  "lib/services/myeco-service.ts": {
+    "mtime": 1795507890.0648592,
+    "seen": 1795508031.038709,
+    "ast_hash": "f979d1c312c394b844a1999517a3ac1c",
+    "semantic_hash": ""
+  },
+  "tests/myeco.test.mjs": {
+    "mtime": 1795507536.5443983,
+    "seen": 1795508031.038709,
+    "ast_hash": "67601ba641323bee9aa75719427df86a",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {

@@ -1,11 +1,13 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
+import { getMyEcoStore } from '@/lib/services/myeco-service'
 import { getStoreById } from '@/lib/services/store-service'
 import {
   getAuditSessions,
   getTelemetryHistory,
   getStoreAnalyticsData,
 } from '@/lib/services/telemetry-service'
+import { MyEcoAcSection } from '@/components/monitoring/myeco-ac-section'
 import { StoreHero } from '@/components/monitoring/store-hero'
 import { StoreMonitoringPage } from '@/components/monitoring/store-monitoring-page'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -55,9 +57,28 @@ export default async function MonitoringDetailPage({ params }: PageProps) {
     notFound()
   }
 
+  const myEco = await getMyEcoStore(store.code)
+
+  // Without an own device there is no panel, session or analytics to show for this store.
+  if (myEco && !store.deviceId) {
+    return (
+      <div className="flex flex-col gap-6 pb-12">
+        <StoreHero store={store} myEcoOnly />
+        <p className="text-sm text-muted-foreground">
+          Toko ini hanya punya data AC dari myECO. Panel R/S/T, sesi rekaman, dan biaya tampil setelah alat IoT SPARTA
+          terpasang.
+        </p>
+        <MyEcoAcSection storeCode={myEco.code} />
+      </div>
+    )
+  }
+
   return (
-    <Suspense fallback={<StoreDetailFallback store={store} />}>
-      <StoreDetail store={store} />
-    </Suspense>
+    <>
+      <Suspense fallback={<StoreDetailFallback store={store} />}>
+        <StoreDetail store={store} />
+      </Suspense>
+      {myEco && <MyEcoAcSection storeCode={myEco.code} />}
+    </>
   )
 }
