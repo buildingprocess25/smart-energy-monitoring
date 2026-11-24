@@ -7,9 +7,10 @@ import {
   SESSION_COOKIE,
   SESSION_DENIED_PATH,
 } from '@/lib/auth/access-rules'
+import { contentSecurityPolicy } from '@/lib/security-headers'
 
 // Optimistic check only: real authorization runs on the server (lib/auth/access.ts).
-export function proxy(request: NextRequest) {
+function route(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl
 
   const requestHeaders = new Headers(request.headers)
@@ -41,6 +42,18 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } })
   if (hasSession && bounced) response.cookies.delete(BOUNCE_COOKIE)
+  return response
+}
+
+export function proxy(request: NextRequest) {
+  const response = route(request)
+  response.headers.set(
+    'Content-Security-Policy',
+    contentSecurityPolicy(
+      process.env.NEXT_PUBLIC_SPARTA_AUDIT_URL,
+      process.env.NODE_ENV === 'development'
+    )
+  )
   return response
 }
 

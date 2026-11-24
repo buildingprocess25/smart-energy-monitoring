@@ -11,7 +11,7 @@ Before starting any feature or significant change, read these files. They hold c
 - `ARCHITECTURE_PLAN.md`: the 3-pillar ecosystem (`sparta-energy`, `smart-energy-meter-vps`, `smart-energy-monitoring`), the dual database strategy, and the environment variables. This app only reads both databases; schema changes belong to the other two projects.
 - `PRODUCT.md` and `DESIGN.md`: product purpose and visual rules (AdminShell identical to SPARTA admin, emerald `#2c7a57`, light mode first). If either file is missing, run `/impeccable init` first.
 - `docs/agent-notes/`: dated task notes. Read the recent ones related to your task, then verify against current code before trusting them.
-- `node_modules/next/dist/docs/`: this is Next.js 16.2 with breaking changes. Read the relevant guide before writing Next.js code.
+- `node_modules/next/dist/docs/`: this is Next.js 16.4 with breaking changes. Read the relevant guide before writing Next.js code.
 
 Domain terms to keep: toko, cabang, perangkat (device), sesi rekaman (capture session), fase R/S/T, kWh, PLN.
 
@@ -64,7 +64,7 @@ pnpm format              # Prettier (ts, tsx)
 
 pnpm check:agent-note    # same check the pre-commit hook runs
 pnpm test:agent-note     # tests for that check
-pnpm test:access         # role and access-scope rules (node --test)
+pnpm test:access         # role, access-scope and sign-out rules (node --test)
 pnpm test:data           # pure data modules: phase keys, live buffer, shared fetch, stale cache, read-only, session records
 
 pnpm prisma:validate     # allowed: does not touch the database
@@ -84,7 +84,6 @@ TELEMETRY_DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/energy-meter?sslmode
 TELEMETRY_API_URL=http://HOST:5000/api               # server-only, live buffer; required in the Dokploy runtime env (the NEXT_PUBLIC_ fallback only works in pnpm dev)
 NEXT_PUBLIC_TELEMETRY_API_URL=http://HOST:5000/api   # smart-energy-meter-vps API (capture status)
 NEXT_PUBLIC_TELEMETRY_WS_URL=ws://HOST:5000/ws
-NEXT_PUBLIC_REALTIME_METER_URL=https://energy-meter.sparta-alfamart.web.id/
 NEXT_PUBLIC_SPARTA_AUDIT_URL=http://localhost:3000
 ```
 
@@ -129,7 +128,7 @@ app/
 
 components/
 ├── ui/                             # shadcn/ui primitives (do not hand-edit spacing)
-├── layout/                         # admin-shell, app-sidebar, app-header, breadcrumb-nav, theme-toggle
+├── layout/                         # admin-shell, app-sidebar, app-header, user-menu, breadcrumb-nav, theme-toggle
 ├── dashboard/                      # overview widgets: kpi summary, monthly cost card, map, gallery, table
 ├── monitoring/                     # store detail: gauges, telemetry chart, live chart, date picker, session selector
 ├── sessions/                       # session-table (recording session list)
@@ -161,7 +160,7 @@ scripts/                            # agent-note check, asset copy
 
 ### Technology Stack
 
-- **Frontend:** Next.js 16.2 (App Router, Server Components), React 19.2, TypeScript, Tailwind CSS 4, shadcn/ui on `@base-ui/react`, lucide-react, next-themes, Recharts 3, Leaflet + react-leaflet.
+- **Frontend:** Next.js 16.4 (App Router, Server Components), React 19.2, TypeScript, Tailwind CSS 4, shadcn/ui on `@base-ui/react`, lucide-react, next-themes, Recharts 3, Leaflet + react-leaflet.
 - **Data:** PostgreSQL through `pg` pools with raw SQL. Prisma 7 is set up (`prisma.config.ts`, generator output `generated/prisma`) but has no models.
 - **Deploy:** Docker (`node:22-alpine`, standalone output, port 3000), GitHub Actions to GHCR, Dokploy webhook.
 - **Tooling:** pnpm, ESLint 9, Prettier with the Tailwind plugin.
@@ -222,9 +221,11 @@ Login happens in sparta-energy; this portal only reads the session. The concept 
 - Scope is enforced in the services: `getIotDeviceDataList()` drops devices outside the scope, so `getStores()`, `getStoreById()` and every store page and API follow; the two aggregate queries filter `device_id = ANY($1)`.
 - `proxy.ts` only redirects pages without `sso_session` to the sparta login and stamps the request path header. `app/(dashboard)/layout.tsx` does the real role check.
 - Loop guard: when `proxy.ts` sends a page to the sparta login it sets `sso_bounce` (60 s). A page request that comes back still without `sso_session` while `sso_bounce` lives goes to `/akses-ditolak?alasan=sesi`. An `sso_session` that matches no live session row gives status `invalid`; the layout sends it to `GET /api/auth/session-invalid`, which clears the cookie and redirects to the same page.
-- API routes call `requireApiAccess()`. sparta calls with header `x-internal-token` (`MONITORING_INTERNAL_TOKEN`); while that env is empty, `GET /api/stores` stays open in development only; production answers 401. `/api/stores/[storeId]/history` and `/overview-analytics` validate query params with `lib/request-params.ts` and answer 400 on bad input. `/api/assets/[filename]` serves only bare image file names from `public/assets`. `next.config.ts` sets CSP and security headers; a new external origin (tiles, APIs) must be added to its CSP. `GET /api/internal/devices` feeds the GS checklist in sparta and needs the token.
+- API routes call `requireApiAccess()`. sparta calls with header `x-internal-token` (`MONITORING_INTERNAL_TOKEN`); while that env is empty, `GET /api/stores` stays open in development only; production answers 401. `/api/stores/[storeId]/history` and `/overview-analytics` validate query params with `lib/request-params.ts` and answer 400 on bad input. `/api/assets/[filename]` serves only bare image file names from `public/assets`. `next.config.ts` sets the other security headers; a new external origin (tiles, APIs) must be added to `lib/security-headers.ts`. `GET /api/internal/devices` feeds the GS checklist in sparta and needs the token.
 - Until sparta runs its migration, `user_device_access` does not exist; error `42P01` means a GS user has no devices.
-- Sign-out (sidebar "Keluar"): `POST` to sparta `/api/auth/sign-out` (deletes the session row, clears cookies), then portal `GET /api/auth/logout` clears `sso_session`/`dev_role` (and the `SSO_COOKIE_DOMAIN` cookie) and redirects to the sparta login.
+- Sign-out ("Keluar" in the sidebar and header profile menus): the browser POSTs to sparta `/api/auth/sign-out`, then to portal `POST /api/auth/logout`, which ends the session at sparta from the server when the cookie is still there, expires `sso_session` (host and `SSO_COOKIE_DOMAIN`) and `dev_role`, and returns the sparta login URL. Call `clearSessionCookie()` last: `response.cookies.set()` drops appended Set-Cookie headers.
+- "Ganti Peran" (ADMIN and AUDITOR) links to sparta `/admin-entry`. The image is built without `NEXT_PUBLIC_*`, so client components get sparta URLs as props from `app/(dashboard)/layout.tsx`.
+- `proxy.ts` sets the CSP per request (`lib/security-headers.ts`) because the sparta origin is only known at runtime. Redirects inside the portal use `relativeRedirect()`; `request.url` holds the container address.
 
 ## Domain Rules That Code Must Keep
 

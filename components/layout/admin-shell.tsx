@@ -1,20 +1,22 @@
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
-import { AppSidebar, type SidebarViewer } from './app-sidebar'
+import { AppSidebar } from './app-sidebar'
 import { AppHeader } from './app-header'
-import { SPARTA_ENTRY_URL, canReturnToSparta } from '@/lib/sparta-url'
+import type { ShellViewer, SpartaLinks } from './user-menu'
 
 export function AdminShell({
   children,
   viewer,
+  links,
 }: {
   children: React.ReactNode
-  viewer: SidebarViewer
+  viewer: ShellViewer
+  links: SpartaLinks
 }) {
   return (
     <SidebarProvider>
-      <AppSidebar viewer={viewer} />
+      <AppSidebar viewer={viewer} links={links} />
       <SidebarInset>
-        <AppHeader spartaHref={canReturnToSparta(viewer.role) ? SPARTA_ENTRY_URL : null} />
+        <AppHeader viewer={viewer} links={links} />
         <main className="flex flex-1 flex-col gap-4 p-4 pt-4">
           {children}
         </main>

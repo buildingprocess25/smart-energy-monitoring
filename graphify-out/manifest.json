@@ -6,9 +6,9 @@
     "semantic_hash": "ad41a6141ab6d8b622482ee47c898bef"
   },
   "app/(dashboard)/layout.tsx": {
-    "mtime": 1793153442.8593595,
-    "seen": 1793153642.234528,
-    "ast_hash": "17cd83dc50c92bee380c668ff1ac0815",
+    "mtime": 1795485375.4527745,
+    "seen": 1795485700.105274,
+    "ast_hash": "8f6195f0c1c9caac241faeec5b52abb8",
     "semantic_hash": ""
   },
   "app/(dashboard)/monitoring/[storeId]/page.tsx": {
@@ -144,21 +144,21 @@
     "semantic_hash": "b62c22898ca3a74677175c1bd7bdc40e"
   },
   "components/layout/admin-shell.tsx": {
-    "mtime": 1793692244.991984,
-    "seen": 1793693003.813352,
-    "ast_hash": "cd3061044d2e3f43b37275b007801fba",
+    "mtime": 1795485343.5109568,
+    "seen": 1795485700.1066637,
+    "ast_hash": "821895476d9a0683b68fc5cc83181140",
     "semantic_hash": ""
   },
   "components/layout/app-header.tsx": {
-    "mtime": 1793692244.9940765,
-    "seen": 1793693003.813352,
-    "ast_hash": "5cbe80455f088d4be7129aa773b77992",
+    "mtime": 1795485340.929714,
+    "seen": 1795485700.1066637,
+    "ast_hash": "ab96ac53a9cf8d78574fb06866712ef3",
     "semantic_hash": ""
   },
   "components/layout/app-sidebar.tsx": {
-    "mtime": 1795427053.394949,
-    "seen": 1795427772.7838674,
-    "ast_hash": "44afca2f7cf149f7bd223e7cc2d68902",
+    "mtime": 1795485362.3614628,
+    "seen": 1795485700.1066637,
+    "ast_hash": "513e554e1277d0e109d7a351cf56468a",
     "semantic_hash": ""
   },
   "components/layout/breadcrumb-nav.tsx": {
@@ -324,10 +324,10 @@
     "semantic_hash": "654e2ca2e9fddc27eb7e3954900dc48e"
   },
   "lib/db/pools.ts": {
-    "mtime": 1792736680.0977654,
-    "seen": 1792738359.2613535,
-    "ast_hash": "2980c5fbd1d130bda1a0f6ce935c8bb9",
-    "semantic_hash": "2980c5fbd1d130bda1a0f6ce935c8bb9"
+    "mtime": 1795485372.3919992,
+    "seen": 1795485700.1066637,
+    "ast_hash": "d99ff993e0c2aaf0286320946c81ef9e",
+    "semantic_hash": ""
   },
   "lib/mock-data.ts": {
     "mtime": 1792736680.0977654,
@@ -360,15 +360,15 @@
     "semantic_hash": "1d8011eb18769078bf77502b220daa5e"
   },
   "next.config.ts": {
-    "mtime": 1793692245.0378158,
-    "seen": 1793693003.813352,
-    "ast_hash": "604b78a30129de0b7ec1e538502ea29e",
+    "mtime": 1795485365.9949481,
+    "seen": 1795485700.1066637,
+    "ast_hash": "a17a9e9f4b4be9f0302897c4a2c2bc1d",
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1795427553.7330809,
-    "seen": 1795427772.7838674,
-    "ast_hash": "36e0265439a6376f316bed66e2686f75",
+    "mtime": 1795485249.6736238,
+    "seen": 1795485700.1066637,
+    "ast_hash": "4376c445b629a9d54c76fc7ca70637f8",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1795427726.7007134,
-    "seen": 1795427772.7838674,
-    "ast_hash": "516f8673fb48c2c92e0f11f4d3274ee0",
+    "mtime": 1795485687.0521443,
+    "seen": 1795485700.1066637,
+    "ast_hash": "4d7705bac725281a743f847d7ef33dc6",
     "semantic_hash": ""
   },
   "AI_RULES.md": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "ARCHITECTURE_PLAN.md": {
-    "mtime": 1795427053.389897,
-    "seen": 1795427772.7838674,
-    "ast_hash": "088440ea49e95db836f66acd3056bdb2",
+    "mtime": 1795485687.0531478,
+    "seen": 1795485700.1066637,
+    "ast_hash": "1603efe11b5bfe281a8802a090878700",
     "semantic_hash": ""
   },
   "DESIGN.md": {
@@ -744,9 +744,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1795427726.6997168,
-    "seen": 1795427772.7838674,
-    "ast_hash": "2806f479ebe80bbff7361a4865bc8e13",
+    "mtime": 1795485687.0501473,
+    "seen": 1795485700.1066637,
+    "ast_hash": "1ff492ab5a305e7031d513be7a5af7ab",
     "semantic_hash": ""
   },
   "GEMINI.md": {
@@ -882,9 +882,9 @@
     "semantic_hash": ""
   },
   "proxy.ts": {
-    "mtime": 1793153442.873924,
-    "seen": 1793153642.234528,
-    "ast_hash": "32be9f2a5aa08e1be75e84a769317010",
+    "mtime": 1795485369.3619864,
+    "seen": 1795485700.1066637,
+    "ast_hash": "150b7727fb70d86f6619ee8a471d5ce0",
     "semantic_hash": ""
   },
   "tests/access-rules.test.mjs": {
@@ -906,21 +906,21 @@
     "semantic_hash": ""
   },
   "app/api/auth/logout/route.ts": {
-    "mtime": 1793153442.8603606,
-    "seen": 1793153642.234528,
-    "ast_hash": "6cd7f6603b6f88ae6721c7ce1ea3abcf",
+    "mtime": 1795485326.7722018,
+    "seen": 1795485700.105274,
+    "ast_hash": "445aa0d367df2b3616d676056ccbea30",
     "semantic_hash": ""
   },
   "app/api/auth/session-invalid/route.ts": {
-    "mtime": 1793153442.8618653,
-    "seen": 1793153642.234528,
-    "ast_hash": "b38e7e1f3d8dcd3e7c8d4674a4b01ba7",
+    "mtime": 1795485479.6453874,
+    "seen": 1795485700.105274,
+    "ast_hash": "c16ea22a35c640e8919cbaeb233c37a9",
     "semantic_hash": ""
   },
   "lib/auth/session-cookie.ts": {
-    "mtime": 1793153442.8729184,
-    "seen": 1793153642.234528,
-    "ast_hash": "2ffa210b3ad40b5f0686ed1207963e61",
+    "mtime": 1795485320.1368766,
+    "seen": 1795485700.1066637,
+    "ast_hash": "e4dcb51c3a3d52b1e50234f03c596384",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-10-28-0909-sso-loop-guard.md": {
@@ -960,9 +960,9 @@
     "semantic_hash": ""
   },
   "lib/sparta-url.ts": {
-    "mtime": 1793692245.035707,
-    "seen": 1793693003.813352,
-    "ast_hash": "de07676c2c6c4218ffa8e0f0e110beef",
+    "mtime": 1795485312.8810678,
+    "seen": 1795485700.1066637,
+    "ast_hash": "e6882203d02d10dd52e11c4360bed2c3",
     "semantic_hash": ""
   },
   "docs/agent-notes/2026-11-03-0745-tombol-kembali-ke-sparta.md": {
@@ -1151,10 +1151,58 @@
     "ast_hash": "0454b4b31dab1793c9a037c01e37518b",
     "semantic_hash": ""
   },
+  "components/layout/user-menu.tsx": {
+    "mtime": 1795485335.4706557,
+    "seen": 1795485700.1066637,
+    "ast_hash": "f8cebf97b52f8d5bba3d293273b8dfa0",
+    "semantic_hash": ""
+  },
+  "lib/auth/sparta-sign-out.ts": {
+    "mtime": 1795485323.2454379,
+    "seen": 1795485700.1066637,
+    "ast_hash": "9b006248bb33532da869ccdae26b59de",
+    "semantic_hash": ""
+  },
+  "lib/relative-redirect.ts": {
+    "mtime": 1795485479.410444,
+    "seen": 1795485700.1066637,
+    "ast_hash": "50abc0ce2551ba981b7c9c207ebc800a",
+    "semantic_hash": ""
+  },
+  "lib/security-headers.ts": {
+    "mtime": 1795485317.0886967,
+    "seen": 1795485700.1066637,
+    "ast_hash": "cf0838656ad07aefa49cac0fed418810",
+    "semantic_hash": ""
+  },
+  "tests/pools.test.mjs": {
+    "mtime": 1795485249.646519,
+    "seen": 1795485700.1066637,
+    "ast_hash": "568df2c1983129f49261c3b7f4bfd234",
+    "semantic_hash": ""
+  },
+  "tests/sign-out.test.mjs": {
+    "mtime": 1795485478.6915412,
+    "seen": 1795485700.1066637,
+    "ast_hash": "ee4f0224d903dbf2cd39cebf61b945f5",
+    "semantic_hash": ""
+  },
+  "docs/agent-notes/2026-11-24-0905-sign-out-ganti-peran-dan-security.md": {
+    "mtime": 1795485784.197682,
+    "seen": 1795485792.8997605,
+    "ast_hash": "b26cbae21f9fb3ab88c3244ba14ffc91",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-11-24-migrasi-fitur-dashboard-meter.md": {
+    "mtime": 1795485783.853702,
+    "seen": 1795485792.8997605,
+    "ast_hash": "972b4ba3ee399959464e368729823a14",
+    "semantic_hash": ""
+  },
   "pnpm-lock.yaml": {
-    "mtime": 1795427053.4188907,
-    "seen": 1795427772.7838674,
-    "ast_hash": "d798014258bde5a90c5cc75577b2596d",
+    "mtime": 1795485228.256765,
+    "seen": 1795485700.1066637,
+    "ast_hash": "7aff62de4d97f4f8d0eaf70252003ad2",
     "semantic_hash": ""
   }
 }

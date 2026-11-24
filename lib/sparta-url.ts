@@ -1,11 +1,13 @@
-// NEXT_PUBLIC_* is inlined at build time, so client components can import this too.
-export const SPARTA_AUDIT_URL =
-  process.env.NEXT_PUBLIC_SPARTA_AUDIT_URL?.replace(/\/+$/, '') || null
+// Call on the server: the image is built without NEXT_PUBLIC_*, so client components get URLs as props.
 
-// ADMIN and AUDITOR come from the SPARTA chooser page, so links return there.
-export const SPARTA_ENTRY_URL = SPARTA_AUDIT_URL ? `${SPARTA_AUDIT_URL}/admin-entry` : null
+const ROLE_SWITCH_ROLES = ['ADMIN', 'AUDITOR']
 
-// GS users only have this portal; SPARTA pages send them back here.
-export function canReturnToSparta(role: string): boolean {
-  return SPARTA_ENTRY_URL !== null && role !== 'GS'
+export function spartaHref(base: string | null | undefined, path: string): string | null {
+  const trimmed = base?.trim().replace(/\/+$/, '')
+  return trimmed ? `${trimmed}${path}` : null
+}
+
+// The SPARTA chooser page. GS users only have this portal, and SPARTA sends them back here.
+export function roleSwitchUrl(base: string | null | undefined, role: string): string | null {
+  return ROLE_SWITCH_ROLES.includes(role) ? spartaHref(base, '/admin-entry') : null
 }

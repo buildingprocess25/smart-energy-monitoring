@@ -9,7 +9,10 @@ declare global {
   var _aivenPool: pg.Pool | undefined
 }
 
-function createPoolConfig(rawUrl: string): pg.PoolConfig {
+// A slow query must not hold one of the 10 connections indefinitely.
+export const POOL_STATEMENT_TIMEOUT_MS = 30_000
+
+export function createPoolConfig(rawUrl: string): pg.PoolConfig {
   const isSslDisabled = rawUrl.includes('sslmode=disable')
   const connectionString = rawUrl
     .replace('?sslmode=require', '')
@@ -29,6 +32,7 @@ function createPoolConfig(rawUrl: string): pg.PoolConfig {
     max: 10,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 10000,
+    statement_timeout: POOL_STATEMENT_TIMEOUT_MS,
   }
 }
 
