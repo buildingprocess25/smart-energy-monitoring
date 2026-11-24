@@ -13,11 +13,13 @@ export function AdminShell({
   links: SpartaLinks
 }) {
   return (
-    <SidebarProvider>
+    <SidebarProvider
+      style={{ '--sidebar-width': '18rem', '--header-height': '3.5rem' } as React.CSSProperties}
+    >
       <AppSidebar viewer={viewer} links={links} />
-      <SidebarInset>
+      <SidebarInset className="min-w-0">
         <AppHeader viewer={viewer} links={links} />
-        <main className="flex flex-1 flex-col gap-4 p-4 pt-4">
+        <main className="flex min-w-0 flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
           {children}
         </main>
       </SidebarInset>

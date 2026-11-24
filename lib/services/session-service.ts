@@ -5,6 +5,7 @@ import { getTelemetryPool } from '@/lib/db/pools'
 import { readOnlyQuery } from '@/lib/db/read-only'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed, scopeKey } from '@/lib/auth/access-rules'
+import { sessionStore } from '@/lib/store-code'
 import { createSharedFetch } from '@/lib/shared-fetch'
 import { createStaleCache } from '@/lib/stale-cache'
 import { getStores } from '@/lib/services/store-service'
@@ -57,18 +58,15 @@ function toSummaries({ sessions, devices }: SessionRows, stores: Store[]): Recor
   const deviceNames = new Map<string, string>(
     devices.filter((d) => d.name).map((d) => [d.id, d.name as string])
   )
-  const storeByDevice = new Map(stores.filter((s) => s.deviceId).map((s) => [s.deviceId as string, s]))
 
   return sessions.map((r) => {
-    const store = storeByDevice.get(r.device_id)
+    const deviceName = r.device_name || deviceNames.get(r.device_id) || r.device_id
     return {
       id: r.session_id,
       name: r.session_name || 'Tanpa nama',
       deviceId: r.device_id,
-      deviceName: r.device_name || deviceNames.get(r.device_id) || r.device_id,
-      storeId: store?.id ?? null,
-      storeCode: store?.code ?? null,
-      storeName: store?.name ?? null,
+      deviceName,
+      ...sessionStore(r.device_id, deviceName, stores),
       startEpoch: Number(r.start_epoch),
       endEpoch: Number(r.end_epoch),
       recordCount: Number(r.total_rows) || 0,

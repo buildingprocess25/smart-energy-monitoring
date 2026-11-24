@@ -154,7 +154,7 @@ export function TelemetryChart({
           <XAxis
             dataKey="timestamp"
             ticks={xAxisTicks}
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
             tickMargin={8}
             stroke="currentColor"
             className="text-muted-foreground"
@@ -162,7 +162,7 @@ export function TelemetryChart({
 
           <YAxis
             tickFormatter={config.yAxisFormatter}
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
             width={65}
             stroke="currentColor"
             className="text-muted-foreground"
@@ -190,10 +190,10 @@ export function TelemetryChart({
                 })
 
                 return (
-                  <div className="rounded-xl border bg-background/95 backdrop-blur-md p-3.5 shadow-xl text-xs flex flex-col gap-2 min-w-[210px]">
+                  <div className="rounded-xl border bg-background/95 p-3.5 shadow-xl text-xs flex flex-col gap-2 min-w-[210px]">
                     <div className="flex items-center justify-between border-b pb-1.5 font-semibold text-foreground">
-                      <span className="font-mono text-muted-foreground">{pt?.fullTime || label}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400">
+                      <span className="tabular-nums text-muted-foreground">{pt?.fullTime || label}</span>
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-bold text-primary">
                         {config.unit}
                       </span>
                     </div>
@@ -219,7 +219,7 @@ export function TelemetryChart({
                               />
                               {item.name}
                             </span>
-                            <span className="font-mono font-bold text-foreground">
+                            <span className="tabular-nums font-bold text-foreground">
                               {typeof item.value === 'number'
                                 ? `${item.value.toLocaleString('id-ID')} ${config.unit}`
                                 : item.value}
@@ -235,7 +235,10 @@ export function TelemetryChart({
             }}
           />
 
-          <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '16px' }} />
+          <Legend
+            wrapperStyle={{ fontSize: '12px', paddingTop: '16px' }}
+            formatter={(value) => <span className="text-foreground">{value}</span>}
+          />
 
           {/* Area and Line for Total (Total Daya Beban / Total Energi) */}
           {renderTotalArea && (
@@ -243,11 +246,11 @@ export function TelemetryChart({
               type="monotone"
               dataKey={totalDataKey}
               name={totalLabel}
-              fill="#10b981"
+              fill="var(--primary)"
               fillOpacity={0.15}
-              stroke="#059669"
+              stroke="var(--primary)"
               strokeWidth={2.5}
-              dot={rangeType === 'year' || data.length <= 14 ? { r: 4, strokeWidth: 1.5, fill: '#059669' } : false}
+              dot={rangeType === 'year' || data.length <= 14 ? { r: 4, strokeWidth: 1.5, fill: 'var(--primary)' } : false}
               activeDot={{ r: 6 }}
             />
           )}

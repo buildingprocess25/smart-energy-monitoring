@@ -13,6 +13,13 @@ import { Button } from '@/components/ui/button'
 import { StoreStatus } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+const STATUS_LABELS: Record<string, string> = {
+  all: 'Semua Status',
+  live: 'Online',
+  historical: 'Offline, ada riwayat',
+  unassigned: 'Belum ada perangkat',
+}
+
 interface GalleryToolbarProps {
   search: string
   onSearch: (value: string) => void
@@ -37,13 +44,14 @@ export function GalleryToolbar({
   onViewModeChange,
 }: GalleryToolbarProps) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       {/* Search Input */}
-      <div className="relative max-w-sm flex-1">
+      <div className="relative w-full lg:max-w-sm">
         <Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
         <Input
           type="search"
-          placeholder="Cari nama atau kode toko (cth: 2JC2, DC CIANJUR)..."
+          aria-label="Cari toko"
+          placeholder="Cari nama atau kode toko"
           className="h-9 pl-9 text-sm"
           value={search}
           onChange={(e) => onSearch(e.target.value)}
@@ -51,7 +59,7 @@ export function GalleryToolbar({
       </div>
 
       {/* Filter Controls & View Switcher */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:shrink-0">
         {/* Branch Filter */}
         <Select
           value={branchFilter}
@@ -59,9 +67,9 @@ export function GalleryToolbar({
             if (val !== null) onBranchFilter(val)
           }}
         >
-          <SelectTrigger className="h-9 w-full text-xs sm:w-[170px]">
+          <SelectTrigger className="w-full min-w-0 sm:flex-1 lg:w-44 lg:flex-none">
             <Building2 className="mr-1.5 size-3.5 text-muted-foreground" />
-            <SelectValue placeholder="Semua Cabang" />
+            <SelectValue>{(value: string) => (value === 'all' ? 'Semua Cabang' : value)}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Semua Cabang</SelectItem>
@@ -80,29 +88,32 @@ export function GalleryToolbar({
             if (val !== null) onStatusFilter(val as StoreStatus | 'all')
           }}
         >
-          <SelectTrigger className="h-9 w-full text-xs sm:w-[160px]">
-            <SelectValue placeholder="Semua Status" />
+          <SelectTrigger className="w-full min-w-0 sm:flex-1 lg:w-52 lg:flex-none">
+            <SelectValue>{(value: string) => STATUS_LABELS[value] ?? value}</SelectValue>
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            <SelectItem value="live">Live Monitoring</SelectItem>
-            <SelectItem value="historical">Riwayat / Selesai</SelectItem>
-            <SelectItem value="unassigned">Belum Terhubung</SelectItem>
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         {/* View Mode Switcher (Grid vs List) */}
-        <div className="flex items-center rounded-lg border bg-muted/30 p-0.5">
+        <div role="group" aria-label="Tampilan daftar" className="flex shrink-0 items-center self-start rounded-full border p-0.5 sm:self-auto">
           <Button
             type="button"
             variant="ghost"
             size="icon-sm"
             onClick={() => onViewModeChange('grid')}
-            title="Tampilan Grid / Card"
+            title="Tampilan kartu"
+            aria-label="Tampilan kartu"
+            aria-pressed={viewMode === 'grid'}
             className={cn(
-              'size-7.5 rounded-md transition-all',
+              'size-8',
               viewMode === 'grid'
-                ? 'bg-background text-foreground shadow-xs'
+                ? 'bg-secondary text-secondary-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
@@ -113,11 +124,13 @@ export function GalleryToolbar({
             variant="ghost"
             size="icon-sm"
             onClick={() => onViewModeChange('list')}
-            title="Tampilan List / Tabel"
+            title="Tampilan tabel"
+            aria-label="Tampilan tabel"
+            aria-pressed={viewMode === 'list'}
             className={cn(
-              'size-7.5 rounded-md transition-all',
+              'size-8',
               viewMode === 'list'
-                ? 'bg-background text-foreground shadow-xs'
+                ? 'bg-secondary text-secondary-foreground'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >

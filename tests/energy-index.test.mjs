@@ -105,3 +105,10 @@ test('recorded hours count each bucket once, whatever the number of phases', () 
   index.merge([row(DAY, 1, 1.5, 2000, 'R'), row(DAY, 1, 1.5, 2000, 'S'), row(DAY + 1, 1.5, 2, 2000, 'R')])
   assert.equal(index.daily('D1')[0].hours, 0.5)
 })
+
+test('hours without records are null, so a chart does not draw them as 0 W', () => {
+  const index = createEnergyIndex()
+  index.merge([row(DAY, 1, 1.5, 2000)])
+  assert.equal(index.loadProfile('D1', '2026-11-10')[0], 2000)
+  assert.equal(index.loadProfile('D1', '2026-11-10')[1], null)
+})

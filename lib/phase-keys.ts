@@ -41,30 +41,31 @@ export function defaultPhaseName(phase: string): string {
   return Object.hasOwn(MAIN_ORDER, phase) ? `Fase ${phase}` : phase
 }
 
+// Every colour here keeps 3:1 against the light and dark card (tests/phase-keys.test.mjs).
 export const DEFAULT_PALETTE = [
-  '#10b981', // emerald-500
-  '#3b82f6', // blue-500
-  '#f59e0b', // amber-500
-  '#a855f7', // purple-500
-  '#ec4899', // pink-500
-  '#06b6d4', // cyan-500
-  '#f97316', // orange-500
-  '#64748b', // slate-500
+  '#2e9b84',
+  '#3b82f6',
+  '#c27803',
+  '#a855f7',
+  '#ec4899',
+  '#0e93ab',
+  '#e0641a',
+  '#7b8794',
 ]
 
 export function sensorColor(phase: string, name: string, index: number): string {
   const p = phase.toUpperCase()
   const n = (name || '').toLowerCase()
 
-  if (n.includes('fase r') || n.includes('phase r') || p === 'R') return '#10b981'
+  if (n.includes('fase r') || n.includes('phase r') || p === 'R') return '#2e9b84'
   if (n.includes('fase s') || n.includes('phase s') || p === 'S') return '#3b82f6'
-  if (n.includes('fase t') || n.includes('phase t') || p === 'T') return '#f59e0b'
-  if (n.includes('ac') || n.includes('air conditioner') || n.includes('hvac') || n.includes('cooler')) return '#06b6d4'
+  if (n.includes('fase t') || n.includes('phase t') || p === 'T') return '#c27803'
+  if (n.includes('ac') || n.includes('air conditioner') || n.includes('hvac') || n.includes('cooler')) return '#0e93ab'
   if (n.includes('chiller') || n.includes('showcase') || n.includes('refrigerat')) return '#3b82f6'
-  if (n.includes('freezer')) return '#6366f1'
-  if (n.includes('lampu') || n.includes('light') || n.includes('penerangan')) return '#eab308'
-  if (n.includes('heater') || n.includes('cooker') || n.includes('oven') || n.includes('microwave')) return '#f97316'
-  if (n.includes('dummy') || p === 'L6') return '#94a3b8'
+  if (n.includes('freezer')) return '#7477f3'
+  if (n.includes('lampu') || n.includes('light') || n.includes('penerangan')) return '#a88400'
+  if (n.includes('heater') || n.includes('cooker') || n.includes('oven') || n.includes('microwave')) return '#e0641a'
+  if (n.includes('dummy') || p === 'L6') return '#7b8794'
 
   return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length]
 }

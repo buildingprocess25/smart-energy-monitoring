@@ -77,13 +77,13 @@ export function LiveTelemetryChart({ storeId }: { storeId: string }) {
   return (
     <section
       aria-label="Data Real-time"
-      className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4 shadow-xs"
+      className="flex min-w-0 flex-col gap-4 rounded-2xl bg-card ring-1 ring-foreground/10 p-4"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-base font-semibold">Data Real-time</h2>
         <Badge variant={badge.variant} role="status">
           {state === 'live' && (
-            <span aria-hidden="true" className="size-1.5 rounded-full bg-emerald-600" />
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-primary" />
           )}
           {badge.label}
         </Badge>

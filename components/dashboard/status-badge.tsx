@@ -1,6 +1,5 @@
 import { Badge } from '@/components/ui/badge'
 import { StoreStatus } from '@/lib/types'
-import { cn } from '@/lib/utils'
 
 interface StatusBadgeProps {
   status: StoreStatus
@@ -12,57 +11,17 @@ interface StatusBadgeProps {
 export function StatusBadge({ status, isRecording, recordingSessionName, className }: StatusBadgeProps) {
   if (isRecording) {
     return (
-      <Badge
-        variant="default"
-        className={cn(
-          'gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs font-semibold',
-          className
-        )}
-      >
-        <span className="size-1.5 animate-ping rounded-full bg-white" />
-        {recordingSessionName ? `MEREKAM: ${recordingSessionName}` : 'SESI REKAMAN AKTIF'}
+      <Badge className={className} title={recordingSessionName}>
+        <span aria-hidden="true" className="size-1.5 rounded-full bg-current" />
+        <span className="max-w-40 truncate">
+          {recordingSessionName ? `Merekam: ${recordingSessionName}` : 'Sedang merekam'}
+        </span>
       </Badge>
     )
   }
-
-  if (status === 'live') {
-    return (
-      <Badge
-        variant="default"
-        className={cn(
-          'gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white shadow-xs font-semibold',
-          className
-        )}
-      >
-        <span className="size-1.5 rounded-full bg-white" />
-        LIVE AUDIT
-      </Badge>
-    )
-  }
-
+  if (status === 'live') return <Badge className={className}>Online</Badge>
   if (status === 'historical') {
-    return (
-      <Badge
-        variant="default"
-        className={cn(
-          'bg-blue-500 hover:bg-blue-600 text-white shadow-sm',
-          className
-        )}
-      >
-        HISTORICAL AUDIT LOG
-      </Badge>
-    )
+    return <Badge variant="secondary" className={className}>Offline, ada riwayat</Badge>
   }
-
-  return (
-    <Badge
-      variant="secondary"
-      className={cn(
-        'bg-slate-400 hover:bg-slate-500 text-white shadow-sm',
-        className
-      )}
-    >
-      UNASSIGNED
-    </Badge>
-  )
+  return <Badge variant="outline" className={className}>Belum ada perangkat</Badge>
 }

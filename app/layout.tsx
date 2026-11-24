@@ -1,4 +1,4 @@
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { Geist, Geist_Mono } from "next/font/google"
 import type { Metadata } from "next"
 
 import "./globals.css"
@@ -6,16 +6,16 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
+const geist = Geist({ subsets: ['latin'], variable: '--font-sans' })
 
-const fontMono = JetBrains_Mono({
+const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
 
 export const metadata: Metadata = {
   title: 'Smart Energy Monitoring',
-  description: 'Smart Energy & Utility Monitoring System — Alfamart Store Telemetry Dashboard',
+  description: 'Smart Energy & Utility Monitoring System, Alfamart Store Telemetry Dashboard',
 }
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
     <html
       lang="id"
       suppressHydrationWarning
-      className={cn("antialiased", fontMono.variable, "font-sans", inter.variable)}
+      className={cn("antialiased", fontMono.variable, "font-sans", geist.variable)}
     >
       <body suppressHydrationWarning>
         <ThemeProvider>

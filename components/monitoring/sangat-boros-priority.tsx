@@ -4,6 +4,7 @@ import { SangatBorosListStatus, SangatBorosPriorityItem } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import {
+  STICKY_HEADER_CLASS,
   Table,
   TableBody,
   TableCell,
@@ -35,7 +36,8 @@ function formatDate(iso: string) {
 }
 
 export function SangatBorosPriority({ items, status }: SangatBorosPriorityProps) {
-  const installedCount = items.filter((i) => i.isInstalled).length
+  const ranked = items.filter((i) => !i.isDemo)
+  const installedCount = ranked.filter((i) => i.isInstalled).length
 
   return (
     <section aria-labelledby="sangat-boros-heading" className="flex flex-col gap-3">
@@ -52,13 +54,13 @@ export function SangatBorosPriority({ items, status }: SangatBorosPriorityProps)
         {status === 'ok' && items.length > 0 && (
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">{installedCount}</span> dari{' '}
-            {items.length} toko sudah terpasang alat
+            {ranked.length} toko sudah terpasang alat
           </p>
         )}
       </div>
 
       {status !== 'ok' || items.length === 0 ? (
-        <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-2xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
           {status === 'missing'
             ? 'Daftar prioritas dari SPARTA Energy belum tersedia.'
             : status === 'error'
@@ -66,9 +68,9 @@ export function SangatBorosPriority({ items, status }: SangatBorosPriorityProps)
               : 'Belum ada toko berstatus boros di kalkulasi SPARTA Energy.'}
         </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
+        <Table scrollLabel="Daftar prioritas pasang IoT" containerClassName="max-h-[26.75rem] overflow-y-auto">
+          <TableHeader className={STICKY_HEADER_CLASS}>
+            <TableRow className="hover:bg-transparent">
               <TableHead className="w-12 text-center">#</TableHead>
               <TableHead>Toko</TableHead>
               <TableHead className="text-right">Selisih</TableHead>
@@ -83,54 +85,54 @@ export function SangatBorosPriority({ items, status }: SangatBorosPriorityProps)
             {items.map((item) => {
               const href = `/monitoring/${encodeURIComponent(item.storeCode)}`
               return (
-                <TableRow key={item.auditId}>
-                  <TableCell className="text-center font-semibold tabular-nums text-foreground">
-                    {item.rank}
+                <TableRow key={item.auditId} className="h-16">
+                  <TableCell className="py-3 text-center font-semibold tabular-nums text-foreground">
+                    {item.isDemo ? '-' : item.rank}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Link
                           href={href}
-                          className="font-semibold text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400"
+                          className="font-semibold text-foreground transition-colors hover:text-primary"
                         >
                           {item.storeName}
                         </Link>
                         {item.isDemo && (
                           <Badge
                             variant="outline"
-                            className="border-amber-500/40 text-amber-700 dark:text-amber-400"
+                            className="border-warning/40 text-warning"
                           >
                             Uji coba
                           </Badge>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
-                        <span className="font-mono">{item.storeCode}</span> · {item.branch}
+                        <span className="tabular-nums">{item.storeCode}</span> · {item.branch}
                       </span>
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-right">
-                    <span className="font-semibold tabular-nums text-rose-700 dark:text-rose-400">
+                  <TableCell className="py-3 text-right">
+                    <span className="font-semibold tabular-nums text-destructive">
                       +{item.gapPercent.toLocaleString('id-ID', { maximumFractionDigits: 1 })}%
                     </span>
                   </TableCell>
 
-                  <TableCell className="text-right tabular-nums text-foreground">
+                  <TableCell className="py-3 text-right tabular-nums text-foreground">
                     {formatKwh(item.actualPlnKwhPerMonth)}{' '}
                     <span className="text-xs text-muted-foreground">kWh</span>
                   </TableCell>
 
-                  <TableCell className="text-right tabular-nums text-foreground">
+                  <TableCell className="py-3 text-right tabular-nums text-foreground">
                     {formatKwh(item.standardKwhPerMonth)}{' '}
                     <span className="text-xs text-muted-foreground">kWh</span>
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     {item.isInstalled ? (
-                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary">
                         <Cpu className="size-3.5" />
                         Terpasang ({item.deviceCount})
                       </span>
@@ -139,19 +141,19 @@ export function SangatBorosPriority({ items, status }: SangatBorosPriorityProps)
                     )}
                   </TableCell>
 
-                  <TableCell>
+                  <TableCell className="py-3">
                     <div className="flex flex-col items-start gap-0.5">
                       {item.validationStatus === 'VALIDATED' ? (
                         <Badge
                           variant="outline"
-                          className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400"
+                          className="border-primary/40 text-primary"
                         >
                           Sudah divalidasi
                         </Badge>
                       ) : (
                         <Badge
                           variant="outline"
-                          className="border-amber-500/40 text-amber-700 dark:text-amber-400"
+                          className="border-warning/40 text-warning"
                         >
                           Menunggu validasi
                         </Badge>
@@ -162,12 +164,12 @@ export function SangatBorosPriority({ items, status }: SangatBorosPriorityProps)
                     </div>
                   </TableCell>
 
-                  <TableCell className="text-right">
+                  <TableCell className="py-3 text-right">
                     <Link
                       href={href}
                       className={cn(
                         buttonVariants({ variant: 'outline', size: 'sm' }),
-                        'h-11 text-xs font-medium sm:h-8'
+                        'relative after:absolute after:-inset-1.5'
                       )}
                     >
                       Detail

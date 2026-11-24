@@ -3,9 +3,6 @@
 import { Suspense, use } from 'react'
 import Link from 'next/link'
 import {
-  Zap,
-  Activity,
-  Cpu,
   ArrowRight,
   Building2,
 } from 'lucide-react'
@@ -15,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NetworkMapWidget } from './network-map-widget'
 import { StoreAnalyticsWidget } from './store-analytics-widget'
 import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
+import { DashboardKpiSummary } from './dashboard-kpi-summary'
+import { StatusBadge } from './status-badge'
 import { cn } from '@/lib/utils'
 import { formatKwh, formatStoreKwh, mainPanelKwh } from '@/lib/format-energy'
 
@@ -51,9 +50,9 @@ function MonthlyCostFallback() {
     <div
       role="status"
       aria-live="polite"
-      className="flex flex-col justify-between gap-3 rounded-xl border bg-card p-4 shadow-xs"
+      className="flex flex-col justify-between gap-3 rounded-2xl bg-card ring-1 ring-foreground/10 p-4"
     >
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <span className="text-xs font-semibold text-muted-foreground">
         Estimasi Biaya PLN
       </span>
       <Skeleton className="h-8 w-40 motion-reduce:animate-none" />
@@ -67,7 +66,7 @@ function StoreAnalyticsFallback() {
     <div
       role="status"
       aria-live="polite"
-      className="flex flex-col gap-4 rounded-xl border bg-card p-5 shadow-xs lg:col-span-8"
+      className="flex flex-col gap-4 rounded-2xl bg-card ring-1 ring-foreground/10 p-5 lg:col-span-8"
     >
       <div className="flex flex-col gap-2">
         <Skeleton className="h-5 w-56 motion-reduce:animate-none" />
@@ -85,14 +84,6 @@ export function DashboardOverview({
 }: DashboardOverviewProps) {
   // Hitung total energi
   const totalKwh = mainPanelKwh(stores)
-  const liveCount = stores.filter((s) => s.status === 'live').length
-  const totalCount = stores.length || 1
-  const livePercentage = (liveCount / totalCount) * 100
-  const activeDevices = stores.filter((s) => s.status === 'live').reduce(
-    (acc, s) => acc + (s.deviceCount || 1),
-    0
-  )
-
   // Hitung konsumsi per cabang
   const branchMap: Record<string, number> = {}
   stores.forEach((s) => {
@@ -129,110 +120,32 @@ export function DashboardOverview({
         <Link
           href="/monitoring"
           className={cn(
-            buttonVariants({ variant: 'default', size: 'sm' }),
-            'h-9 gap-1.5 bg-emerald-600 font-semibold text-white shadow-xs hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500'
+            buttonVariants(),
+            'self-start sm:self-auto'
           )}
         >
           Buka Monitoring Toko
-          <ArrowRight className="size-3.5" />
+          <ArrowRight data-icon="inline-end" aria-hidden="true" />
         </Link>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {/* KPI 1 */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-emerald-500/30 hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Energi Terpantau
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-              <Zap className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {formatKwh(totalKwh)}{' '}
-              <span className="text-sm font-normal text-muted-foreground">
-                kWh
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">Panel utama, selama perangkat merekam</p>
-          </div>
-        </div>
+      <DashboardKpiSummary
+        stores={stores}
+        costCard={
+          <Suspense fallback={<MonthlyCostFallback />}>
+            <MonthlyCostSection monthlyCostsPromise={monthlyCostsPromise} />
+          </Suspense>
+        }
+      />
 
-        {/* KPI 2: Estimasi Biaya PLN (Per Bulan dengan Selector & Riwayat) */}
-        <Suspense fallback={<MonthlyCostFallback />}>
-          <MonthlyCostSection
-            monthlyCostsPromise={monthlyCostsPromise}
-          />
-        </Suspense>
-
-        {/* KPI 3 */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-blue-500/30 hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Toko Live Monitoring
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-              <Activity className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {liveCount}{' '}
-              <span className="text-sm font-normal text-muted-foreground">
-                / {totalCount} Toko
-              </span>
-            </div>
-            <div className="mt-2.5 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                  style={{ width: `${livePercentage}%` }}
-                />
-              </div>
-              <span className="text-[11px] font-semibold text-muted-foreground">
-                {livePercentage.toFixed(0)}% Aktif
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* KPI 4 */}
-        <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-purple-500/30 hover:shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Sensor ESP32 Aktif
-            </span>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
-              <Cpu className="size-4" />
-            </div>
-          </div>
-          <div className="mt-3">
-            <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {activeDevices}{' '}
-              <span className="text-sm font-normal text-muted-foreground">
-                Perangkat
-              </span>
-            </div>
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              ESP32 Telemetri Realtime
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Bento Grid: Charts & Analytics */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 *:min-w-0 lg:grid-cols-12">
         {/* Widget Analisis Toko Terpilih (Profil 24 Jam & Tren 7 Hari) */}
         <Suspense fallback={<StoreAnalyticsFallback />}>
           <StoreAnalyticsSection stores={stores} storeAnalyticsPromise={storeAnalyticsPromise} />
         </Suspense>
 
         {/* Status Perangkat & Distribusi Wilayah (Col 4) */}
-        <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs lg:col-span-4">
+        <div className="flex flex-col rounded-2xl bg-card ring-1 ring-foreground/10 p-5 lg:col-span-4">
           <h2 className="text-base font-semibold text-foreground">
             Distribusi Energi per Cabang
           </h2>
@@ -240,7 +153,7 @@ export function DashboardOverview({
             Proporsi pemakaian listrik berdasarkan wilayah cabang.
           </p>
 
-          <div className="mt-5 flex flex-1 flex-col justify-around gap-4">
+          <div className="mt-5 flex flex-1 flex-col gap-4">
             {branchStats.map((branch) => (
               <div key={branch.name} className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between text-xs">
@@ -257,7 +170,7 @@ export function DashboardOverview({
                 </div>
                 <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
                   <div
-                    className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                    className="h-full rounded-full bg-primary transition-all duration-500"
                     style={{ width: `${branch.percentage}%` }}
                   />
                 </div>
@@ -266,7 +179,9 @@ export function DashboardOverview({
           </div>
 
           <p className="mt-4 text-xs text-muted-foreground">
-            Hanya toko dengan sensor panel utama (R/S/T).
+            {branchStats.length > 0
+              ? 'Hanya toko dengan sensor panel utama (R/S/T).'
+              : 'Energi belum tersedia. Muat ulang sebentar lagi.'}
           </p>
         </div>
 
@@ -276,7 +191,7 @@ export function DashboardOverview({
         </div>
 
         {/* Toko Konsumsi Tertinggi (Col 12) */}
-        <div className="flex flex-col rounded-xl border bg-card shadow-xs lg:col-span-12">
+        <div className="flex flex-col rounded-2xl bg-card ring-1 ring-foreground/10 lg:col-span-12">
           <div className="flex items-center justify-between border-b p-5">
             <div>
               <h2 className="text-base font-semibold text-foreground">
@@ -288,15 +203,15 @@ export function DashboardOverview({
             </div>
             <Link
               href="/monitoring"
-              className="text-xs font-semibold text-emerald-600 hover:underline dark:text-emerald-400"
+              className="text-xs font-semibold text-primary hover:underline"
             >
-              Lihat Seluruh Toko →
+              Lihat Semua Toko
             </Link>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b bg-muted/40 text-xs font-semibold uppercase text-muted-foreground">
+              <thead className="border-b bg-muted/40 text-xs font-semibold text-muted-foreground">
                 <tr>
                   <th className="p-4">Kode</th>
                   <th className="p-4">Nama Toko</th>
@@ -312,7 +227,7 @@ export function DashboardOverview({
                     key={store.id}
                     className="transition-colors hover:bg-muted/30"
                   >
-                    <td className="p-4 font-mono text-xs font-bold text-muted-foreground">
+                    <td className="p-4 tabular-nums text-xs font-bold text-muted-foreground">
                       {store.code}
                     </td>
                     <td className="p-4 font-semibold text-foreground">
@@ -328,40 +243,21 @@ export function DashboardOverview({
                       )}
                     </td>
                     <td className="p-4 text-center">
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold',
-                          store.isRecording
-                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30'
-                            : store.status === 'live'
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-                        )}
-                      >
-                        {(store.isRecording || store.status === 'live') && (
-                          <span
-                            className={cn(
-                              'size-1.5 rounded-full',
-                              store.isRecording ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'
-                            )}
-                          />
-                        )}
-                        {store.isRecording
-                          ? `Merekam (${store.recordingSessionName || 'Aktif'})`
-                          : store.status === 'live'
-                          ? 'Live Telemetry'
-                          : 'Historical Audit'}
-                      </span>
+                      <StatusBadge
+                        status={store.status}
+                        isRecording={store.isRecording}
+                        recordingSessionName={store.recordingSessionName}
+                      />
                     </td>
                     <td className="p-4 text-right">
                       <Link
                         href={`/monitoring/${store.code || store.id}`}
                         className={cn(
                           buttonVariants({ variant: 'ghost', size: 'sm' }),
-                          'h-7 text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400'
+                          'text-primary'
                         )}
                       >
-                        Detail →
+                        Detail
                       </Link>
                     </td>
                   </tr>

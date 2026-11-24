@@ -16,7 +16,7 @@ export default async function AccessDeniedPage({
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background p-4">
-      <div className="flex max-w-md flex-col items-center gap-4 rounded-xl border bg-card p-6 text-center shadow-xs">
+      <div className="flex max-w-md flex-col items-center gap-4 rounded-2xl bg-card ring-1 ring-foreground/10 p-6 text-center">
         {sessionProblem ? (
           <div>
             <h1 className="text-lg font-semibold text-foreground">Sesi login tidak valid</h1>

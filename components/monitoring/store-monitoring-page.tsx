@@ -364,7 +364,7 @@ export function StoreMonitoringPage({
           className={cn(
             'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-all cursor-pointer',
             activeMainTab === 'telemetry'
-              ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+              ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
           )}
         >
@@ -378,7 +378,7 @@ export function StoreMonitoringPage({
           className={cn(
             'flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-all cursor-pointer',
             activeMainTab === 'analytics'
-              ? 'border-emerald-600 text-emerald-600 dark:border-emerald-400 dark:text-emerald-400'
+              ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
           )}
         >
@@ -391,7 +391,7 @@ export function StoreMonitoringPage({
       {activeMainTab === 'telemetry' && (
         <div className="flex flex-col gap-5">
           {/* Controls Bar: Time Range, Date/Session Navigator, and Metric Selector */}
-          <div className="flex flex-col gap-4 rounded-xl border bg-card p-4 shadow-xs lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 rounded-2xl bg-card ring-1 ring-foreground/10 p-4 lg:flex-row lg:items-center lg:justify-between">
             {/* Left: Time Range Mode (Day / Month / Year / Session) & Date/Session Navigator */}
             <div className="flex flex-wrap items-center gap-3">
               {/* Range Mode Pills with clean, intuitive diksi */}
@@ -467,14 +467,14 @@ export function StoreMonitoringPage({
                       >
                         <ChevronLeft className="size-4" />
                       </button>
-                      <div className="flex items-center gap-1 text-[11px] font-mono font-semibold px-1 text-foreground">
+                      <div className="flex items-center gap-1 text-xs tabular-nums font-semibold px-1 text-foreground">
                         <span>Hal {pagination.page} / {pagination.totalPages}</span>
                         {pagination.page === 1 ? (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-sans font-bold px-1.5 py-0.5 rounded">
+                          <span className="text-xs bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">
                             Terbaru
                           </span>
                         ) : (
-                          <span className="text-[10px] text-muted-foreground font-sans font-normal">
+                          <span className="text-xs text-muted-foreground font-normal">
                             (Mundur)
                           </span>
                         )}
@@ -495,7 +495,7 @@ export function StoreMonitoringPage({
 
             {/* Right: Metric Selector Pills */}
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span className="text-xs font-semibold text-muted-foreground">
                 Parameter:
               </span>
               <div className="flex flex-wrap gap-1 rounded-lg bg-muted/60 p-1 border">
@@ -524,7 +524,7 @@ export function StoreMonitoringPage({
                       <m.icon
                         className={cn(
                           'size-3.5',
-                          isSelected && 'text-emerald-600 dark:text-emerald-400'
+                          isSelected && 'text-primary'
                         )}
                       />
                       {m.label}
@@ -539,12 +539,12 @@ export function StoreMonitoringPage({
           {sensorStats.length > 0 && (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                   <Gauge className="size-3.5" />
                   Rincian Statistik Per Sensor / Titik ({metricMeta.label})
                 </h3>
-                <span className="text-[11px] text-muted-foreground">
-                  Klik kartu untuk memilih sensor (Multi-Select)
+                <span className="text-xs text-muted-foreground">
+                  Klik kartu untuk memilih sensor
                 </span>
               </div>
 
@@ -557,48 +557,48 @@ export function StoreMonitoringPage({
                     className={cn(
                       'group flex flex-col justify-between rounded-lg border px-3 py-2 text-left transition-all cursor-pointer select-none',
                       isAllPhasesSelected
-                        ? 'border-emerald-500/60 bg-emerald-50/50 shadow-xs ring-1 ring-emerald-500/20 dark:bg-emerald-950/30 dark:border-emerald-500/40'
-                        : 'bg-card hover:border-emerald-500/30 hover:bg-muted/30 opacity-60 hover:opacity-95'
+                        ? 'border-primary bg-primary/10'
+                        : 'bg-card hover:border-primary/30 hover:bg-muted/30 text-muted-foreground'
                     )}
                   >
                     <div className="flex items-center justify-between gap-1.5 min-w-0">
                       <div className="flex items-center gap-1.5 min-w-0 truncate">
-                        <span className="size-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span className="size-2 rounded-full bg-primary shrink-0" />
                         <span className="text-xs font-bold text-foreground truncate">
                           {totalSummaryStats.label}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
+                        <span className="text-xs text-muted-foreground shrink-0">
                           (Semua)
                         </span>
                       </div>
                       {isAllPhasesSelected && (
-                        <span className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded">
-                          Aktif
+                        <span className="shrink-0 text-xs font-medium text-foreground">
+                          Dipilih
                         </span>
                       )}
                     </div>
 
                     <div className="mt-1.5 flex items-baseline justify-between gap-2">
                       <div className="flex items-baseline gap-1 min-w-0">
-                        <span className="text-sm sm:text-base font-bold font-mono tracking-tight text-foreground">
+                        <span className="text-sm sm:text-base font-bold tabular-nums tracking-tight text-foreground">
                           {totalSummaryStats.avg.toLocaleString('id-ID', {
                             minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
                             maximumFractionDigits: 2,
                           })}
                         </span>
-                        <span className="text-[10px] font-medium text-muted-foreground">
+                        <span className="text-xs font-medium text-muted-foreground">
                           {totalSummaryStats.unit}
                         </span>
                       </div>
 
                       <div
-                        className="flex items-baseline gap-1 text-[11px] text-muted-foreground font-mono shrink-0"
+                        className="flex items-baseline gap-1 text-xs text-muted-foreground tabular-nums shrink-0"
                         title={`Maks Total: ${totalSummaryStats.max.toLocaleString('id-ID')} ${totalSummaryStats.unit}`}
                       >
-                        <span className="text-[9px] uppercase font-sans text-muted-foreground/75 font-medium">
+                        <span className="text-xs text-muted-foreground font-medium">
                           Maks
                         </span>
-                        <span className="font-semibold text-foreground/80">
+                        <span className="font-semibold text-foreground">
                           {totalSummaryStats.max.toLocaleString('id-ID', {
                             minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
                             maximumFractionDigits: 2,
@@ -626,12 +626,10 @@ export function StoreMonitoringPage({
                         'group flex flex-col justify-between rounded-lg border px-3 py-2 text-left transition-all cursor-pointer select-none',
                         isSelected
                           ? 'border-border/80 bg-card shadow-xs ring-1 ring-border/50 dark:bg-card'
-                          : 'bg-card/60 hover:border-border hover:bg-muted/20 opacity-50 hover:opacity-90'
+                          : 'bg-card/60 hover:border-border hover:bg-muted/20 text-muted-foreground'
                       )}
                       style={{
                         borderColor: isSelected ? sensor.color : undefined,
-                        backgroundColor: isSelected ? `${sensor.color}0c` : undefined,
-                        boxShadow: isSelected ? `0 0 0 1px ${sensor.color}35` : undefined,
                       }}
                     >
                       <div className="flex items-center justify-between gap-1.5 min-w-0">
@@ -647,48 +645,44 @@ export function StoreMonitoringPage({
                             {displayName}
                           </span>
                           {subLabel && (
-                            <span className="font-mono text-[10px] text-muted-foreground shrink-0">
+                            <span className="tabular-nums text-xs text-muted-foreground shrink-0">
                               {subLabel}
                             </span>
                           )}
                         </div>
                         {isSelected && (
                           <span
-                            className="shrink-0 text-[9.5px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
-                            style={{
-                              color: sensor.color,
-                              backgroundColor: `${sensor.color}18`,
-                            }}
+                            className="shrink-0 text-xs font-medium text-foreground"
                           >
-                            Pilih
+                            Dipilih
                           </span>
                         )}
                       </div>
 
                       <div className="mt-1.5 flex items-baseline justify-between gap-2">
                         <div className="flex items-baseline gap-1 min-w-0">
-                          <span className="text-sm sm:text-base font-bold font-mono tracking-tight text-foreground">
+                          <span className="text-sm sm:text-base font-bold tabular-nums tracking-tight text-foreground">
                             {avg.toLocaleString('id-ID', {
                               minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
                               maximumFractionDigits: 2,
                             })}
                           </span>
-                          <span className="text-[10px] font-medium text-muted-foreground">
+                          <span className="text-xs font-medium text-muted-foreground">
                             {metricMeta.unit}
                           </span>
                         </div>
 
                         <div
-                          className="flex items-baseline gap-1 text-[11px] text-muted-foreground font-mono shrink-0"
+                          className="flex items-baseline gap-1 text-xs text-muted-foreground tabular-nums shrink-0"
                           title={`Maksimum: ${max.toLocaleString('id-ID', {
                             minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
                             maximumFractionDigits: 2,
                           })} ${metricMeta.unit}`}
                         >
-                          <span className="text-[9px] uppercase font-sans text-muted-foreground/75 font-medium">
+                          <span className="text-xs text-muted-foreground font-medium">
                             Maks
                           </span>
-                          <span className="font-semibold text-foreground/80">
+                          <span className="font-semibold text-foreground">
                             {max.toLocaleString('id-ID', {
                               minimumFractionDigits: selectedMetric === 'energy' ? 2 : 1,
                               maximumFractionDigits: 2,
@@ -704,7 +698,7 @@ export function StoreMonitoringPage({
           )}
 
           {/* Chart Card */}
-          <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs sm:p-6">
+          <div className="flex flex-col rounded-2xl bg-card ring-1 ring-foreground/10 p-5 sm:p-6">
             {/* Header of Chart */}
             <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-col">
@@ -713,7 +707,7 @@ export function StoreMonitoringPage({
                     {metricMeta.label}
                   </h2>
                   {isLoadingChart && (
-                    <span className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 animate-pulse font-medium">
+                    <span className="flex items-center gap-1 text-xs text-primary font-medium">
                       <RefreshCw className="size-3 animate-spin" />
                       Memuat data...
                     </span>
@@ -732,12 +726,12 @@ export function StoreMonitoringPage({
                       <>
                         Sesi: {activeSession?.label || 'Rekaman'} (Detail 15 Menit)
                         {points && points.length > 0 && (
-                          <span className="ml-1.5 text-emerald-600 dark:text-emerald-400 font-medium">
+                          <span className="ml-1.5 text-primary font-medium">
                             &bull; Rentang: {points[0].timestamp} s/d {points[points.length - 1].timestamp}
                           </span>
                         )}
                         {pagination && (
-                          <span className="ml-1 font-mono text-[11px] text-muted-foreground">
+                          <span className="ml-1 tabular-nums text-xs text-muted-foreground">
                             — Hal {pagination.page}/{pagination.totalPages}
                           </span>
                         )}
@@ -750,7 +744,7 @@ export function StoreMonitoringPage({
               {/* Sensor / Phase Filter Buttons with Multi-Select */}
               {sensors.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                  <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                     <SlidersHorizontal className="size-3" />
                     Filter Sensor:
                   </span>
@@ -759,7 +753,7 @@ export function StoreMonitoringPage({
                     className={cn(
                       'rounded-md px-2.5 py-1 text-xs font-semibold border transition-colors cursor-pointer',
                       isAllPhasesSelected
-                        ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted'
                     )}
                   >
@@ -777,14 +771,13 @@ export function StoreMonitoringPage({
                         onClick={() => togglePhase(s.phase)}
                         style={{
                           borderColor: isSelected ? s.color : undefined,
-                          color: isSelected ? s.color : undefined,
                         }}
                         title={hasCustomName ? `${s.name} (${s.phase})` : s.phase}
                         className={cn(
                           'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold border transition-colors cursor-pointer',
                           isSelected
                             ? 'bg-background shadow-xs font-bold'
-                            : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted opacity-50'
+                            : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted'
                         )}
                       >
                         <span

@@ -131,9 +131,9 @@ export function createEnergyIndex() {
     return result
   }
 
-  // Average watts per Jakarta hour, 0 where nothing was recorded.
-  function loadProfile(deviceId: string, date: string): number[] {
-    const hours = Array.from({ length: 24 }, () => 0)
+  // Average watts per Jakarta hour, null where nothing was recorded.
+  function loadProfile(deviceId: string, date: string): (number | null)[] {
+    const hours = Array.from({ length: 24 }, (): number | null => null)
     const phases = devices.get(deviceId)
     if (!phases) return hours
     const { hasMain } = summary(deviceId).total
@@ -149,7 +149,7 @@ export function createEnergyIndex() {
         sums[Math.floor(i / 4)].count += bucket.count
       }
       sums.forEach((s, hour) => {
-        if (s.count > 0) hours[hour] += s.power / s.count
+        if (s.count > 0) hours[hour] = (hours[hour] ?? 0) + s.power / s.count
       })
     }
     return hours

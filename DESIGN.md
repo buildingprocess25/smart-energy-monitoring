@@ -4,6 +4,21 @@ Dokumen ini mencatat seluruh hasil diskusi, keputusan desain, dan spesifikasi vi
 
 ---
 
+## Aturan yang berlaku (2026-11-24)
+
+Bagian ini mengalahkan bagian lain di dokumen ini kalau berbeda.
+
+* **Sumber:** token warna, radius, dan font mengikuti `sparta-energy/app/globals.css`. Ubah di sana dulu, lalu salin ke sini. `--warning` memakai nilai `--system-lighting` di Energy.
+* **Warna:** pakai token (`primary`, `muted`, `warning`, `destructive`, `status-*`). Tidak ada kelas warna Tailwind mentah dan tidak ada `dark:` untuk warna di luar `components/ui`.
+* **Fase:** R `#2e9b84`, S `#3b82f6`, T `#c27803`. Semua warna sensor minimal 3:1 di kartu terang dan gelap (`tests/phase-keys.test.mjs`). Warna sensor untuk garis, titik, dan batas; teksnya memakai `foreground`.
+* **Font:** Geist dan Geist Mono, teks minimal 12 px, angka memakai `tabular-nums`.
+* **Kerangka:** sidebar 18rem, header 3,5rem, isi 16 lalu 24 px. Ganti Peran dan Keluar ada di menu profil sidebar dan header.
+* **Kartu:** `Card` dan `MetricCard`. Tanpa glow, blur, pola grid, garis tepi sebelah, dan animasi tanpa akhir.
+* **Data:** nilai yang tidak tersedia ditulis `-`; jam tanpa rekaman tidak digambar sebagai 0. Tidak ada tren atau klaim tetap.
+* **Ikon:** masih Lucide; rencananya Tabler seperti Energy.
+
+---
+
 ## 🏛️ 1. Filosofi & Konsep Visual Direction
 
 * **Visual Evolution (Beyond myECO):** Mengambil inspirasi dari tata letak dasar myECO, namun **ditingkatkan secara signifikan** agar tampil lebih modern, bersih, intuitif, dan sesuai dengan standar visual premium **SPARTA Energy**.

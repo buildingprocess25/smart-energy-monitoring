@@ -41,14 +41,14 @@ export function BreadcrumbNav() {
       <BreadcrumbList>
         {finalCrumbs.map((crumb, i) => (
           <React.Fragment key={crumb.href}>
-            {i > 0 && <BreadcrumbSeparator />}
-            <BreadcrumbItem>
+            {i > 0 && <BreadcrumbSeparator className="max-sm:hidden" />}
+            <BreadcrumbItem className={crumb.isLast ? undefined : 'max-sm:hidden'}>
               {crumb.isLast ? (
-                <BreadcrumbPage className="capitalize">
+                <BreadcrumbPage>
                   {crumb.label}
                 </BreadcrumbPage>
               ) : (
-                <BreadcrumbLink href={crumb.href} className="capitalize">
+                <BreadcrumbLink href={crumb.href}>
                   {crumb.label}
                 </BreadcrumbLink>
               )}

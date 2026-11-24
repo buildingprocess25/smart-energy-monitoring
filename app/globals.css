@@ -5,7 +5,19 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-heading: var(--font-sans);
   --color-background: var(--background);
+  --color-input-border: var(--input-border);
+  --color-warning: var(--warning);
+  --color-status-hemat: var(--status-hemat);
+  --color-status-hemat-strong: var(--status-hemat-strong);
+  --color-status-hemat-foreground: var(--status-hemat-foreground);
+  --color-status-hemat-text: var(--status-hemat-text);
+  --color-status-boros: var(--status-boros);
+  --color-status-boros-strong: var(--status-boros-strong);
+  --color-status-boros-foreground: var(--status-boros-foreground);
+  --color-status-boros-text: var(--status-boros-text);
+  --color-status-boros-surface: var(--status-boros-surface);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
@@ -47,9 +59,6 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-  --font-mono: JetBrains Mono, ui-monospace, monospace;
-  --font-serif: Merriweather, ui-serif, serif;
-  --radius: 0.625rem;
   --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
   --tracking-tight: calc(var(--tracking-normal) - 0.025em);
   --tracking-wide: calc(var(--tracking-normal) + 0.025em);
@@ -76,42 +85,51 @@
 }
 
 :root {
-  --background: oklch(0.9745 0.0079 253.8524);
-  --foreground: oklch(0.1443 0.0191 261.1564);
-  --card: oklch(0.9897 0.0051 247.8755);
-  --card-foreground: oklch(0.1443 0.0191 261.1564);
-  --popover: oklch(0.9897 0.0051 247.8755);
-  --popover-foreground: oklch(0.1443 0.0191 261.1564);
-  --primary: oklch(0.42 0.12 163);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.9442 0.0137 258.3455);
-  --secondary-foreground: oklch(0.2038 0.0264 260.9332);
-  --muted: oklch(0.9442 0.0137 258.3455);
-  --muted-foreground: oklch(0.5195 0.0188 262.6912);
-  --accent: oklch(0.9442 0.0137 258.3455);
-  --accent-foreground: oklch(0.2038 0.0264 260.9332);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9013 0.0156 257.2001);
-  --input: oklch(0.9013 0.0156 257.2001);
-  --ring: oklch(0.55 0.14 163);
-  --chart-1: oklch(0.81 0.1 252);
-  --chart-2: oklch(0.62 0.19 260);
-  --chart-3: oklch(0.55 0.22 263);
-  --chart-4: oklch(0.49 0.22 264);
-  --chart-5: oklch(0.42 0.18 266);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.9601 0.0103 261.7889);
-  --sidebar-foreground: oklch(0.1443 0.0191 261.1564);
-  --sidebar-primary: oklch(0.42 0.12 163);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.9442 0.0137 258.3455);
-  --sidebar-accent-foreground: oklch(0.2038 0.0264 260.9332);
-  --sidebar-border: oklch(0.9013 0.0156 257.2001);
-  --sidebar-ring: oklch(0.6503 0.022 257.4949);
-  --destructive-foreground: oklch(1 0 0);
-  --font-sans: Geist, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: Merriweather, ui-serif, serif;
-  --font-mono: JetBrains Mono, ui-monospace, monospace;
+  /* Same values as sparta-energy app/globals.css; --warning is its --system-lighting. */
+  --background: #ffffff;
+  --foreground: #0d1411;
+  --card: #ffffff;
+  --card-foreground: #0d1411;
+  --popover: #ffffff;
+  --popover-foreground: #0d1411;
+  --primary: #2c7a57;
+  --primary-foreground: #f5fdf8;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #66666f;
+  --accent: #2c7a57;
+  --accent-foreground: #f5fdf8;
+  --destructive: #dc2626;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --input-border: #85858e;
+  --ring: #a1a1aa;
+  --chart-1: #6ecfb5;
+  --chart-2: #4db8a0;
+  --chart-3: #2e9b84;
+  --chart-4: #1a7d6a;
+  --chart-5: #0f6456;
+  --status-hemat: #2c7a57;
+  --status-hemat-strong: #246648;
+  --status-hemat-foreground: #f5fdf8;
+  --status-hemat-text: #2c7a57;
+  --status-boros: #c54b45;
+  --status-boros-strong: #b23f39;
+  --status-boros-foreground: #ffffff;
+  --status-boros-text: #b23f39;
+  --status-boros-surface: #dc26261a;
+  --radius: 0.875rem;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #0d1411;
+  --sidebar-primary: #2c7a57;
+  --sidebar-primary-foreground: #f5fdf8;
+  --sidebar-accent: #f4f4f5;
+  --sidebar-accent-foreground: #18181b;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #a1a1aa;
+  --destructive-foreground: #ffffff;
+  --warning: #92400e;
   --shadow-color: oklch(0 0 0);
   --shadow-opacity: 0.1;
   --shadow-blur: 3px;
@@ -136,42 +154,50 @@
 }
 
 .dark {
-  --background: oklch(0.2292 0.0304 259.0329);
-  --foreground: oklch(0.9392 0.0101 238.5151);
-  --card: oklch(0.261 0.0307 254.7604);
-  --card-foreground: oklch(0.9392 0.0101 238.5151);
-  --popover: oklch(0.2897 0.0338 255.7937);
-  --popover-foreground: oklch(0.9392 0.0101 238.5151);
-  --primary: oklch(0.42 0.12 163);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.3056 0.0334 255.7755);
-  --secondary-foreground: oklch(0.9392 0.0101 238.5151);
-  --muted: oklch(0.2947 0.0308 258.3315);
-  --muted-foreground: oklch(0.6604 0.0245 248.1982);
-  --accent: oklch(0.3438 0.0389 254.6348);
-  --accent-foreground: oklch(0.9392 0.0101 238.5151);
+  --background: #192018;
+  --foreground: #fafafa;
+  --card: #1e2a1f;
+  --card-foreground: #fafafa;
+  --popover: #1e2a1f;
+  --popover-foreground: #fafafa;
+  --primary: #4caf80;
+  --primary-foreground: #0d1411;
+  --secondary: #27372a;
+  --secondary-foreground: #fafafa;
+  --muted: #243026;
+  --muted-foreground: #c8d9cc;
+  --accent: #4caf80;
+  --accent-foreground: #0d1411;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.3299 0.0322 257.6775);
-  --input: oklch(0.3205 0.0336 253.9373);
-  --ring: oklch(0.55 0.14 163);
-  --chart-1: oklch(0.81 0.1 252);
-  --chart-2: oklch(0.62 0.19 260);
-  --chart-3: oklch(0.55 0.22 263);
-  --chart-4: oklch(0.49 0.22 264);
-  --chart-5: oklch(0.42 0.18 266);
-  --sidebar: oklch(0.2452 0.0305 256.8649);
-  --sidebar-foreground: oklch(0.9392 0.0101 238.5151);
-  --sidebar-primary: oklch(0.42 0.12 163);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.3056 0.0334 255.7755);
-  --sidebar-accent-foreground: oklch(0.9392 0.0101 238.5151);
-  --sidebar-border: oklch(0.3053 0.0296 254.6806);
-  --sidebar-ring: oklch(0.5805 0.0297 251.8232);
-  --destructive-foreground: oklch(0.985 0 0);
+  --border: #3d5240;
+  --input: #6a8a71;
+  --input-border: #6a8a71;
+  --ring: oklch(0.62 0.03 167.2);
+  --chart-1: #6ecfb5;
+  --chart-2: #4db8a0;
+  --chart-3: #2e9b84;
+  --chart-4: #1a7d6a;
+  --chart-5: #0f6456;
+  --status-hemat: #2c7a57;
+  --status-hemat-strong: #246648;
+  --status-hemat-foreground: #f5fdf8;
+  --status-hemat-text: #4caf80;
+  --status-boros: #c54b45;
+  --status-boros-strong: #b23f39;
+  --status-boros-foreground: #ffffff;
+  --status-boros-text: #e07a74;
+  --status-boros-surface: #dc26261a;
+  --sidebar: #1e2a1f;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #4caf80;
+  --sidebar-primary-foreground: #0d1411;
+  --sidebar-accent: #27372a;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #3d5240;
+  --sidebar-ring: oklch(0.62 0.03 167.2);
+  --destructive-foreground: #0d1411;
+  --warning: #fcd34d;
   --radius: 0.625rem;
-  --font-sans: Geist, ui-sans-serif, sans-serif, system-ui;
-  --font-serif: Merriweather, ui-serif, serif;
-  --font-mono: JetBrains Mono, ui-monospace, monospace;
   --shadow-color: oklch(0 0 0);
   --shadow-opacity: 0.1;
   --shadow-blur: 3px;
@@ -214,31 +240,38 @@
   }
 }
 
-/* Custom Leaflet Map Styling */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Leaflet draws its own controls and popups; these put them on the theme tokens. */
 .leaflet-container {
-  font-family: var(--font-sans), system-ui, sans-serif !important;
+  font-family: inherit !important;
+  background: var(--muted) !important;
 }
 
 .leaflet-div-icon,
 .custom-leaflet-pin {
   background: transparent !important;
   border: none !important;
-  box-shadow: none !important;
 }
 
-@keyframes leaflet-ping {
-  75%, 100% {
-    transform: scale(2.2);
-    opacity: 0;
-  }
+.clean-store-popup .leaflet-popup-content-wrapper,
+.clean-store-popup .leaflet-popup-tip {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
 }
 
 .clean-store-popup .leaflet-popup-content-wrapper {
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border-radius: 0.75rem !important;
-  border: 1px solid #e2e8f0 !important;
-  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15), 0 8px 10px -6px rgba(15, 23, 42, 0.1) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
   padding: 0 !important;
 }
 
@@ -247,30 +280,25 @@
   line-height: 1.4 !important;
 }
 
-.clean-store-popup .leaflet-popup-tip {
-  background: #ffffff !important;
+.leaflet-bar a,
+.leaflet-bar a:hover {
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border-color: var(--border) !important;
+}
+
+.leaflet-bar a:hover {
+  background: var(--muted) !important;
 }
 
 .custom-leaflet-action-bar {
   margin-top: 6px !important;
 }
 
-.custom-leaflet-action-bar a {
-  background-color: #ffffff !important;
-  color: #334155 !important;
-  cursor: pointer !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  transition: all 0.15s ease !important;
+.leaflet-container .leaflet-control-attribution,
+.leaflet-container .leaflet-control-attribution a {
+  background: var(--popover) !important;
+  color: var(--muted-foreground) !important;
 }
-
-.custom-leaflet-action-bar a:hover {
-  background-color: #f1f5f9 !important;
-  color: #059669 !important;
-}
-
-.custom-leaflet-action-bar a:last-child {
-  border-bottom: none !important;
-}
-
 
 

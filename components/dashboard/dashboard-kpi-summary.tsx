@@ -1,108 +1,39 @@
-import { Zap, Activity, Cpu } from 'lucide-react'
-import { Store, MonthlyCostRecord } from '@/lib/types'
-import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
+import type { ReactNode } from 'react'
+import { Activity, Cpu, Zap } from 'lucide-react'
+import type { MonthlyCostRecord, Store } from '@/lib/types'
 import { formatKwh, mainPanelKwh } from '@/lib/format-energy'
+import { MetricCard } from './metric-card'
+import { MonthlyCostKpiCard } from './monthly-cost-kpi-card'
 
 interface DashboardKpiSummaryProps {
   stores: Store[]
   monthlyCosts?: MonthlyCostRecord[]
+  // Replaces the cost card, for pages that stream it.
+  costCard?: ReactNode
 }
 
-export function DashboardKpiSummary({ stores, monthlyCosts = [] }: DashboardKpiSummaryProps) {
-  // 1. Total Energi Terukur (kWh)
-  const totalKwh = mainPanelKwh(stores)
-
-  // 3. Toko Live Monitoring
-  const liveStoresCount = stores.filter((s) => s.status === 'live').length
-  const totalStoresCount = stores.length
-  const livePercentage =
-    totalStoresCount > 0 ? (liveStoresCount / totalStoresCount) * 100 : 0
-
-  // 4. Total Perangkat IoT Aktif
-  const totalDevices = stores
-    .filter((s) => s.status === 'live')
-    .reduce((acc, s) => acc + (s.deviceCount || 0), 0)
+export function DashboardKpiSummary({ stores, monthlyCosts = [], costCard }: DashboardKpiSummaryProps) {
+  const live = stores.filter((s) => s.status === 'live')
+  const devices = live.reduce((sum, s) => sum + (s.deviceCount || 0), 0)
+  const hasTotal = stores.some((s) => s.energyBasis === 'main')
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {/* KPI 1: Total Energi */}
-      <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-emerald-500/30 hover:shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Total Energi Terpantau
-          </span>
-          <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-            <Zap className="size-4" />
-          </div>
-        </div>
-        <div className="mt-3">
-          <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {formatKwh(totalKwh)}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              kWh
-            </span>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">Panel utama, selama perangkat merekam</p>
-        </div>
-      </div>
-
-      {/* KPI 2: Estimasi Biaya Listrik */}
-      <MonthlyCostKpiCard monthlyCosts={monthlyCosts} />
-
-      {/* KPI 3: Toko Live Monitoring */}
-      <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-blue-500/30 hover:shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Toko Live Monitoring
-          </span>
-          <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            <Activity className="size-4" />
-          </div>
-        </div>
-        <div className="mt-3">
-          <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {liveStoresCount}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              / {totalStoresCount} Toko
-            </span>
-          </div>
-          <div className="mt-2.5 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                style={{ width: `${livePercentage}%` }}
-              />
-            </div>
-            <span className="text-[11px] font-semibold text-muted-foreground">
-              {livePercentage.toFixed(0)}% Aktif
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* KPI 4: Perangkat IoT Terpasang */}
-      <div className="flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-purple-500/30 hover:shadow-sm">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Sensor IoT Live
-          </span>
-          <div className="flex size-8 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
-            <Cpu className="size-4" />
-          </div>
-        </div>
-        <div className="mt-3">
-          <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-            {totalDevices}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              Perangkat
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-            ESP32 Smart Energy Meter
-          </div>
-        </div>
-      </div>
-    </div>
+    <section aria-label="Ringkasan" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <MetricCard
+        label="Total energi terpantau"
+        value={hasTotal ? formatKwh(mainPanelKwh(stores)) : '-'}
+        unit="kWh"
+        icon={Zap}
+      >
+        {hasTotal ? 'Panel utama, selama perangkat merekam' : 'Belum tersedia. Muat ulang sebentar lagi.'}
+      </MetricCard>
+      {costCard ?? <MonthlyCostKpiCard monthlyCosts={monthlyCosts} />}
+      <MetricCard label="Toko online" value={live.length} unit={`dari ${stores.length} toko`} icon={Activity}>
+        Toko dengan perangkat yang terhubung atau merekam
+      </MetricCard>
+      <MetricCard label="Perangkat di toko online" value={devices} unit="perangkat" icon={Cpu}>
+        Meter energi, CT, dan plug
+      </MetricCard>
+    </section>
   )
 }

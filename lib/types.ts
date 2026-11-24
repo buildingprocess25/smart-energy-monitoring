@@ -13,8 +13,8 @@ export interface DailyConsumption {
 export interface LoadProfilePoint {
   time: string // "00:00", "01:00", ...
   fullTime?: string // "14:00 WIB"
-  powerWatts: number
-  powerKw: number
+  powerWatts: number | null // null when nothing was recorded in that hour
+  powerKw: number | null
 }
 
 export interface RealMonthlyConsumption {

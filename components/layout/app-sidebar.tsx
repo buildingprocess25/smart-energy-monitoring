@@ -8,6 +8,8 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -63,27 +65,10 @@ function NavItemButton({
       <SidebarMenuButton
         tooltip={item.title}
         isActive={active}
-        className={cn(
-          'group/nav relative h-10 w-full px-3 font-medium transition-colors duration-200',
-          'group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto',
-          'hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:text-emerald-950 dark:hover:text-emerald-100',
-          active
-            ? 'bg-emerald-500/12 text-emerald-950 font-semibold shadow-xs ring-1 ring-emerald-500/25 dark:bg-emerald-500/20 dark:text-emerald-200 dark:ring-emerald-400/30'
-            : 'text-muted-foreground',
-          active &&
-            'before:absolute before:left-0 before:top-2 before:bottom-2 before:w-1 before:rounded-r-full before:bg-emerald-600 dark:before:bg-emerald-400 before:shadow-[0_0_8px_rgba(16,185,129,0.7)] group-data-[collapsible=icon]:before:hidden'
-        )}
         render={
-          <Link href={item.href} className="flex size-full items-center gap-2.5 overflow-hidden group-data-[collapsible=icon]:justify-center">
-            <Icon
-              className={cn(
-                'size-4 shrink-0 transition-transform duration-200 group-hover/nav:scale-110',
-                active
-                  ? 'text-emerald-600 dark:text-emerald-400'
-                  : 'text-muted-foreground group-hover/nav:text-emerald-600 dark:group-hover/nav:text-emerald-400'
-              )}
-            />
-            <span className="truncate group-data-[collapsible=icon]:hidden">{item.title}</span>
+          <Link href={item.href} aria-current={active ? 'page' : undefined}>
+            <Icon aria-hidden="true" className={cn(active && 'text-primary')} />
+            <span>{item.title}</span>
           </Link>
         }
       />
@@ -96,25 +81,25 @@ export function AppSidebar({ viewer, links }: { viewer: ShellViewer; links: Spar
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-14 p-2 overflow-hidden flex items-center justify-center">
-        <SidebarMenu className="w-full">
+      <SidebarHeader>
+        <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               size="lg"
               tooltip="Smart Energy Monitoring"
-              className="h-10 w-full p-1.5 transition-colors duration-200 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+              className="h-auto justify-center p-2 ring-1 ring-sidebar-border/70 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-0!"
               render={
-                <Link href="/" className="flex size-full items-center gap-2 overflow-hidden group-data-[collapsible=icon]:justify-center">
+                <Link href="/">
                   <div className="flex shrink-0 group-data-[collapsible=icon]:hidden">
                     <Logo className="scale-90 origin-left" />
                   </div>
-                  <div className="hidden size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 p-1 ring-1 ring-emerald-500/20 group-data-[collapsible=icon]:flex">
+                  <div className="hidden size-8 items-center justify-center group-data-[collapsible=icon]:flex">
                     <Image
                       src="/api/assets/Alfamart-Emblem.png"
                       alt="Alfamart"
                       width={60}
                       height={60}
-                      className="size-6 object-contain drop-shadow-sm"
+                      className="size-6 object-contain"
                       priority
                     />
                   </div>
@@ -125,16 +110,20 @@ export function AppSidebar({ viewer, links }: { viewer: ShellViewer; links: Spar
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent className="overflow-x-hidden p-2 gap-0">
-        <SidebarMenu className="gap-1">
-          {navItems.map((item) => (
-            <NavItemButton key={item.href} item={item} pathname={pathname} />
-          ))}
-        </SidebarMenu>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {navItems.map((item) => (
+                <NavItemButton key={item.href} item={item} pathname={pathname} />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="h-14 p-2 overflow-hidden flex items-center justify-center">
-        <SidebarMenu className="w-full">
+      <SidebarFooter>
+        <SidebarMenu>
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -142,14 +131,12 @@ export function AppSidebar({ viewer, links }: { viewer: ShellViewer; links: Spar
                   <SidebarMenuButton
                     size="lg"
                     tooltip={viewer.name}
-                    className="h-10 w-full rounded-xl transition-colors duration-200 group-data-[collapsible=icon]:size-10 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:mx-auto hover:bg-emerald-500/10 dark:hover:bg-emerald-500/15 hover:ring-1 hover:ring-emerald-500/20"
+                    className="ring-1 ring-sidebar-border/60 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center"
                   />
                 }
               >
-                <Avatar className="size-8 rounded-lg ring-1 ring-emerald-500/30">
-                  <AvatarFallback className="rounded-lg bg-emerald-600 text-xs font-semibold text-white">
-                    {initialsOf(viewer.name)}
-                  </AvatarFallback>
+                <Avatar>
+                  <AvatarFallback>{initialsOf(viewer.name)}</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
                   <span className="truncate font-semibold text-foreground">

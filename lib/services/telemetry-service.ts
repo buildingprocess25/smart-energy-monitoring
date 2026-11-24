@@ -103,7 +103,7 @@ export async function getStoreAnalyticsData(
       const hourStr = `${String(h).padStart(2, '0')}:00`
       const pWatts = hourlyWatts[h]
       
-      if (pWatts > 0) {
+      if (pWatts !== null && pWatts > 0) {
         peakPowerWatts = Math.max(peakPowerWatts, pWatts)
         minPowerWatts = Math.min(minPowerWatts, pWatts)
         totalLoadSum += pWatts
@@ -113,8 +113,8 @@ export async function getStoreAnalyticsData(
       loadProfile24h.push({
         time: hourStr,
         fullTime: `${hourStr} WIB`,
-        powerWatts: Math.round(pWatts),
-        powerKw: Math.round((pWatts / 1000) * 10) / 10,
+        powerWatts: pWatts === null ? null : Math.round(pWatts),
+        powerKw: pWatts === null ? null : Math.round((pWatts / 1000) * 10) / 10,
       })
     }
 

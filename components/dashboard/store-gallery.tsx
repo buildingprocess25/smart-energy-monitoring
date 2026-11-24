@@ -114,7 +114,7 @@ export function StoreGallery({ initialStores = [], monthlyCosts, sangatBoros }: 
               setBranchFilter('all')
               setStatusFilter('all')
             }}
-            className="mt-3 text-xs font-semibold text-emerald-600 hover:underline dark:text-emerald-400"
+            className="mt-3 text-xs font-semibold text-primary hover:underline"
           >
             Reset Semua Filter
           </button>

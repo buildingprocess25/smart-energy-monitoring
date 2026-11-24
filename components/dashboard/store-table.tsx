@@ -59,7 +59,7 @@ export function StoreTable({ stores }: StoreTableProps) {
             <TableRow key={store.id} className="group">
               {/* Kode Toko */}
               <TableCell>
-                <span className="rounded bg-muted px-2 py-1 font-mono text-xs font-bold text-muted-foreground">
+                <span className="rounded bg-muted px-2 py-1 tabular-nums text-xs font-bold text-muted-foreground">
                   {store.code}
                 </span>
               </TableCell>
@@ -68,7 +68,7 @@ export function StoreTable({ stores }: StoreTableProps) {
               <TableCell className="font-semibold text-foreground">
                 <Link
                   href={href}
-                  className="transition-colors hover:text-emerald-600 dark:hover:text-emerald-400"
+                  className="transition-colors hover:text-primary"
                 >
                   {store.name}
                 </Link>
@@ -94,7 +94,7 @@ export function StoreTable({ stores }: StoreTableProps) {
               <TableCell className="text-right font-medium">
                 {!isUnassigned ? (
                   <span className="flex items-center justify-end gap-1 font-semibold text-foreground">
-                    <Zap className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <Zap className="size-3.5 text-primary" />
                     {formatStoreKwh(store)}
                     <span className="text-xs font-normal text-muted-foreground">
                       kWh
@@ -109,7 +109,7 @@ export function StoreTable({ stores }: StoreTableProps) {
               <TableCell className="text-center">
                 {!isUnassigned ? (
                   <span className="inline-flex items-center gap-1 font-semibold text-foreground">
-                    <Cpu className="size-3.5 text-blue-600 dark:text-blue-400" />
+                    <Cpu className="size-3.5 text-muted-foreground" />
                     {store.deviceCount}
                   </span>
                 ) : (
@@ -123,7 +123,7 @@ export function StoreTable({ stores }: StoreTableProps) {
                   suppressHydrationWarning
                   className="flex items-center gap-1 text-xs text-muted-foreground"
                 >
-                  <Clock className="size-3 text-muted-foreground/70" />
+                  <Clock className="size-3 text-muted-foreground" />
                   {formatRelativeTime(store.lastUpdate)}
                 </span>
               </TableCell>
@@ -135,7 +135,7 @@ export function StoreTable({ stores }: StoreTableProps) {
                     href={href}
                     className={cn(
                       buttonVariants({ variant: 'outline', size: 'sm' }),
-                      'h-8 gap-1.5 text-xs font-medium border-emerald-500/30 hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-300'
+                      'h-8 gap-1.5 text-xs font-medium border-primary/30 hover:bg-primary/10 hover:text-primary'
                     )}
                   >
                     Detail

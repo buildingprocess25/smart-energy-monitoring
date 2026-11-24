@@ -54,12 +54,12 @@ export function MonthlyCostKpiCard({ monthlyCosts = [], className }: MonthlyCost
   return (
     <div
       className={cn(
-        'flex flex-col justify-between gap-3 rounded-xl border bg-card p-4 shadow-xs',
+        'flex flex-col justify-between gap-3 rounded-2xl bg-card ring-1 ring-foreground/10 p-4',
         className
       )}
     >
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Estimasi Biaya PLN
+      <span className="text-xs text-muted-foreground">
+        Estimasi biaya PLN
       </span>
       <p className="text-sm text-muted-foreground">
         Biaya belum bisa dihitung. Muat ulang halaman, atau cek apakah panel utama sudah merekam.
@@ -127,20 +127,13 @@ function MonthlyCostCard({
   return (
     <div
       className={cn(
-        'group flex flex-col justify-between rounded-xl border bg-card p-4 shadow-xs transition-all hover:border-amber-500/30 hover:shadow-sm',
+        'group flex flex-col justify-between rounded-2xl bg-card ring-1 ring-foreground/10 p-4 transition-all hover:border-warning/30 hover:shadow-sm',
         className
       )}
     >
       {/* Card Header: Title, Icon & Month Selector */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
-            <Coins className="size-4" />
-          </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Estimasi Biaya PLN
-          </span>
-        </div>
+        <span className="text-sm text-muted-foreground">Estimasi biaya PLN</span>
 
         {/* Compact Month Dropdown Selector */}
         <div className="flex items-center">
@@ -154,7 +147,7 @@ function MonthlyCostCard({
               size="sm"
               className="h-7 text-xs font-medium border-muted/80 bg-muted/30 px-2 text-foreground hover:bg-muted/60"
             >
-              <SelectValue placeholder="Pilih Bulan" />
+              <SelectValue>{() => activeRecord.monthShortLabel || activeRecord.monthLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent align="end" className="w-48 text-xs">
               {enrichedMonthlyCosts.map((item) => (
@@ -162,7 +155,7 @@ function MonthlyCostCard({
                   <div className="flex items-center justify-between w-full gap-2">
                     <span>{item.monthLabel}</span>
                     {item.isCurrentMonth && (
-                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      <span className="text-xs font-semibold text-primary">
                         (Aktif)
                       </span>
                     )}
@@ -181,7 +174,7 @@ function MonthlyCostCard({
 
       {/* Main KPI Value */}
       <div className="mt-3">
-        <div className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+        <div className="text-2xl font-medium tabular-nums text-foreground">
           Rp {activeRecord.cost.toLocaleString('id-ID', { maximumFractionDigits: 0 })}
         </div>
 
@@ -189,8 +182,7 @@ function MonthlyCostCard({
           <span className="font-semibold text-foreground">
             {activeRecord.kwh.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
           </span>
-          <span>•</span>
-          <span>Tarif B2/TR (Rp 1.444,7/kWh)</span>
+          <span>x Rp1.444,7 per kWh</span>
         </div>
       </div>
 
@@ -202,8 +194,8 @@ function MonthlyCostCard({
             className={cn(
               'flex items-center gap-1 font-medium',
               activeRecord.diffPercentage <= 0
-                ? 'text-emerald-600 dark:text-emerald-400'
-                : 'text-rose-600 dark:text-rose-400'
+                ? 'text-primary'
+                : 'text-destructive'
             )}
           >
             {activeRecord.diffPercentage <= 0 ? (
@@ -229,7 +221,7 @@ function MonthlyCostCard({
 
         {/* History Modal / Sheet Trigger */}
         <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-          <SheetTrigger className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 hover:text-amber-700 hover:underline dark:text-amber-400 dark:hover:text-amber-300 cursor-pointer">
+          <SheetTrigger className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer">
             <span>Riwayat</span>
             <History className="size-3" />
           </SheetTrigger>
@@ -240,7 +232,7 @@ function MonthlyCostCard({
           >
             <SheetHeader className="text-left">
               <div className="flex items-center gap-2">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+                <div className="flex size-9 items-center justify-center rounded-lg bg-warning/10 text-warning">
                   <Coins className="size-5" />
                 </div>
                 <div>
@@ -257,13 +249,13 @@ function MonthlyCostCard({
             {/* Tarif Information Banner */}
             <div className="mt-4 flex items-center justify-between rounded-lg border bg-muted/40 p-3 text-xs">
               <div className="flex items-center gap-2">
-                <Zap className="size-4 text-amber-500" />
+                <Zap className="size-4 text-warning" />
                 <div>
                   <div className="font-semibold text-foreground">Tarif PLN B2/TR Bisnis</div>
                   <div className="text-muted-foreground">Golongan Tarif Rendah Retail</div>
                 </div>
               </div>
-              <Badge variant="outline" className="bg-background font-mono text-xs">
+              <Badge variant="outline" className="bg-background tabular-nums text-xs">
                 Rp 1.444,7 / kWh
               </Badge>
             </div>
@@ -271,37 +263,37 @@ function MonthlyCostCard({
             {/* Quick Stat Highlights */}
             <div className="mt-4 grid grid-cols-3 gap-2">
               <div className="rounded-lg border bg-card p-3 shadow-2xs">
-                <div className="text-[11px] font-medium text-muted-foreground">
+                <div className="text-xs font-medium text-muted-foreground">
                   Rata-rata / Bulan
                 </div>
                 <div className="mt-1 text-sm font-bold text-foreground">
                   Rp {historyStats.avgCost.toLocaleString('id-ID')}
                 </div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   ~{historyStats.avgKwh.toLocaleString('id-ID')} kWh
                 </div>
               </div>
 
               <div className="rounded-lg border bg-card p-3 shadow-2xs">
-                <div className="text-[11px] font-medium text-muted-foreground">
+                <div className="text-xs font-medium text-muted-foreground">
                   Total Tahun Ini
                 </div>
                 <div className="mt-1 text-sm font-bold text-foreground">
                   Rp {historyStats.totalYearCost.toLocaleString('id-ID')}
                 </div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   {enrichedMonthlyCosts.length} Bulan Tercatat
                 </div>
               </div>
 
               <div className="rounded-lg border bg-card p-3 shadow-2xs">
-                <div className="text-[11px] font-medium text-muted-foreground">
+                <div className="text-xs font-medium text-muted-foreground">
                   Bulan Tertinggi
                 </div>
-                <div className="mt-1 text-sm font-bold text-amber-600 dark:text-amber-400">
+                <div className="mt-1 text-sm font-bold text-warning">
                   {historyStats.peakRecord?.monthShortLabel || '-'}
                 </div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   Rp {historyStats.peakRecord?.cost.toLocaleString('id-ID') || 0}
                 </div>
               </div>
@@ -310,15 +302,15 @@ function MonthlyCostCard({
             {/* Monthly History Table */}
             <div className="mt-6 flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <h3 className="text-xs font-semibold text-muted-foreground">
                   Daftar Periode Bulanan
                 </h3>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {enrichedMonthlyCosts.length} Periode
                 </span>
               </div>
 
-              <div className="overflow-hidden rounded-xl border bg-card">
+              <div className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
@@ -336,7 +328,7 @@ function MonthlyCostCard({
                           key={row.monthKey}
                           className={cn(
                             'cursor-pointer transition-colors hover:bg-muted/50',
-                            isSelected && 'bg-amber-500/10 hover:bg-amber-500/15 font-medium'
+                            isSelected && 'bg-warning/10 hover:bg-warning/15 font-medium'
                           )}
                           onClick={() => {
                             setSelectedKey(row.monthKey)
@@ -349,14 +341,14 @@ function MonthlyCostCard({
                                 {row.monthLabel}
                               </span>
                               {row.isCurrentMonth && (
-                                <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                                <span className="text-xs font-medium text-primary">
                                   Bulan Berjalan
                                 </span>
                               )}
                             </div>
                           </TableCell>
 
-                          <TableCell className="text-right py-2.5 font-mono text-xs">
+                          <TableCell className="text-right py-2.5 tabular-nums text-xs">
                             {row.kwh.toLocaleString('id-ID', { maximumFractionDigits: 1 })} kWh
                           </TableCell>
 
@@ -369,17 +361,17 @@ function MonthlyCostCard({
                               <Badge
                                 variant="outline"
                                 className={cn(
-                                  'text-[10px] px-1.5 py-0 font-medium',
+                                  'text-xs px-1.5 py-0 font-medium',
                                   row.diffPercentage <= 0
-                                    ? 'border-emerald-500/30 text-emerald-600 bg-emerald-500/10'
-                                    : 'border-rose-500/30 text-rose-600 bg-rose-500/10'
+                                    ? 'border-primary/30 text-primary bg-primary/10'
+                                    : 'border-destructive/30 text-destructive bg-destructive/10'
                                 )}
                               >
                                 {row.diffPercentage > 0 ? '+' : ''}
-                                {row.diffPercentage.toFixed(1)}%
+                                {row.diffPercentage.toLocaleString('id-ID')}%
                               </Badge>
                             ) : (
-                              <span className="text-[10px] text-muted-foreground">-</span>
+                              <span className="text-xs text-muted-foreground">-</span>
                             )}
                           </TableCell>
                         </TableRow>
@@ -391,7 +383,7 @@ function MonthlyCostCard({
             </div>
 
             {/* Note info */}
-            <div className="mt-6 flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-[11px] text-muted-foreground">
+            <div className="mt-6 flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
               <Info className="size-4 shrink-0 text-muted-foreground mt-0.5" />
               <span>
                 Estimasi biaya dihitung dari total akumulasi kWh seluruh meter ESP32 yang terhubung

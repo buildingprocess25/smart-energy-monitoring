@@ -1,11 +1,21 @@
 import * as React from 'react'
 import { cn } from '@/lib/utils'
 
-function Table({ className, ...props }: React.ComponentProps<'table'>) {
+// scrollLabel names the table's own scroll area and makes it reachable by keyboard.
+function Table({
+  className,
+  containerClassName,
+  scrollLabel,
+  ...props
+}: React.ComponentProps<'table'> & { containerClassName?: string; scrollLabel?: string }) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto rounded-xl border bg-card shadow-xs"
+      {...(scrollLabel ? { role: 'region', 'aria-label': scrollLabel, tabIndex: 0 } : {})}
+      className={cn(
+        'relative w-full overflow-x-auto rounded-2xl bg-card ring-1 ring-foreground/10 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        containerClassName
+      )}
     >
       <table
         data-slot="table"
@@ -15,6 +25,9 @@ function Table({ className, ...props }: React.ComponentProps<'table'>) {
     </div>
   )
 }
+
+// Borders of a sticky row scroll away with the rows, so the line is a shadow.
+export const STICKY_HEADER_CLASS = 'sticky top-0 z-10 border-0 bg-muted shadow-[0_1px_0_var(--border)]'
 
 function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
   return (
@@ -41,7 +54,7 @@ function TableRow({ className, ...props }: React.ComponentProps<'tr'>) {
     <tr
       data-slot="table-row"
       className={cn(
-        'border-b transition-colors hover:bg-emerald-500/5 dark:hover:bg-emerald-500/10',
+        'border-b transition-colors hover:bg-muted/50',
         className
       )}
       {...props}
@@ -54,7 +67,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
     <th
       data-slot="table-head"
       className={cn(
-        'h-11 px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap',
+        'h-11 px-4 text-left align-middle text-xs font-medium text-muted-foreground whitespace-nowrap',
         className
       )}
       {...props}

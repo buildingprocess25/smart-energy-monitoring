@@ -16,7 +16,7 @@ export function CircularGauge({
   max,
   unit,
   label,
-  color = '#10b981', // Default emerald-500
+  color = 'var(--primary)',
   size = 120,
   strokeWidth = 10,
   className,
@@ -84,7 +84,7 @@ export function CircularGauge({
         <span className="text-xl font-bold tabular-nums tracking-tight">
           {Number.isInteger(value) ? value : value.toFixed(1)}
         </span>
-        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+        <span className="text-xs font-medium text-muted-foreground">
           {unit}
         </span>
       </div>

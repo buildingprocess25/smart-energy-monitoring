@@ -43,7 +43,11 @@ export function SessionSelector({
         }}
       >
         <SelectTrigger className="w-[240px] sm:rounded-l-none">
-          <SelectValue placeholder="Pilih Sesi Audit" />
+          <SelectValue>
+            {(value: string | null) =>
+              sessions.find((s) => s.id === value)?.label ?? 'Pilih sesi rekaman'
+            }
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {sessions.map((session) => (

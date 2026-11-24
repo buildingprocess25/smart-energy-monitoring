@@ -3,6 +3,7 @@ import { getSpartaPool, getTelemetryPool } from '@/lib/db/pools'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
+import { extractStoreCode } from '@/lib/store-code'
 import { createSharedFetch } from '@/lib/shared-fetch'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 import { getEnergyIndexWithin } from '@/lib/services/energy-service'
@@ -14,17 +15,6 @@ const loadCaptureStatus = createSharedFetch(() => fetchTelemetryApi('/capture/st
   ttlMs: 5000,
   failureBackoffMs: 15000,
 })
-
-// Helper: Extract Store Code from IoT Device Name
-// Examples: "Dc Cianjur ( 2JC2 )" -> "2JC2", "EM-0002 [TI90] RUKO ELEVEE" -> "TI90"
-export function extractStoreCode(deviceName: string): string | null {
-  if (!deviceName) return null
-  const match = deviceName.match(/[(\[]\s*([A-Za-z0-9_-]+)\s*[)\]]/)
-  if (match && match[1]) {
-    return match[1].trim().toUpperCase()
-  }
-  return null
-}
 
 // Helper: Parse last_seen string ("09:52:42 21/08/2026") into ISO string
 export function parseLastSeenToIso(lastSeenStr?: string | null): string {

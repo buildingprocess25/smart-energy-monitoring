@@ -1,5 +1,6 @@
+import { normalizePhaseKey } from '@/lib/phase-keys'
 import { formatStoreKwh } from '@/lib/format-energy'
-import { Building2, Zap, Hash, Activity } from 'lucide-react'
+import { Building2 } from 'lucide-react'
 import { Store } from '@/lib/types'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 
@@ -8,70 +9,48 @@ interface StoreHeroProps {
 }
 
 export function StoreHero({ store }: StoreHeroProps) {
-  // Hitung total W saat ini (jika ada fase)
-  const currentTotalW = store.phases ? store.phases.reduce((acc, p) => acc + (p.power || 0), 0) : 0
+  // R/S/T only when the store has a main panel, so sub-meters are not counted twice.
+  const phases = store.phases ?? []
+  const main = phases.filter((p) => ['R', 'S', 'T'].includes(normalizePhaseKey(p.phase)))
+  const currentTotalW = (store.energyBasis === 'main' ? main : phases).reduce((sum, p) => sum + (p.power || 0), 0)
 
   return (
-    <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
-      {/* Kiri: Info Toko */}
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-bold text-muted-foreground">
-            {store.code}
+    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex min-w-0 flex-col gap-2">
+        <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{store.name}</h1>
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <StatusBadge
+            status={store.status}
+            isRecording={store.isRecording}
+            recordingSessionName={store.recordingSessionName}
+          />
+          <span className="flex items-center gap-1.5">
+            <Building2 aria-hidden="true" className="size-4 shrink-0" />
+            {store.code}, Cabang {store.branch}
           </span>
-          <StatusBadge status={store.status} className="h-6 px-2 text-[10px]" />
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            {store.name}
-          </h1>
         </div>
-        <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Building2 className="size-4 shrink-0 text-muted-foreground/70" />
-          Cabang {store.branch}
-        </p>
       </div>
 
-      {/* Kanan: Metrics Cepat */}
-      <div className="flex flex-wrap gap-4 md:justify-end">
-        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2 shadow-sm">
-          <div className="flex size-8 items-center justify-center rounded-md bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-            <Zap className="size-4" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Total Energi</span>
-            <span className="font-bold leading-none tracking-tight">
-              {formatStoreKwh(store)} <span className="text-xs font-normal text-muted-foreground">kWh</span>
-            </span>
-          </div>
+      <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:flex sm:flex-wrap">
+        <div>
+          <dt className="text-xs text-muted-foreground">
+            {store.energyBasis === 'sensor' ? 'Energi sensor' : 'Total energi'}
+          </dt>
+          <dd className="text-lg font-semibold tabular-nums">{formatStoreKwh(store)} kWh</dd>
         </div>
-
         {store.status === 'live' && currentTotalW > 0 && (
-          <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-950/20">
-            <div className="flex size-8 items-center justify-center rounded-md bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400">
-              <Activity className="size-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-medium text-emerald-700 dark:text-emerald-400">
-                Beban Saat Ini
-              </span>
-              <span className="font-bold leading-none tracking-tight text-emerald-700 dark:text-emerald-400">
-                {currentTotalW.toLocaleString('id-ID')} <span className="text-xs font-normal">W</span>
-              </span>
-            </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Beban terakhir</dt>
+            <dd className="text-lg font-semibold tabular-nums">
+              {Math.round(currentTotalW).toLocaleString('id-ID')} W
+            </dd>
           </div>
         )}
-
-        <div className="flex items-center gap-3 rounded-lg border bg-card px-4 py-2 shadow-sm">
-          <div className="flex size-8 items-center justify-center rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
-            <Hash className="size-4" />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground">Perangkat IoT</span>
-            <span className="font-bold leading-none tracking-tight">
-              {store.deviceCount}
-            </span>
-          </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">Perangkat</dt>
+          <dd className="text-lg font-semibold tabular-nums">{store.deviceCount}</dd>
         </div>
-      </div>
+      </dl>
     </div>
   )
 }

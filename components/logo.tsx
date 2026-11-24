@@ -19,7 +19,7 @@ export function Logo({ className, compact = false }: LogoProps) {
           priority
         />
         <div className="flex flex-col leading-none text-foreground">
-          <span className="text-sm font-bold tracking-wider">SMART</span>
+          <span className="text-sm font-bold">SMART</span>
           <span className="text-[10px] font-medium text-muted-foreground">
             Energy Monitoring
           </span>
@@ -52,7 +52,7 @@ export function Logo({ className, compact = false }: LogoProps) {
             priority
           />
           <div className="flex flex-col leading-none text-foreground">
-            <span className="text-sm font-bold tracking-wider">SMART</span>
+            <span className="text-sm font-bold">SMART</span>
             <span className="text-[10px] font-medium opacity-80">
               Energy Monitoring
             </span>

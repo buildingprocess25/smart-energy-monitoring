@@ -1,6 +1,8 @@
 'use client'
 
 import { formatStoreKwh } from '@/lib/format-energy'
+import { buttonVariants } from '@/components/ui/button'
+import { StatusBadge } from './status-badge'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
@@ -25,18 +27,13 @@ interface NetworkMapLeafletProps {
 function createStoreIcon(store: Store, isSelected: boolean) {
   const isLive = store.status === 'live'
 
-  const pinBg = isLive ? '#10b981' : '#3b82f6'
-  const pulseEffect = isLive
-    ? `<span style="position:absolute; width:38px; height:38px; top:-6px; left:-6px; border-radius:9999px; background:rgba(16,185,129,0.35); animation:leaflet-ping 1.5s cubic-bezier(0,0,0.2,1) infinite;"></span>`
-    : ''
-
+  const pinBg = isLive ? '#2c7a57' : '#66666f'
   const ringStyle = isSelected
-    ? 'box-shadow: 0 0 0 3px #fff, 0 0 0 6px #10b981, 0 8px 18px rgba(0,0,0,0.35); transform: scale(1.15);'
+    ? `box-shadow: 0 0 0 3px #fff, 0 0 0 6px ${pinBg}, 0 8px 18px rgba(0,0,0,0.35); transform: scale(1.15);`
     : 'box-shadow: 0 4px 10px rgba(0,0,0,0.25);'
 
   const html = `
     <div style="position:relative; width:26px; height:26px; display:flex; align-items:center; justify-content:center; cursor:pointer;">
-      ${pulseEffect}
       <div style="position:relative; width:26px; height:26px; border-radius:9999px; background:${pinBg}; border:2px solid #ffffff; display:flex; align-items:center; justify-content:center; color:#fff; transition:all 0.2s ease; ${ringStyle}">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none">
           <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
@@ -195,7 +192,7 @@ function FloatingMapControls({
           cursor: 'pointer',
         }}
       >
-        <Crosshair className="size-4 text-slate-700" />
+        <Crosshair className="size-4" />
       </a>
       <a
         href="#"
@@ -212,7 +209,7 @@ function FloatingMapControls({
           cursor: 'pointer',
         }}
       >
-        <Maximize2 className="size-4 text-slate-700" />
+        <Maximize2 className="size-4" />
       </a>
     </>,
     container
@@ -270,7 +267,6 @@ export function NetworkMapLeaflet({
         {validStores.map((store) => {
           const isSelected = selectedStore?.id === store.id
           const icon = createStoreIcon(store, isSelected)
-          const isLive = store.status === 'live'
 
           return (
             <Marker
@@ -284,59 +280,46 @@ export function NetworkMapLeaflet({
               }}
             >
               <Popup className="clean-store-popup" closeButton={false}>
-                <div className="p-3 min-w-[220px] max-w-[260px] font-sans text-slate-800">
+                <div className="p-3 min-w-[220px] max-w-[260px] text-foreground">
                   {/* Header Badge */}
-                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-100">
-                    <span className="font-mono text-xs font-bold text-slate-500">
+                  <div className="flex items-center justify-between gap-2 pb-2 border-b border-border">
+                    <span className="tabular-nums text-xs font-bold text-muted-foreground">
                       {store.code}
                     </span>
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                        store.isRecording
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 ring-1 ring-emerald-400/40'
-                          : isLive
-                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : 'bg-blue-50 text-blue-700 border border-blue-200'
-                      }`}
-                    >
-                      {(store.isRecording || isLive) && (
-                        <span className={`size-1.5 rounded-full ${store.isRecording ? 'bg-emerald-500 animate-ping' : 'bg-emerald-500'}`} />
-                      )}
-                      {store.isRecording
-                        ? `Merekam: ${store.recordingSessionName || 'Aktif'}`
-                        : isLive
-                        ? 'Online Real-time'
-                        : 'Riwayat Audit'}
-                    </span>
+                    <StatusBadge
+                      status={store.status}
+                      isRecording={store.isRecording}
+                      recordingSessionName={store.recordingSessionName}
+                    />
                   </div>
 
                   {/* Store Name & Location */}
                   <div className="mt-2 mb-3">
-                    <h4 className="text-sm font-bold text-slate-900 leading-snug">
+                    <h4 className="text-sm font-bold text-foreground leading-snug">
                       {store.name}
                     </h4>
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       Cabang {store.branch || 'Head Office'}
                     </p>
                   </div>
 
                   {/* Metric Chips */}
-                  <div className="grid grid-cols-2 gap-1.5 bg-slate-50 p-2 rounded-lg border border-slate-100 text-xs mb-3">
+                  <div className="grid grid-cols-2 gap-1.5 bg-muted p-2 rounded-lg border border-border text-xs mb-3">
                     <div>
-                      <span className="text-[10px] text-slate-400 font-medium block">
+                      <span className="text-xs text-muted-foreground font-medium block">
                         Total Energi
                       </span>
-                      <span className="font-bold font-mono text-slate-800 text-xs">
+                      <span className="font-bold tabular-nums text-foreground text-xs">
                         {formatStoreKwh(store)}{' '}
                         kWh
                       </span>
                     </div>
                     <div>
-                      <span className="text-[10px] text-slate-400 font-medium block">
+                      <span className="text-xs text-muted-foreground font-medium block">
                         Perangkat
                       </span>
-                      <span className="font-semibold text-slate-800 text-xs flex items-center gap-1">
-                        <Cpu className="size-3 text-slate-400" />
+                      <span className="font-semibold text-foreground text-xs flex items-center gap-1">
+                        <Cpu className="size-3 text-muted-foreground" />
                         {store.deviceCount || 1} IoT
                       </span>
                     </div>
@@ -345,7 +328,7 @@ export function NetworkMapLeaflet({
                   {/* Navigation Button */}
                   <Link
                     href={`/monitoring/${store.code || store.id}`}
-                    className="flex items-center justify-center gap-1.5 w-full rounded-lg bg-slate-900 hover:bg-slate-800 px-3 py-2 text-xs font-semibold text-white shadow-xs transition-colors"
+                    className={buttonVariants({ size: 'sm', className: 'w-full text-primary-foreground!' })}
                   >
                     <span>Buka Telemetri Toko</span>
                     <ArrowRight className="size-3.5" />

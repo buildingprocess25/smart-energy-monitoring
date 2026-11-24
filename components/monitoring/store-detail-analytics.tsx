@@ -70,7 +70,7 @@ function CustomXAxisTick({ x, y, payload }: any) {
         y={0}
         dy={10}
         textAnchor="middle"
-        className="fill-foreground/85 text-[11px] font-semibold tracking-tight select-none"
+        className="fill-foreground/85 text-xs font-semibold tracking-tight select-none"
       >
         {day}
       </text>
@@ -80,7 +80,7 @@ function CustomXAxisTick({ x, y, payload }: any) {
           y={0}
           dy={23}
           textAnchor="middle"
-          className="fill-muted-foreground/80 font-mono text-[9.5px] font-medium tracking-tighter select-none"
+          className="fill-muted-foreground/80 tabular-nums text-xs font-medium tracking-tighter select-none"
         >
           {date}
         </text>
@@ -89,7 +89,7 @@ function CustomXAxisTick({ x, y, payload }: any) {
   )
 }
 
-const BASELINE_COLOR = '#b45309' // amber-700: the standard is a reference, not a status
+const BASELINE_COLOR = 'var(--warning)' // the standard is a reference, not a status
 const BASELINE_LABEL = 'Standar konsumsi energi'
 
 function formatPct(value: number) {
@@ -102,12 +102,12 @@ function SangatBorosComparisonBar({ comparison }: { comparison: SangatBorosCompa
   const kwh = (n: number) => n.toLocaleString('id-ID', { maximumFractionDigits: 1 })
 
   return (
-    <div className="mt-3.5 flex flex-col gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
+    <div className="mt-3.5 flex flex-col gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm sm:flex-row sm:items-start sm:justify-between">
       <div className="flex flex-col gap-0.5">
         <div className="flex flex-wrap items-center gap-1.5 font-semibold text-foreground">
           Toko Sangat Boros peringkat {store.rank}
           {store.isDemo && (
-            <Badge variant="outline" className="border-amber-500/40 text-amber-700 dark:text-amber-400">
+            <Badge variant="outline" className="border-warning/40 text-warning">
               Uji coba
             </Badge>
           )}
@@ -137,8 +137,8 @@ function SangatBorosComparisonBar({ comparison }: { comparison: SangatBorosCompa
                 className={cn(
                   'font-semibold',
                   reductionVsPlnPct >= 0
-                    ? 'text-emerald-700 dark:text-emerald-400'
-                    : 'text-rose-700 dark:text-rose-400'
+                    ? 'text-primary'
+                    : 'text-destructive'
                 )}
               >
                 {formatPct(reductionVsPlnPct)}% {reductionVsPlnPct >= 0 ? 'lebih rendah' : 'lebih tinggi'}{' '}
@@ -160,6 +160,10 @@ function SangatBorosComparisonBar({ comparison }: { comparison: SangatBorosCompa
 interface StoreDetailAnalyticsProps {
   store: Store
   initialAnalytics: StoreAnalyticsResult | null
+}
+
+function formatKw(watts: number | undefined): string {
+  return watts ? (watts / 1000).toLocaleString('id-ID', { maximumFractionDigits: 2 }) : '-'
 }
 
 export function StoreDetailAnalytics({
@@ -313,28 +317,28 @@ export function StoreDetailAnalytics({
     }
   }, [analytics, weekOffset, dbDataMap])
 
-  const peakKw = analytics?.peakPowerWatts ? (analytics.peakPowerWatts / 1000).toFixed(2) : '0.00'
-  const avgKw = analytics?.avgPowerWatts ? (analytics.avgPowerWatts / 1000).toFixed(2) : '0.00'
-  const baseKw = analytics?.basePowerWatts ? (analytics.basePowerWatts / 1000).toFixed(2) : '0.00'
+  const peakKw = formatKw(analytics?.peakPowerWatts)
+  const avgKw = formatKw(analytics?.avgPowerWatts)
+  const baseKw = formatKw(analytics?.basePowerWatts)
 
   const realMonthlyList = analytics?.monthlyHistory || []
   const monthlySummary = analytics?.monthlySummary
   const sangatBoros = analytics?.sangatBoros || null
 
   return (
-    <div className="flex flex-col rounded-xl border bg-card p-5 shadow-xs transition-all">
+    <div className="flex flex-col rounded-2xl bg-card ring-1 ring-foreground/10 p-5 transition-all">
       {/* Header Widget */}
-      <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col items-start gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-2">
-            <span className="flex size-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <Zap className="size-4" />
             </span>
             <div>
               <h2 className="text-sm font-bold text-foreground sm:text-base">
                 Profil &amp; Analisis Konsumsi Energi
               </h2>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Toko: <span className="font-semibold text-foreground">{store.name}</span> ({store.code})
               </p>
             </div>
@@ -345,12 +349,12 @@ export function StoreDetailAnalytics({
             className={cn(
               'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold',
               analytics?.isLive
-                ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400'
-                : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                ? 'bg-primary/10 text-primary'
+                : 'bg-muted text-muted-foreground'
             )}
           >
             {analytics?.isLive && (
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+              <span className="size-1.5 rounded-full bg-primary" />
             )}
             {analytics?.isLive ? 'Live IoT' : `Audit: ${analytics?.anchorDateLabel || 'Selesai'}`}
           </span>
@@ -368,7 +372,7 @@ export function StoreDetailAnalytics({
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <Zap className="size-3.5 text-amber-500" />
+            <Zap className="size-3.5 text-warning" />
             <span>Per Hari</span>
           </button>
           <button
@@ -381,7 +385,7 @@ export function StoreDetailAnalytics({
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <Activity className="size-3.5 text-emerald-500" />
+            <Activity className="size-3.5 text-primary" />
             <span>Per Minggu</span>
           </button>
           <button
@@ -394,7 +398,7 @@ export function StoreDetailAnalytics({
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            <BarChart3 className="size-3.5 text-sky-500" />
+            <BarChart3 className="size-3.5 text-muted-foreground" />
             <span>Per Bulan</span>
           </button>
         </div>
@@ -405,46 +409,46 @@ export function StoreDetailAnalytics({
         /* Real Monthly History Specific KPI Badges */
         <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
               <TrendingUp className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 Total Akumulasi
               </div>
               <div className="text-sm font-bold text-foreground">
                 {monthlySummary?.totalKwh.toLocaleString('id-ID') || 0}{' '}
-                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+                <span className="text-xs font-normal text-muted-foreground">kWh</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
               <Clock className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 Rata-rata / Bulan
               </div>
               <div className="text-sm font-bold text-foreground">
                 {monthlySummary?.avgMonthlyKwh.toLocaleString('id-ID') || 0}{' '}
-                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+                <span className="text-xs font-normal text-muted-foreground">kWh</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
               <Calendar className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 {monthlySummary?.latestMonthLabel || 'Bulan Terkini'}
               </div>
               <div className="text-sm font-bold text-foreground">
                 {monthlySummary?.latestMonthKwh.toLocaleString('id-ID') || 0}{' '}
-                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+                <span className="text-xs font-normal text-muted-foreground">kWh</span>
               </div>
             </div>
           </div>
@@ -454,8 +458,8 @@ export function StoreDetailAnalytics({
               className={cn(
                 'flex size-7 shrink-0 items-center justify-center rounded',
                 (monthlySummary?.momDiffPct ?? 0) <= 0
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                  : 'bg-amber-500/10 text-amber-600 dark:text-amber-400'
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-warning/10 text-warning'
               )}
             >
               {(monthlySummary?.momDiffPct ?? 0) <= 0 ? (
@@ -465,15 +469,15 @@ export function StoreDetailAnalytics({
               )}
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 MoM (Bulan Terkini)
               </div>
               <div
                 className={cn(
                   'text-sm font-bold',
                   (monthlySummary?.momDiffPct ?? 0) <= 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-amber-600 dark:text-amber-400'
+                    ? 'text-primary'
+                    : 'text-warning'
                 )}
               >
                 {monthlySummary?.momDiffPct !== undefined
@@ -489,58 +493,58 @@ export function StoreDetailAnalytics({
         /* Daily / Weekly Quick Metrics Bar */
         <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-warning/10 text-warning">
               <Flame className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 Beban Puncak
               </div>
               <div className="text-sm font-bold text-foreground">
-                {peakKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+                {peakKw} <span className="text-xs font-normal text-muted-foreground">kW</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
               <Clock className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 Rata-rata Beban
               </div>
               <div className="text-sm font-bold text-foreground">
-                {avgKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+                {avgKw} <span className="text-xs font-normal text-muted-foreground">kW</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-purple-500/10 text-purple-600 dark:text-purple-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
               <Moon className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 Beban Dasar
               </div>
               <div className="text-sm font-bold text-foreground">
-                {baseKw} <span className="text-[10px] font-normal text-muted-foreground">kW</span>
+                {baseKw} <span className="text-xs font-normal text-muted-foreground">kW</span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
-            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+            <div className="flex size-7 shrink-0 items-center justify-center rounded bg-primary/10 text-primary">
               <TrendingUp className="size-3.5" />
             </div>
             <div>
-              <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <div className="text-xs font-medium text-muted-foreground">
                 Total Periode
               </div>
               <div className="text-sm font-bold text-foreground">
                 {windowTotalKwh.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-muted-foreground">kWh</span>
+                <span className="text-xs font-normal text-muted-foreground">kWh</span>
               </div>
             </div>
           </div>
@@ -553,7 +557,7 @@ export function StoreDetailAnalytics({
       <div className="mt-4 flex-1">
         {isLoading ? (
           <div className="flex h-72 items-center justify-center text-xs text-muted-foreground">
-            <span className="mr-2 size-4 animate-spin rounded-full border-2 border-emerald-500 border-t-transparent" />
+            <span className="mr-2 size-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             Memuat data toko...
           </div>
         ) : activeTab === 'daily' ? (
@@ -579,7 +583,7 @@ export function StoreDetailAnalytics({
                 />
               </div>
 
-              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="text-xs font-medium text-primary">
                 Puncak: {peakKw} kW
               </span>
             </div>
@@ -588,12 +592,12 @@ export function StoreDetailAnalytics({
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
                   data={analytics?.loadProfile24h || []}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
                   <defs>
                     <linearGradient id="detailEmeraldLoadGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid
@@ -603,19 +607,22 @@ export function StoreDetailAnalytics({
                     className="text-border/40"
                   />
                   <XAxis
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                     dataKey="time"
                     tickLine={false}
                     axisLine={false}
                     stroke="currentColor"
-                    className="text-xs text-muted-foreground font-mono"
+                    className="text-xs text-muted-foreground"
                     interval={2}
                   />
                   <YAxis
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     stroke="currentColor"
-                    className="text-xs text-muted-foreground font-mono"
-                    tickFormatter={(val) => `${val}W`}
+                    className="text-xs text-muted-foreground"
+                    width={56}
+                    tickFormatter={(val) => `${(val / 1000).toLocaleString('id-ID')} kW`}
                   />
                   <Tooltip
                     content={({ active, payload }) => {
@@ -626,10 +633,10 @@ export function StoreDetailAnalytics({
                             <p className="font-semibold text-xs text-muted-foreground">
                               Waktu: {data.fullTime || data.time} ({analytics?.anchorDateLabel || ''})
                             </p>
-                            <p className="mt-1 font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                            <p className="mt-1 font-bold text-sm text-primary">
                               {data.powerKw} kW ({data.powerWatts.toLocaleString('id-ID')} W)
                             </p>
-                            <p className="text-[11px] text-muted-foreground">
+                            <p className="text-xs text-muted-foreground">
                               Est. Biaya: Rp{' '}
                               {Math.round(
                                 (data.powerKw * PLN_TARIFF_PER_KWH)
@@ -645,7 +652,7 @@ export function StoreDetailAnalytics({
                   <Area
                     type="monotone"
                     dataKey="powerWatts"
-                    stroke="#10b981"
+                    stroke="var(--primary)"
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#detailEmeraldLoadGradient)"
@@ -698,7 +705,7 @@ export function StoreDetailAnalytics({
                     variant="ghost"
                     size="sm"
                     onClick={() => setWeekOffset(0)}
-                    className="h-8 gap-1 px-2 text-xs font-medium text-emerald-600 hover:text-emerald-700 dark:text-emerald-400"
+                    className="h-8 gap-1 px-2 text-xs font-medium text-primary hover:text-primary"
                     title="Kembali ke 7 Hari Terkini Toko Ini"
                   >
                     <RotateCcw className="size-3.5" />
@@ -712,7 +719,7 @@ export function StoreDetailAnalytics({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={displayedTrend}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -729,10 +736,11 @@ export function StoreDetailAnalytics({
                     height={38}
                   />
                   <YAxis
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     stroke="currentColor"
-                    className="text-xs text-muted-foreground font-mono"
+                    className="text-xs text-muted-foreground"
                     tickFormatter={(val) => `${val}`}
                   />
                   <Tooltip
@@ -744,7 +752,7 @@ export function StoreDetailAnalytics({
                             <p className="font-semibold text-xs text-muted-foreground">
                               {data.dayFullDate || data.day}
                             </p>
-                            <p className="mt-1 font-bold text-sm text-emerald-600 dark:text-emerald-400">
+                            <p className="mt-1 font-bold text-sm text-primary">
                               {data.kwh.toLocaleString('id-ID', { maximumFractionDigits: 1 })}{' '}
                               kWh
                             </p>
@@ -772,7 +780,7 @@ export function StoreDetailAnalytics({
                   <Bar
                     dataKey="kwh"
                     fill="currentColor"
-                    className="fill-emerald-600 hover:fill-emerald-500 dark:fill-emerald-500"
+                    className="fill-primary hover:fill-primary"
                     radius={[6, 6, 0, 0]}
                   />
                   {sangatBoros && (
@@ -807,15 +815,15 @@ export function StoreDetailAnalytics({
               </span>
 
               <div className="flex items-center gap-1.5">
-                <Badge variant="outline" className="flex items-center gap-1.5 text-[10.5px] font-medium">
+                <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-medium">
                   <span
                     className={cn(
                       'size-1.5 rounded-full',
                       monthlySummary?.trendStatus === 'hemat'
-                        ? 'bg-emerald-500'
+                        ? 'bg-primary'
                         : monthlySummary?.trendStatus === 'waspada'
-                        ? 'bg-rose-500'
-                        : 'bg-amber-500'
+                        ? 'bg-destructive'
+                        : 'bg-warning'
                     )}
                   />
                   <span>
@@ -833,7 +841,7 @@ export function StoreDetailAnalytics({
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={realMonthlyList}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -842,6 +850,7 @@ export function StoreDetailAnalytics({
                     className="text-border/40"
                   />
                   <XAxis
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                     dataKey="monthLabel"
                     tickLine={false}
                     axisLine={false}
@@ -849,10 +858,11 @@ export function StoreDetailAnalytics({
                     className="text-xs text-muted-foreground font-semibold"
                   />
                   <YAxis
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
                     tickLine={false}
                     axisLine={false}
                     stroke="currentColor"
-                    className="text-xs text-muted-foreground font-mono"
+                    className="text-xs text-muted-foreground"
                     tickFormatter={(val) => `${val}`}
                   />
                   <Tooltip
@@ -865,7 +875,7 @@ export function StoreDetailAnalytics({
                             <p className="border-b pb-1 text-xs font-bold text-foreground">
                               Bulan {data.monthLabel}
                             </p>
-                            <p className="mt-1 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                            <p className="mt-1 text-sm font-bold text-primary">
                               {data.kwh.toLocaleString('id-ID')} kWh
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -884,14 +894,14 @@ export function StoreDetailAnalytics({
                               </div>
                             )}
                             {diff !== undefined && (
-                              <div className="flex items-center justify-between border-t pt-1 text-[11px]">
+                              <div className="flex items-center justify-between border-t pt-1 text-xs">
                                 <span className="font-medium text-muted-foreground">MoM (vs Bulan Lalu):</span>
                                 <span
                                   className={cn(
                                     'font-bold',
                                     diff <= 0
-                                      ? 'text-emerald-600 dark:text-emerald-400'
-                                      : 'text-rose-600 dark:text-rose-400'
+                                      ? 'text-primary'
+                                      : 'text-destructive'
                                   )}
                                 >
                                   {diff > 0 ? `+${diff}% (Naik)` : `${diff}% (Turun)`}
@@ -906,7 +916,7 @@ export function StoreDetailAnalytics({
                   />
                   <Bar
                     dataKey="kwh"
-                    fill="#10b981"
+                    fill="var(--primary)"
                     radius={[6, 6, 0, 0]}
                   />
                   {sangatBoros && (

@@ -1,37 +1,57 @@
 'use client'
 
-import { Sun, Moon, Monitor } from 'lucide-react'
+import { useSyncExternalStore } from 'react'
+import { Check, Monitor, Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Terang', icon: Sun },
+  { value: 'dark', label: 'Gelap', icon: Moon },
+  { value: 'system', label: 'Sistem', icon: Monitor },
+] as const
+
+const noSubscription = () => () => {}
+
 export function ThemeToggle() {
-  const { setTheme } = useTheme()
+  const { theme, setTheme } = useTheme()
+  // The stored theme is unknown on the server, so the first render shows Sistem.
+  const mounted = useSyncExternalStore(noSubscription, () => true, () => false)
+  const active = mounted ? (theme ?? 'system') : 'system'
+  const ActiveIcon = (THEME_OPTIONS.find((o) => o.value === active) ?? THEME_OPTIONS[2]).icon
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon" />}>
-        <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-        <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-        <span className="sr-only">Toggle theme</span>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label="Pilih tema"
+            className="relative after:absolute after:-inset-1.5"
+          />
+        }
+      >
+        <ActiveIcon aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          <Sun className="mr-2 h-4 w-4" />
-          Light
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          <Moon className="mr-2 h-4 w-4" />
-          Dark
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          <Monitor className="mr-2 h-4 w-4" />
-          System
-        </DropdownMenuItem>
+      <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuGroup>
+          {THEME_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <DropdownMenuItem key={value} onClick={() => setTheme(value)}>
+              <Icon aria-hidden="true" />
+              {label}
+              {active === value && <Check aria-label="dipilih" className="ml-auto" />}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )

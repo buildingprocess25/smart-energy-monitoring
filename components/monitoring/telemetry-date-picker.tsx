@@ -257,12 +257,12 @@ export function TelemetryDatePicker({
         className={cn(
           'flex items-center gap-2 rounded-lg border bg-background px-3 py-1.5 text-xs font-semibold shadow-xs transition-all cursor-pointer',
           isOpen
-            ? 'border-emerald-500 ring-2 ring-emerald-500/20 text-foreground'
+            ? 'border-primary ring-2 ring-primary/20 text-foreground'
             : 'border-border/80 text-foreground hover:bg-muted/50'
         )}
       >
-        <CalendarIcon className="size-4 text-emerald-600 dark:text-emerald-400" />
-        <span className="font-mono font-bold tracking-tight">{triggerLabel}</span>
+        <CalendarIcon className="size-4 text-primary" />
+        <span className="tabular-nums font-bold tracking-tight">{triggerLabel}</span>
         <ChevronDown className={cn('size-3.5 text-muted-foreground transition-transform duration-200', isOpen && 'rotate-180')} />
       </button>
 
@@ -342,7 +342,7 @@ export function TelemetryDatePicker({
           </div>
 
           {/* Mode Indicator & Tip */}
-          <div className="mb-2.5 flex flex-col gap-1 rounded-xl bg-muted/70 p-2 text-[11px] text-muted-foreground border border-border/50">
+          <div className="mb-2.5 flex flex-col gap-1 rounded-xl bg-muted/70 p-2 text-xs text-muted-foreground border border-border/50">
             <div className="flex items-center justify-between">
               <span>
                 Mode:{' '}
@@ -357,24 +357,24 @@ export function TelemetryDatePicker({
                 </strong>
               </span>
               {availableDates.length > 0 && (
-                <span className="flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-100/80 dark:bg-emerald-950 px-1.5 py-0.5 rounded">
-                  <span className="size-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                <span className="flex items-center gap-1 text-xs text-primary font-semibold bg-primary/80 px-1.5 py-0.5 rounded">
+                  <span className="size-1.5 rounded-full bg-primary" />
                   {availableDates.length} Hari Ada Data
                 </span>
               )}
             </div>
             {rangeType === 'year' && (
-              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
+              <div className="text-xs text-primary tabular-nums font-medium">
                 Pilih tahun untuk melihat perbandingan tren 12 bulan.
               </div>
             )}
             {rangeType === 'month' && (
-              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
+              <div className="text-xs text-primary tabular-nums font-medium">
                 Pilih bulan untuk melihat tren seluruh hari (1 s/d 31) dalam bulan tersebut.
               </div>
             )}
             {rangeType === 'week' && (
-              <div className="text-[10px] text-emerald-800 dark:text-emerald-300 font-mono font-medium">
+              <div className="text-xs text-primary tabular-nums font-medium">
                 Pilih tanggal akhir untuk melihat 7 hari ke belakang.
               </div>
             )}
@@ -392,9 +392,9 @@ export function TelemetryDatePicker({
                     type="button"
                     onClick={() => handleSelect(yearIso)}
                     className={cn(
-                      'flex items-center justify-center rounded-xl p-3 text-xs font-semibold transition-all cursor-pointer border font-mono',
+                      'flex items-center justify-center rounded-xl p-3 text-xs font-semibold transition-all cursor-pointer border tabular-nums',
                       isCurrent
-                        ? 'border-emerald-600 bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30'
+                        ? 'border-primary bg-primary font-bold text-primary-foreground shadow-md'
                         : 'border-border/60 bg-card text-foreground hover:bg-muted hover:border-border'
                     )}
                   >
@@ -420,7 +420,7 @@ export function TelemetryDatePicker({
                     className={cn(
                       'flex items-center justify-center rounded-xl p-2.5 text-xs font-semibold transition-all cursor-pointer border',
                       isCurrent
-                        ? 'border-emerald-600 bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30'
+                        ? 'border-primary bg-primary font-bold text-primary-foreground shadow-md'
                         : 'border-border/60 bg-card text-foreground hover:bg-muted hover:border-border'
                     )}
                   >
@@ -432,7 +432,7 @@ export function TelemetryDatePicker({
           ) : (
             <>
               {/* Day of Week Headers (Mon - Sun) */}
-              <div className="grid grid-cols-7 mb-1 text-center text-[10px] font-bold text-muted-foreground uppercase">
+              <div className="grid grid-cols-7 mb-1 text-center text-xs font-bold text-muted-foreground ">
                 {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((day) => (
                   <div key={day} className="py-1">
                     {day}
@@ -455,7 +455,7 @@ export function TelemetryDatePicker({
                       key={idx}
                       className={cn(
                         'relative flex items-center justify-center p-0.5 transition-colors',
-                        rangeType === 'week' && inRange && 'bg-emerald-100/90 dark:bg-emerald-900/40',
+                        rangeType === 'week' && inRange && 'bg-primary/90',
                         rangeType === 'week' && rangeStart && 'rounded-l-xl',
                         rangeType === 'week' && rangeEnd && 'rounded-r-xl'
                       )}
@@ -474,13 +474,13 @@ export function TelemetryDatePicker({
                         type="button"
                         onClick={() => handleSelect(iso)}
                         className={cn(
-                          'relative flex size-8 items-center justify-center rounded-lg font-mono text-xs transition-all cursor-pointer',
+                          'relative flex size-8 items-center justify-center rounded-lg tabular-nums text-xs transition-all cursor-pointer',
                           !isCurrentMonth && 'text-muted-foreground/30 hover:text-muted-foreground',
                           isCurrentMonth && !selected && !rangeEnd && !inRange && 'text-foreground hover:bg-muted',
-                          rangeType === 'week' && inRange && !rangeEnd && 'text-emerald-950 dark:text-emerald-100 font-bold bg-emerald-200/60 dark:bg-emerald-800/50',
-                          rangeType === 'week' && rangeStart && !rangeEnd && 'ring-1.5 ring-emerald-600/40 font-black',
+                          rangeType === 'week' && inRange && !rangeEnd && 'text-foreground font-bold bg-primary/60',
+                          rangeType === 'week' && rangeStart && !rangeEnd && 'ring-1.5 ring-primary/40 font-black',
                           (selected || rangeEnd) &&
-                            'bg-emerald-600 font-bold text-white shadow-md shadow-emerald-600/30 scale-105 z-10 ring-2 ring-emerald-400/40'
+                            'bg-primary font-bold text-primary-foreground shadow-md scale-105 z-10 ring-2 ring-primary/40'
                         )}
                       >
                         {dayNum}
@@ -490,7 +490,7 @@ export function TelemetryDatePicker({
                           <span
                             className={cn(
                               'absolute bottom-0.5 left-1/2 -translate-x-1/2 size-1 rounded-full',
-                              selected || rangeEnd ? 'bg-white' : 'bg-emerald-500'
+                              selected || rangeEnd ? 'bg-primary-foreground' : 'bg-primary'
                             )}
                           />
                         )}
@@ -508,7 +508,7 @@ export function TelemetryDatePicker({
               <button
                 type="button"
                 onClick={() => handleSelect(availableDates[0])}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
               >
                 <Sparkles className="size-3" />
                 Data Terbaru ({availableDates[0]})
@@ -518,7 +518,7 @@ export function TelemetryDatePicker({
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-[11px] font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
             >
               Tutup
             </button>

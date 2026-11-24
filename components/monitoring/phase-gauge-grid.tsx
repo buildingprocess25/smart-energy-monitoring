@@ -11,12 +11,12 @@ function getPhaseColor(phase: string, name?: string): string {
   const p = phase.toUpperCase()
   const n = (name || '').toLowerCase()
 
-  if (n.includes('fase r') || n.includes('phase r') || p === 'L1' || p === 'L12') return '#10b981' // emerald-500
-  if (n.includes('fase s') || n.includes('phase s') || p === 'L2' || p === 'L13') return '#3b82f6' // blue-500
-  if (n.includes('fase t') || n.includes('phase t') || p === 'L3' || p === 'L14') return '#f59e0b' // amber-500
-  if (n.includes('dummy') || p === 'L6') return '#94a3b8' // slate-400
+  if (n.includes('fase r') || n.includes('phase r') || p === 'L1' || p === 'L12') return '#2e9b84'
+  if (n.includes('fase s') || n.includes('phase s') || p === 'L2' || p === 'L13') return '#3b82f6'
+  if (n.includes('fase t') || n.includes('phase t') || p === 'L3' || p === 'L14') return '#c27803'
+  if (n.includes('dummy') || p === 'L6') return '#7b8794'
 
-  return '#10b981'
+  return '#2e9b84'
 }
 
 export function PhaseGaugeGrid({ phases, className }: PhaseGaugeGridProps) {
@@ -39,8 +39,8 @@ export function PhaseGaugeGrid({ phases, className }: PhaseGaugeGridProps) {
           <div
             key={phaseData.phase}
             className={cn(
-              'flex flex-col md:flex-row gap-6 items-center justify-between rounded-xl border bg-card p-6 shadow-xs transition-all',
-              isDummy ? 'opacity-70 bg-muted/20 border-dashed' : 'hover:border-slate-300 dark:hover:border-slate-700'
+              'flex flex-col md:flex-row gap-6 items-center justify-between rounded-2xl bg-card ring-1 ring-foreground/10 p-6 transition-all',
+              isDummy ? 'opacity-70 bg-muted/20 border-dashed' : 'hover:border-border'
             )}
           >
             {/* Phase / Sensor Label */}
@@ -55,11 +55,11 @@ export function PhaseGaugeGrid({ phases, className }: PhaseGaugeGridProps) {
                 </span>
               </div>
               <div className="flex items-center gap-1.5 pl-5">
-                <span className="font-mono text-[11px] font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                <span className="tabular-nums text-xs font-semibold text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
                   Channel {phaseData.phase}
                 </span>
                 {isDummy && (
-                  <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded">
+                  <span className="text-xs font-medium text-warning bg-warning/10 px-1.5 py-0.5 rounded">
                     Cadangan
                   </span>
                 )}
