@@ -13,7 +13,7 @@ const FULL_READ_TIMEOUT_MS = 30_000
 // Rows committed out of id order near the last read are read again.
 const ID_OVERLAP = 200
 
-const PHASE_SQL = `CASE
+export const PHASE_SQL = `CASE
   WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
   WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
   WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
@@ -22,7 +22,7 @@ END`
 
 // Broken sensor frames (12 to 14 October 2026) carry 512 V and millions of ampere.
 export const VALID_SAMPLE_SQL = `offline IS NOT TRUE AND voltage <= 300 AND current <= 500`
-const SENSOR_PHASE_SQL = `phase <> 'L6' AND phase NOT ILIKE '%dummy%'`
+export const SENSOR_PHASE_SQL = `phase <> 'L6' AND phase NOT ILIKE '%dummy%'`
 
 type Table = 'history' | 'telemetry'
 type Row = {
