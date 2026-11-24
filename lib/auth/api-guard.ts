@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
 import { getRequestAccess, type Viewer } from '@/lib/auth/access'
-import { canControlDevices } from '@/lib/auth/access-rules'
+import { canControlDevices, type Role } from '@/lib/auth/access-rules'
 import { isSameOrigin } from '@/lib/control-commands'
 
 // Returns an error response when the request may not use the API, otherwise null.
@@ -29,14 +29,18 @@ export async function requireInternalAccess(): Promise<NextResponse | null> {
   return NextResponse.json({ error: 'Token internal tidak valid.' }, { status: 401 })
 }
 
-// For routes that change data through Flask: a signed-in ADMIN, from a page of this portal.
-export async function requireControlAccess(): Promise<{ denied: NextResponse } | { viewer: Viewer }> {
+type WriteAccess = { denied: NextResponse } | { viewer: Viewer }
+
+// For routes that change something: a signed-in ADMIN, from a page of this portal.
+export const requireControlAccess = () => requireWriteAccess(canControlDevices, 'Hanya Admin yang boleh melakukan ini.')
+
+export async function requireWriteAccess(isAllowed: (role: Role) => boolean, message: string): Promise<WriteAccess> {
   const denied = await requireApiAccess()
   if (denied) return { denied }
 
   const access = await getRequestAccess()
-  if (access.status !== 'ok' || !access.viewer || !canControlDevices(access.viewer.role)) {
-    return { denied: NextResponse.json({ error: 'Hanya Admin yang boleh mengubah perangkat.' }, { status: 403 }) }
+  if (access.status !== 'ok' || !access.viewer || !isAllowed(access.viewer.role)) {
+    return { denied: NextResponse.json({ error: message }, { status: 403 }) }
   }
   const headerStore = await headers()
   if (!isSameOrigin(headerStore.get('origin'), headerStore.get('host'))) {

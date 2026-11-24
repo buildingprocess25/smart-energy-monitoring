@@ -19,3 +19,5 @@ export function jakartaRange(
   const to = start(y, m - 1, d) + DAY_MS
   return { from: to - (range === 'week' ? 7 : 1) * DAY_MS, to }
 }
+
+export const jakartaToday = (): string => jakartaDate(Date.now())

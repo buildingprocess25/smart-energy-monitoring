@@ -36,6 +36,9 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# Mount a volume here for report templates (REPORT_DATA_DIR=/data).
+RUN mkdir /data && chown nextjs:nodejs /data
+
 USER nextjs
 
 EXPOSE 3000

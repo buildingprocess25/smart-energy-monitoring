@@ -4,7 +4,9 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import type { RecordingSessionSummary } from '@/lib/types'
 import { comparePhase, isExcludedPhase, normalizePhaseKey } from '@/lib/phase-keys'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { BulkDownload } from './bulk-download'
 import { SessionActions } from './session-actions'
 import { formatDuration } from '@/lib/format-duration'
 import {
@@ -43,6 +45,15 @@ export function SessionTable({
   canControl: boolean
 }) {
   const [query, setQuery] = useState('')
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
+
+  function toggle(key: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
+  }
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -70,12 +81,20 @@ export function SessionTable({
         </p>
       </div>
 
+      <BulkDownload
+        sessions={sessions.filter((s) => selected.has(`${s.deviceId}-${s.id}`))}
+        onDone={() => setSelected(new Set())}
+      />
+
       <Table
         scrollLabel="Daftar sesi rekaman"
         containerClassName="max-h-[max(24rem,calc(100dvh-15rem))] overflow-y-auto"
       >
         <TableHeader className={STICKY_HEADER_CLASS}>
           <TableRow className="hover:bg-transparent">
+            <TableHead className="w-11 pr-0">
+              <span className="sr-only">Pilih</span>
+            </TableHead>
             <TableHead>Sesi</TableHead>
             <TableHead className="max-sm:hidden">Toko</TableHead>
             <TableHead className="max-sm:hidden">Waktu rekam</TableHead>
@@ -89,7 +108,7 @@ export function SessionTable({
         <TableBody>
           {visible.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={6} className="py-12 text-center whitespace-normal text-muted-foreground">
+              <TableCell colSpan={7} className="py-12 text-center whitespace-normal text-muted-foreground">
                 {sessions.length === 0
                   ? 'Belum ada sesi rekaman dari perangkat yang boleh Anda lihat.'
                   : 'Tidak ada sesi yang cocok. Coba kata lain atau kosongkan pencarian.'}
@@ -100,6 +119,15 @@ export function SessionTable({
               const sensors = sensorList(s.phases) || '-'
               return (
                 <TableRow key={`${s.deviceId}-${s.id}`}>
+                  <TableCell className="w-11 py-0 pr-0">
+                    <label className="flex min-h-11 items-center">
+                      <Checkbox
+                        aria-label={`Pilih sesi ${s.name}`}
+                        checked={selected.has(`${s.deviceId}-${s.id}`)}
+                        onCheckedChange={() => toggle(`${s.deviceId}-${s.id}`)}
+                      />
+                    </label>
+                  </TableCell>
                   <TableCell className="max-w-64 py-3 max-sm:max-w-0 max-sm:w-full">
                     <span title={s.name} className="block truncate font-medium text-foreground">
                       {s.name}

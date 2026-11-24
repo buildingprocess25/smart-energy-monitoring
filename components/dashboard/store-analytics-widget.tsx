@@ -15,7 +15,6 @@ import {
   Clock,
   Flame,
   Moon,
-  ChevronDown,
   BarChart3,
   Sparkles,
 } from 'lucide-react'
@@ -31,6 +30,7 @@ import {
   ResponsiveContainer,
 } from 'recharts'
 import { Store, StoreAnalyticsResult, DailyConsumption, RealMonthlyConsumption } from '@/lib/types'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TelemetryDatePicker } from '@/components/monitoring/telemetry-date-picker'
@@ -267,24 +267,28 @@ export function StoreAnalyticsWidget({
       <div className="flex flex-col items-start gap-3 border-b pb-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Store Selector Dropdown */}
-          <div className="relative">
-            <select
-              value={selectedStoreId}
-              onChange={(e) => {
-                setSelectedStoreId(e.target.value)
-                setSelectedDailyDate('')
-              }}
-              className="h-9 cursor-pointer appearance-none rounded-lg border bg-background py-1.5 pl-3 pr-8 text-sm font-semibold text-foreground shadow-2xs transition-colors hover:border-primary/50 focus:border-primary focus:outline-hidden"
-              aria-label="Pilih Toko"
-            >
-              {stores.map((s) => (
-                <option key={s.id} value={s.code || s.id}>
-                  {s.name} ({s.code}) - {s.status === 'live' ? 'Live' : 'Audit'}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select
+            items={stores.map((s) => ({ value: s.code || s.id, label: `${s.name} (${s.code}) - ${s.status === 'live' ? 'Live' : 'Audit'}` }))}
+            value={selectedStoreId}
+            onValueChange={(next) => {
+              if (next === null) return
+              setSelectedStoreId(next)
+              setSelectedDailyDate('')
+            }}
+          >
+            <SelectTrigger aria-label="Pilih Toko" className="max-w-full font-semibold">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent alignItemWithTrigger={false} align="start" className="w-auto max-w-[calc(100vw-2rem)] min-w-(--anchor-width)">
+              <SelectGroup>
+                {stores.map((s) => (
+                  <SelectItem key={s.id} value={s.code || s.id}>
+                    {s.name} ({s.code}) - {s.status === 'live' ? 'Live' : 'Audit'}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
 
           {/* Status Badge & Link */}
           <div className="flex items-center gap-1.5">

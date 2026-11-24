@@ -216,6 +216,20 @@ scripts/                            # agent-note check, asset copy
 - `getLiveTelemetry()`, `getAuditSessions()`, `getMonthlyCostSummary()`.
 - `getEnergyIndex()` (`lib/services/energy-service.ts`, pure rules in `lib/energy-index.ts`) is the only source for energy totals, daily and monthly kWh, cost, recorded dates and the load profile. It reads `history` and `telemetry` once as 15-minute buckets, then only rows past the last id every 60 s, with a full read every 6 h; it lives on `globalThis` because pages, API routes and `instrumentation.ts` are bundled apart. It holds every device, so callers ask only for devices in scope. Do not add new `MAX(energy) - MIN(energy)` queries over long periods: they miss counter resets.
 
+**`lib/services/health-service.ts`, `report-service.ts`**
+- `getDeviceHealth()`: 30-day completeness per sensor and the alerts for `/perangkat` and the header bell (`GET /api/alerts`). Rules and limits live in `lib/alerts.ts` (`ALERT_LIMITS`), completeness in `lib/coverage.ts`. `devices.last_seen` is the device's own clock and can be hours off: use the energy index for the last sample time.
+- `buildReport()` feeds `/laporan` through `GET /api/reports` (type, store, from, to; at most 366 days). Pure builders, CSV and param rules live in `lib/reports.ts`. Excel, CSV and print are made in the browser; nothing is stored. Sangat Boros is for scope `all` only.
+- The energy index reads everything again when `buffered_telemetry.replayed_at` changes (at most every 15 minutes), because devices fill old rows in place after being offline.
+
+**`lib/services/workbook-service.ts`, `report-template-store.ts`, `report-mail-service.ts`**
+- `/laporan/excel`: custom workbooks (sheets, columns, stores, periods). Rules are pure in `lib/workbook.ts`; column labels in `REPORT_COLUMNS` are saved in templates, so do not rename them.
+- Templates, schedules and send results are JSON files in `REPORT_DATA_DIR` (Dokploy volume at `/data`), never in a database. Only ADMIN sees or changes them.
+- The scheduler starts from `instrumentation.ts` in production, checks every 60 s and runs with `runAsJob({ kind: 'all' })`. A slot is sent once: `claimSlot()` decides between containers, only clear failures repeat (3 times, 10 minutes apart), an unknown result never does.
+- The sender account is set in `/laporan/email` (ADMIN) and kept in `mail-settings.json`; the password is sealed with `REPORT_SECRET_KEY` and bound to host, port and user (`lib/secret-box.ts`), so it never opens for another server. Email goes through `lib/smtp.ts` (TLS always), only to the allowed domains, with recipients in the envelope only. Never log recipients or settings.
+- Users are recipients only while they subscribe (`/laporan`, own account, ADMIN and AUDITOR). `getSubscribers()` reads only those users from DB 1; recipients are resolved on every send. GS waits for per-store reports (`docs/backlog.md`).
+- `/laporan/excel` edits the workbook on a live sheet (`sheet-surface.tsx`, data from `POST /api/reports/preview`, at most 25 rows) with a side panel; the rows match the downloaded file (`previewSheet`).
+- Form controls use shadcn (`components/ui`, wrappers in `components/form-controls.tsx`); no native `<select>` or checkbox.
+
 **`lib/services/sangat-boros-service.ts`**
 - `getSangatBorosStores()`: reads `v_toko_sangat_boros` (12 Sangat Boros stores). Returns status `missing` when the view does not exist yet, so pages keep working.
 - `withInstallStatus()`: marks each store Terpasang when its code matches a store from `getStores()`.

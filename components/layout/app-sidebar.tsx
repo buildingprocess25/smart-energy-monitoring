@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Cpu, LayoutDashboard, Store, History, type LucideIcon } from 'lucide-react'
+import { Cpu, FileText, LayoutDashboard, Store, History, type LucideIcon } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -54,6 +54,12 @@ const navItems: NavItem[] = [
     icon: Cpu,
     isActive: (pathname) => pathname.startsWith('/perangkat'),
   },
+  {
+    title: 'Laporan',
+    href: '/laporan',
+    icon: FileText,
+    isActive: (pathname) => pathname.startsWith('/laporan'),
+  },
 ]
 
 function NavItemButton({
@@ -74,7 +80,7 @@ function NavItemButton({
         render={
           <Link href={item.href} aria-current={active ? 'page' : undefined}>
             <Icon aria-hidden="true" className={cn(active && 'text-primary')} />
-            <span>{item.title}</span>
+            <span className="group-data-[collapsible=icon]:hidden">{item.title}</span>
           </Link>
         }
       />

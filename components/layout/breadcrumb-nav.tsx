@@ -15,6 +15,9 @@ const ROUTE_LABELS: Record<string, string> = {
   monitoring: 'Monitoring Toko',
   'sesi-rekaman': 'Sesi Rekaman',
   perangkat: 'Perangkat',
+  laporan: 'Laporan',
+  excel: 'Excel Kustom',
+  email: 'Pengaturan Email',
 }
 
 export function BreadcrumbNav() {

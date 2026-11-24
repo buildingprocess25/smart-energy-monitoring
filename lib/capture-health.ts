@@ -5,7 +5,7 @@ const DEFAULT_INTERVAL_S = 15
 
 // Flask writes "HH:MM:SS DD/MM/YYYY" in WIB.
 export function parseWibTimestamp(text: string | null | undefined): number | null {
-  const m = text?.match(/^(\d{2}:\d{2}:\d{2}) (\d{2})\/(\d{2})\/(\d{4})$/)
+  const m = text?.match(/^(\d{2}:\d{2}(?::\d{2})?) (\d{2})\/(\d{2})\/(\d{4})$/)
   if (!m) return null
   const ms = Date.parse(`${m[4]}-${m[3]}-${m[2]}T${m[1]}+07:00`)
   return Number.isNaN(ms) ? null : ms

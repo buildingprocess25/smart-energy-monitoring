@@ -13,6 +13,12 @@ const POLL_MS = 5000
 const MAX_POINTS = 1200
 const LIVE_METRICS: MetricType[] = ['power', 'voltage', 'current', 'powerFactor', 'frequency']
 
+function bufferSyncText({ state, replayed, total }: NonNullable<DeviceStatus['bufferSync']>): string {
+  const count = replayed.toLocaleString('id-ID')
+  if (state === 'done') return `Selesai, ${count} record`
+  return `Mengirim ${count} dari ${total.toLocaleString('id-ID')} record`
+}
+
 type LiveState = 'loading' | 'live' | 'offline' | 'error'
 
 const STATE_BADGE: Record<
@@ -125,6 +131,12 @@ export function LiveTelemetryChart({ src, showRelay = false }: { src: string; sh
             <dt className="text-xs text-muted-foreground">Uptime</dt>
             <dd className="font-medium">{status.uptime ?? '-'}</dd>
           </div>
+          {status.bufferSync && (
+            <div>
+              <dt className="text-xs text-muted-foreground">Data susulan saat offline</dt>
+              <dd className="font-medium tabular-nums">{bufferSyncText(status.bufferSync)}</dd>
+            </div>
+          )}
         </dl>
       )}
 

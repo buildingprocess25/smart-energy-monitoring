@@ -301,4 +301,18 @@
   color: var(--muted-foreground) !important;
 }
 
-
+@media print {
+  [data-slot="sidebar"],
+  [data-slot="sidebar-gap"] {
+    display: none !important;
+  }
+  .dark {
+    --background: #ffffff;
+    --card: #ffffff;
+    --foreground: #0d1411;
+    --card-foreground: #0d1411;
+    --muted: #f4f4f5;
+    --muted-foreground: #66666f;
+    --border: #e4e4e7;
+  }
+}

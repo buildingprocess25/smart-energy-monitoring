@@ -8,6 +8,7 @@ import { createStaleCache } from '@/lib/stale-cache'
 const REFRESH_MS = 60_000
 // Renamed, shifted or deleted sessions only show up in a full read.
 const FULL_READ_MS = 6 * 60 * 60 * 1000
+const REPLAY_READ_MS = 15 * 60 * 1000
 const FULL_READ_TIMEOUT_MS = 30_000
 // Rows committed out of id order near the last read are read again.
 const ID_OVERLAP = 200
@@ -38,6 +39,7 @@ interface EnergyState {
   index: EnergyIndex
   lastIds: Record<Table, number>
   fullReadAt: number
+  replayedAt: string | null
 }
 
 async function readBuckets(
@@ -77,6 +79,20 @@ async function lastId(table: Table): Promise<number> {
   return res.rows[0]?.id ?? 0
 }
 
+// Devices that were offline fill old telemetry rows in place, which reading past the last id misses.
+async function lastReplay(): Promise<string | null> {
+  try {
+    const res = await readOnlyQuery<{ at: string | null }>(
+      getTelemetryPool(),
+      'SELECT MAX(replayed_at)::text AS at FROM buffered_telemetry',
+      []
+    )
+    return res.rows[0]?.at ?? null
+  } catch {
+    return globalThis._energyState?.replayedAt ?? null
+  }
+}
+
 // Pages, API routes and instrumentation.ts are bundled apart; globalThis gives them one index.
 declare global {
   var _energyState: EnergyState | undefined
@@ -85,10 +101,13 @@ declare global {
 
 async function refresh(): Promise<EnergyIndex> {
   const state = globalThis._energyState
-  const full = !state || Date.now() - state.fullReadAt > FULL_READ_MS
+  const replayedAt = await lastReplay()
+  const age = state ? Date.now() - state.fullReadAt : Infinity
+  const healed = state !== undefined && replayedAt !== state.replayedAt && age > REPLAY_READ_MS
+  const full = !state || healed || age > FULL_READ_MS
   const next: EnergyState =
     full || !state
-      ? { index: createEnergyIndex(), lastIds: { history: 0, telemetry: 0 }, fullReadAt: Date.now() }
+      ? { index: createEnergyIndex(), lastIds: { history: 0, telemetry: 0 }, fullReadAt: Date.now(), replayedAt }
       : state
 
   // Both tables are read before anything is merged, so a failed read changes nothing.

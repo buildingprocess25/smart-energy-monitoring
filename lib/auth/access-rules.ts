@@ -49,6 +49,11 @@ export function canControlDevices(role: Role | null): boolean {
   return role === 'ADMIN'
 }
 
+// A scheduled report holds every store, so GS waits until reports can be limited to their stores.
+export function canReceiveReports(role: Role | null): boolean {
+  return role === 'ADMIN' || role === 'AUDITOR'
+}
+
 // A page request without sso_session goes to the sparta login once. Coming back still
 // without it while the bounce cookie lives means sparta set no session cookie: stop there.
 export function anonymousPageTarget(bounced: boolean): 'sparta-login' | 'session-denied' {

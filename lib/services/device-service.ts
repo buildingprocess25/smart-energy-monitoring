@@ -1,9 +1,10 @@
 import 'server-only'
+import { cache } from 'react'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { getTelemetryPool } from '@/lib/db/pools'
 import { readOnlyQuery } from '@/lib/db/read-only'
-import { isCaptureStalled } from '@/lib/capture-health'
+import { isCaptureStalled, parseWibTimestamp } from '@/lib/capture-health'
 import { readLastRecordTimes } from '@/lib/services/capture-health-service'
 import { deviceKind } from '@/lib/device-status'
 import { isPhaseKey } from '@/lib/phase-keys'
@@ -71,7 +72,9 @@ export const IDLE_CAPTURE: CaptureState = {
 }
 
 // Devices in the viewer's scope. capture is null when Flask did not answer, which is not "not recording".
-export async function getManagedDevices(): Promise<ManagedDevice[]> {
+export const getManagedDevices = cache(loadManagedDevices)
+
+async function loadManagedDevices(): Promise<ManagedDevice[]> {
   const scope = await getRequestScope()
   if (scope.kind === 'none') return []
   const [res, states] = await Promise.all([
@@ -101,6 +104,7 @@ export async function getManagedDevices(): Promise<ManagedDevice[]> {
       kind: deviceKind(r.id),
       online: r.online === true,
       lastSeen: r.last_seen && r.last_seen !== '---' ? r.last_seen : null,
+      deviceClock: parseWibTimestamp(r.last_seen),
       storeId: r.store_id,
       position: { latitude: r.latitude, longitude: r.longitude },
       sensors: parseSensors(r.sensors),

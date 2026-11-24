@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getRequestAccess } from '@/lib/auth/access'
@@ -5,6 +6,8 @@ import { canControlDevices } from '@/lib/auth/access-rules'
 import { getManagedDevices } from '@/lib/services/device-service'
 import { CaptureControls } from '@/components/devices/capture-controls'
 import { CaptureFacts, DeviceBadges } from '@/components/devices/device-summary'
+import { DeviceHealthSection } from '@/components/devices/device-health'
+import { Skeleton } from '@/components/ui/skeleton'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 
@@ -40,7 +43,7 @@ export default async function DevicesPage() {
               <CardContent className="flex flex-1 flex-col gap-4">
                 <DeviceBadges device={device} />
                 <p className="text-xs text-muted-foreground">
-                  Data terakhir {device.lastSeen ?? '-'}, {device.sensors.length} sensor
+                  Jam perangkat {device.lastSeen ?? '-'}, {device.sensors.length} sensor
                 </p>
                 <CaptureFacts device={device} />
                 {canControl && <CaptureControls device={device} />}
@@ -57,6 +60,9 @@ export default async function DevicesPage() {
           ))}
         </div>
       )}
+      <Suspense fallback={<Skeleton className="h-64 w-full rounded-2xl" />}>
+        <DeviceHealthSection />
+      </Suspense>
     </div>
   )
 }

@@ -85,10 +85,17 @@ test('device status is read from the newest live sample and never guessed', () =
     { timestamp: 2000, data: { status: { relay: 'ON', uptime: '1T02:00:00', wifi: 70 } } },
     { timestamp: 1000, data: { status: { relay: 'OFF' } } },
   ]
-  assert.deepEqual(parseDeviceStatus(raw), { relay: 'ON', uptime: '1T02:00:00', wifi: '70' })
-  assert.deepEqual(parseDeviceStatus([{ timestamp: 1, data: { offline: true } }]), { relay: null, uptime: null, wifi: null })
-  assert.deepEqual(parseDeviceStatus([{ timestamp: 1, data: { status: { relay: { x: 1 }, wifi: '' } } }]), { relay: null, uptime: null, wifi: null })
-  assert.deepEqual(parseDeviceStatus('x'), { relay: null, uptime: null, wifi: null })
+  assert.deepEqual(parseDeviceStatus(raw), { relay: 'ON', uptime: '1T02:00:00', wifi: '70', bufferSync: null })
+  assert.deepEqual(parseDeviceStatus([{ timestamp: 1, data: { offline: true } }]), { relay: null, uptime: null, wifi: null, bufferSync: null })
+  assert.deepEqual(parseDeviceStatus([{ timestamp: 1, data: { status: { relay: { x: 1 }, wifi: '' } } }]), { relay: null, uptime: null, wifi: null, bufferSync: null })
+  assert.deepEqual(parseDeviceStatus('x'), { relay: null, uptime: null, wifi: null, bufferSync: null })
+})
+
+test('buffer sync progress is read, unknown states are ignored', () => {
+  const sync = (buffer_sync) => parseDeviceStatus([{ timestamp: 1, data: { status: { buffer_sync } } }]).bufferSync
+  assert.deepEqual(sync({ status: 'SYNCING', total: 40, replayed: 10 }), { state: 'syncing', replayed: 10, total: 40 })
+  assert.deepEqual(sync({ status: 'COMPLETED', total: 40, replayed: 40 }), { state: 'done', replayed: 40, total: 40 })
+  for (const bad of [undefined, null, 'x', { status: 'CLEARED', total: 0, replayed: 0 }, { status: 'SYNCING', total: 'x', replayed: 1 }]) assert.equal(sync(bad), null)
 })
 
 test('xlsx column names and checksum', () => {

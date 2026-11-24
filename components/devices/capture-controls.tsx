@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { ManagedDevice } from '@/lib/types'
 import { MAX_INTERVAL_S, MAX_NAME_LENGTH, MIN_INTERVAL_S } from '@/lib/control-commands'
+import { Check } from '@/components/form-controls'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -118,7 +119,7 @@ export function CaptureControls({ device }: { device: ManagedDevice }) {
               <DialogHeader>
                 <DialogTitle>Mulai rekaman {device.id}</DialogTitle>
                 <DialogDescription>
-                  Meter lama mengulang counter energinya dari 0 saat rekaman dimulai.
+                  Counter energi meter lama, CT, dan Plug diulang dari 0 saat rekaman dimulai. Total kWh di portal tetap berlanjut.
                 </DialogDescription>
               </DialogHeader>
               <label className="flex flex-col gap-1.5">
@@ -136,18 +137,12 @@ export function CaptureControls({ device }: { device: ManagedDevice }) {
               <fieldset className="flex flex-col gap-1">
                 <legend className="mb-1 font-medium">Sensor</legend>
                 {enabled.map((s) => (
-                  <label key={s.phase} className="flex min-h-10 items-center gap-2">
-                    <input
-                      type="checkbox"
-                      className="size-4 accent-primary"
-                      checked={phases.includes(s.phase)}
-                      onChange={(e) =>
-                        setPhases((prev) => (e.target.checked ? [...prev, s.phase] : prev.filter((p) => p !== s.phase)))
-                      }
-                    />
-                    {s.name}
-                    {s.name !== s.phase && <span className="text-muted-foreground">({s.phase})</span>}
-                  </label>
+                  <Check
+                    key={s.phase}
+                    label={s.name === s.phase ? s.name : `${s.name} (${s.phase})`}
+                    checked={phases.includes(s.phase)}
+                    onChange={(on) => setPhases((prev) => (on ? [...prev, s.phase] : prev.filter((p) => p !== s.phase)))}
+                  />
                 ))}
               </fieldset>
               <CommandError message={error} />

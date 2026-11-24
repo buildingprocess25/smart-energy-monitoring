@@ -37,6 +37,14 @@ export interface EnergyTotal {
 }
 
 type Bucket = Omit<BucketRow, 'deviceId' | 'phase'>
+export interface PhaseInfo {
+  lastSampleAt: number | null // epoch ms of the newest quarter hour with samples
+  counterSameSince: number | null // epoch ms, null while the counter moves
+  buckets: ReadonlySet<number> // quarter hours with samples
+}
+
+const NO_PHASE: PhaseInfo = { lastSampleAt: null, counterSameSince: null, buckets: new Set() }
+
 type DeviceSummary = { daily: DailyEnergy[]; total: EnergyTotal; dates: string[] }
 
 const smaller = (a: number | null, b: number | null) => (a === null ? b : b === null ? a : Math.min(a, b))
@@ -61,6 +69,7 @@ function bucketEnergy(current: Bucket, previous: Bucket | null): number {
 export function createEnergyIndex() {
   const devices = new Map<string, Map<string, Map<number, Bucket>>>()
   const summaries = new Map<string, DeviceSummary>()
+  const phaseInfos = new Map<string, Map<string, PhaseInfo>>()
 
   function merge(rows: BucketRow[]) {
     for (const { deviceId, phase, ...row } of rows) {
@@ -82,6 +91,7 @@ export function createEnergyIndex() {
           : row
       )
       summaries.delete(deviceId)
+      phaseInfos.delete(deviceId)
     }
   }
 
@@ -131,6 +141,51 @@ export function createEnergyIndex() {
     return result
   }
 
+  function phase(deviceId: string, key: string): PhaseInfo {
+    let infos = phaseInfos.get(deviceId)
+    if (!infos) {
+      infos = new Map()
+      for (const [name, buckets] of devices.get(deviceId) ?? []) {
+        const sorted = [...buckets.values()].filter((b) => b.count > 0).sort((a, b) => a.bucket - b.bucket)
+        let last: number | null = null
+        let sameSince: number | null = null
+        for (const b of sorted) {
+          if (b.max === null) continue
+          if (last !== null && b.min === b.max && b.max === last) sameSince ??= b.bucket
+          else sameSince = null
+          last = b.max
+        }
+        infos.set(name, {
+          lastSampleAt: sorted.length > 0 ? sorted[sorted.length - 1].bucket * BUCKET_MS : null,
+          counterSameSince: sameSince === null ? null : sameSince * BUCKET_MS,
+          buckets: new Set(sorted.map((b) => b.bucket)),
+        })
+      }
+      phaseInfos.set(deviceId, infos)
+    }
+    return infos.get(key) ?? NO_PHASE
+  }
+
+  function firstSampleAt(deviceId: string): number | null {
+    let first = Infinity
+    for (const buckets of devices.get(deviceId)?.values() ?? []) {
+      for (const b of buckets.values()) if (b.count > 0 && b.bucket < first) first = b.bucket
+    }
+    return Number.isFinite(first) ? first * BUCKET_MS : null
+  }
+
+  // Average since a quarter hour, null when nothing was recorded since then.
+  function averageWatts(deviceId: string, key: string, fromBucket: number): number | null {
+    let power = 0
+    let count = 0
+    for (const b of devices.get(deviceId)?.get(key)?.values() ?? []) {
+      if (b.bucket < fromBucket) continue
+      power += b.powerSum
+      count += b.count
+    }
+    return count > 0 ? power / count : null
+  }
+
   // Average watts per Jakarta hour, null where nothing was recorded.
   function loadProfile(deviceId: string, date: string): (number | null)[] {
     const hours = Array.from({ length: 24 }, (): number | null => null)
@@ -158,6 +213,9 @@ export function createEnergyIndex() {
   return {
     merge,
     loadProfile,
+    phase,
+    firstSampleAt,
+    averageWatts,
     daily: (deviceId: string) => summary(deviceId).daily,
     total: (deviceId: string) => summary(deviceId).total,
     dates: (deviceId: string) => summary(deviceId).dates,

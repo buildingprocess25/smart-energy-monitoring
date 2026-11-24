@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import { MoreHorizontal } from 'lucide-react'
-import type { RecordingSessionSummary, SessionRecordsResult } from '@/lib/types'
+import type { RecordingSessionSummary } from '@/lib/types'
+import { downloadFile } from '@/lib/download'
 import { MAX_NAME_LENGTH } from '@/lib/control-commands'
 import { exportFileName, sessionSheets } from '@/lib/session-export'
 import { buildXlsx } from '@/lib/xlsx'
+import { fetchSession } from './fetch-session'
 import { useCommand } from '@/components/devices/use-command'
+import { SelectField } from '@/components/form-controls'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -30,18 +33,8 @@ import { Input } from '@/components/ui/input'
 type Open = 'rename' | 'renameSensor' | 'delete' | 'export' | null
 
 async function downloadSession(session: RecordingSessionSummary) {
-  const res = await fetch(`/api/sessions/${encodeURIComponent(session.id)}/records`)
-  const data = (await res.json().catch(() => null)) as (SessionRecordsResult & { error?: string }) | null
-  if (!res.ok || !data) throw new Error(data?.error ?? 'Data sesi gagal diunduh.')
-  const blob = new Blob([buildXlsx(sessionSheets(data))], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  })
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = exportFileName(data.session.name)
-  link.click()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  const data = await fetchSession(session.id)
+  downloadFile(buildXlsx(sessionSheets(data)), exportFileName(data.session.name))
 }
 
 export function SessionActions({ session, canControl }: { session: RecordingSessionSummary; canControl: boolean }) {
@@ -159,18 +152,7 @@ export function SessionActions({ session, canControl }: { session: RecordingSess
                 </DialogDescription>
               </DialogHeader>
               {open === 'renameSensor' && (
-                <label className="flex flex-col gap-1.5">
-                  <span className="font-medium">Sensor</span>
-                  <select
-                    value={phase}
-                    onChange={(e) => setPhase(e.target.value)}
-                    className="h-9 rounded-lg border border-input bg-popover px-2.5 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  >
-                    {session.phases.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                </label>
+                <SelectField label="Sensor" value={phase} choices={session.phases.map((p) => ({ value: p, label: p }))} onChange={setPhase} />
               )}
               <label className="flex flex-col gap-1.5">
                 <span className="font-medium">Nama baru</span>

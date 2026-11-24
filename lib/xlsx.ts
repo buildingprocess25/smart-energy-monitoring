@@ -4,6 +4,8 @@ export type CellValue = string | number | null
 export interface Sheet {
   name: string
   rows: CellValue[][]
+  headerRow?: number // index; turns on styling, a frozen header and a filter
+  totalRow?: number
 }
 
 const CRC_TABLE = Uint32Array.from({ length: 256 }, (_, n) => {
@@ -49,26 +51,56 @@ function sheetNames(sheets: Sheet[]): string[] {
 }
 
 // Text is always an inline string, so a value starting with "=" never becomes a formula.
-function sheetXml(rows: CellValue[][]): string {
-  const parts = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>']
+const STYLE = { title: 1, header: 2, integer: 3, decimal: 4, total: 5, totalInteger: 6, totalDecimal: 7 }
+const STYLES_XML = '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF2C7A57"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFE4E4E7"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="8"><xf/><xf fontId="1" applyFont="1"/><xf fontId="2" fillId="2" applyFont="1" applyFill="1"/><xf numFmtId="3" applyNumberFormat="1"/><xf numFmtId="4" applyNumberFormat="1"/><xf fontId="3" fillId="3" applyFont="1" applyFill="1"/><xf numFmtId="3" fontId="3" fillId="3" applyNumberFormat="1" applyFont="1" applyFill="1"/><xf numFmtId="4" fontId="3" fillId="3" applyNumberFormat="1" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'
+
+function sheetXml({ rows, headerRow, totalRow }: Sheet): string {
+  const parts = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">']
+  const styled = headerRow !== undefined
+  const header = styled ? rows[headerRow] : []
+  const lastBody = (totalRow ?? rows.length) - 1
+  // A column counts as decimal when any of its values is.
+  const decimal = header.map((_, c) => rows.some((row, r) => r > headerRow! && typeof row[c] === 'number' && !Number.isInteger(row[c])))
+  if (styled) {
+    const widths = header.map((_, c) => rows.slice(headerRow).reduce((max, row) => Math.max(max, String(row[c] ?? '').length), 0))
+    parts.push(
+      `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${headerRow + 1}" topLeftCell="A${headerRow + 2}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`,
+      `<cols>${widths.map((w, c) => `<col min="${c + 1}" max="${c + 1}" width="${Math.min(60, Math.max(10, w + 4))}" customWidth="1"/>`).join('')}</cols>`
+    )
+  }
+  const styleOf = (r: number, c: number, value: CellValue): string => {
+    if (!styled) return ''
+    let style = 0
+    if (r === 0) style = STYLE.title
+    else if (r === headerRow) style = STYLE.header
+    else if (r > headerRow) {
+      const total = r === totalRow
+      if (typeof value === 'number') style = total ? (decimal[c] ? STYLE.totalDecimal : STYLE.totalInteger) : decimal[c] ? STYLE.decimal : STYLE.integer
+      else if (total) style = STYLE.total
+    }
+    return style === 0 ? '' : ` s="${style}"`
+  }
+  parts.push('<sheetData>')
   rows.forEach((row, r) => {
     parts.push(`<row r="${r + 1}">`)
     row.forEach((value, c) => {
       const ref = `${columnName(c)}${r + 1}`
-      if (typeof value === 'number' && Number.isFinite(value)) parts.push(`<c r="${ref}"><v>${value}</v></c>`)
-      else if (typeof value === 'string') parts.push(`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`)
+      if (typeof value === 'number' && Number.isFinite(value)) parts.push(`<c r="${ref}"${styleOf(r, c, value)}><v>${value}</v></c>`)
+      else if (typeof value === 'string') parts.push(`<c r="${ref}"${styleOf(r, c, value)} t="inlineStr"><is><t xml:space="preserve">${escapeXml(value)}</t></is></c>`)
     })
     parts.push('</row>')
   })
-  parts.push('</sheetData></worksheet>')
+  parts.push('</sheetData>')
+  if (styled && lastBody > headerRow) parts.push(`<autoFilter ref="A${headerRow + 1}:${columnName(header.length - 1)}${lastBody + 1}"/>`)
+  parts.push('</worksheet>')
   return parts.join('')
 }
 
-function zip(files: { name: string; content: string }[]): Uint8Array<ArrayBuffer> {
+export function zip(files: { name: string; content: string | Uint8Array }[]): Uint8Array<ArrayBuffer> {
   const encoder = new TextEncoder()
   const entries = files.map((f) => {
     const name = encoder.encode(f.name)
-    const body = encoder.encode(f.content)
+    const body = typeof f.content === 'string' ? encoder.encode(f.content) : f.content
     return { name, body, crc: crc32(body), offset: 0 }
   })
   const size = entries.reduce((sum, e) => sum + 30 + 46 + 2 * e.name.length + e.body.length, 22)
@@ -117,7 +149,7 @@ export function buildXlsx(sheets: Sheet[]): Uint8Array<ArrayBuffer> {
   return zip([
     {
       name: '[Content_Types].xml',
-      content: `${head}<Types xmlns="${ns}/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${names.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`,
+      content: `${head}<Types xmlns="${ns}/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${names.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`,
     },
     {
       name: '_rels/.rels',
@@ -129,8 +161,9 @@ export function buildXlsx(sheets: Sheet[]): Uint8Array<ArrayBuffer> {
     },
     {
       name: 'xl/_rels/workbook.xml.rels',
-      content: `${head}<Relationships xmlns="${ns}/package/2006/relationships">${names.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${ns}/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}</Relationships>`,
+      content: `${head}<Relationships xmlns="${ns}/package/2006/relationships">${names.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${ns}/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rIdStyles" Type="${ns}/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`,
     },
-    ...sheets.map((sheet, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, content: sheetXml(sheet.rows) })),
+    { name: 'xl/styles.xml', content: head + STYLES_XML },
+    ...sheets.map((sheet, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, content: sheetXml(sheet) })),
   ])
 }

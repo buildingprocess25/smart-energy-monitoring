@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { cache } from 'react'
 import { cookies, headers } from 'next/headers'
 import { getSpartaPool } from '@/lib/db/pools'
@@ -108,7 +109,16 @@ export const getRequestAccess = cache(async (): Promise<RequestAccess> => {
   }
 })
 
+const jobScope = new AsyncLocalStorage<AccessScope>()
+
+// Scheduled reports run without a request. Never call this from a route or page.
+export function runAsJob<T>(scope: AccessScope, run: () => Promise<T>): Promise<T> {
+  return jobScope.run(scope, run)
+}
+
 export async function getRequestScope(): Promise<AccessScope> {
+  const job = jobScope.getStore()
+  if (job) return job
   const access = await getRequestAccess()
   return access.status === 'ok' ? access.scope : { kind: 'none' }
 }

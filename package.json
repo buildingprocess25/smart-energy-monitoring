@@ -18,7 +18,7 @@
     "prisma:validate": "prisma validate",
     "test:access": "node --test tests/access-rules.test.mjs tests/sign-out.test.mjs tests/control.test.mjs",
     "test:params": "node --test tests/request-params.test.mjs",
-    "test:data": "node --test tests/phase-keys.test.mjs tests/live-buffer.test.mjs tests/shared-fetch.test.mjs tests/read-only.test.mjs tests/session-records.test.mjs tests/stale-cache.test.mjs tests/pools.test.mjs tests/energy-index.test.mjs tests/format-energy.test.mjs tests/store-code.test.mjs tests/capture-health.test.mjs"
+    "test:data": "node --test tests/phase-keys.test.mjs tests/live-buffer.test.mjs tests/shared-fetch.test.mjs tests/read-only.test.mjs tests/session-records.test.mjs tests/stale-cache.test.mjs tests/pools.test.mjs tests/energy-index.test.mjs tests/format-energy.test.mjs tests/store-code.test.mjs tests/capture-health.test.mjs tests/alerts.test.mjs tests/reports.test.mjs tests/workbook.test.mjs tests/mail-settings.test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

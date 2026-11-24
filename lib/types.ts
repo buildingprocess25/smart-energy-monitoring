@@ -279,6 +279,7 @@ export interface ManagedDevice {
   kind: 'CT' | 'Plug' | 'Meter energi'
   online: boolean
   lastSeen: string | null
+  deviceClock: number | null // time the device itself reported, epoch ms
   storeId: string | null
   position: { latitude: number | null; longitude: number | null }
   sensors: ManagedSensor[]

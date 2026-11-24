@@ -5,7 +5,7 @@ import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
 import { extractStoreCode } from '@/lib/store-code'
 import { createSharedFetch } from '@/lib/shared-fetch'
-import { isCaptureStalled } from '@/lib/capture-health'
+import { isCaptureStalled, parseWibTimestamp } from '@/lib/capture-health'
 import { readLastRecordTimes } from '@/lib/services/capture-health-service'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 import { getEnergyIndexWithin } from '@/lib/services/energy-service'
@@ -18,41 +18,13 @@ const loadCaptureStatus = createSharedFetch(() => fetchTelemetryApi('/capture/st
   failureBackoffMs: 15000,
 })
 
-// Helper: Parse last_seen string ("09:52:42 21/08/2026") into ISO string
-export function parseLastSeenToIso(lastSeenStr?: string | null): string {
-  if (!lastSeenStr) return new Date().toISOString()
-  
-  // Format: "HH:mm:ss DD/MM/YYYY" or "HH:mm DD/MM/YYYY"
-  const match = lastSeenStr.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s+(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (match) {
-    const hours = parseInt(match[1])
-    const minutes = parseInt(match[2])
-    const seconds = match[3] ? parseInt(match[3]) : 0
-    const day = parseInt(match[4])
-    const month = parseInt(match[5]) - 1 // 0-indexed
-    const year = parseInt(match[6])
-
-    const date = new Date(year, month, day, hours, minutes, seconds)
-    if (!isNaN(date.getTime())) {
-      return date.toISOString()
-    }
-  }
-
-  // Fallback: Check if already valid Date
-  const parsed = new Date(lastSeenStr)
-  if (!isNaN(parsed.getTime())) {
-    return parsed.toISOString()
-  }
-
-  return new Date().toISOString()
-}
-
 interface IotDeviceData {
   deviceId: string
   deviceName: string
   storeCode: string | null
   online: boolean
   lastSeen: string
+  deviceClock: number | null
   phases: PhaseData[]
   energy: EnergyTotal | null
   isRecording: boolean
@@ -337,7 +309,9 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
         deviceName: dev.name,
         storeCode,
         online: dev.online ?? true,
-        lastSeen: parseLastSeenToIso(dev.last_seen),
+        // The device clock can be hours off; while Flask calls it online, it was just heard.
+        lastSeen: new Date(dev.online ? Date.now() : (parseWibTimestamp(dev.last_seen) ?? 0)).toISOString(),
+        deviceClock: parseWibTimestamp(dev.last_seen),
         phases: phases.length > 0 ? phases : [
           { phase: 'L1', phaseName: 'Fase R', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
           { phase: 'L2', phaseName: 'Fase S', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
@@ -430,9 +404,6 @@ async function loadStores(): Promise<Store[]> {
           latestLastSeen = d.lastSeen
         }
       })
-      if (latestLastSeen === new Date(0).toISOString()) {
-        latestLastSeen = new Date().toISOString()
-      }
 
       const primaryIot = matchingDevices.find((d) => d.isRecording) || matchingDevices.find((d) => d.online) || matchingDevices[0]
       const latitude = primaryIot?.latitude || (s.latitude ? parseFloat(s.latitude) : undefined)
@@ -448,7 +419,7 @@ async function loadStores(): Promise<Store[]> {
         status,
         ...storeEnergy(matchingDevices),
         deviceCount,
-        lastUpdate: latestLastSeen,
+        lastUpdate: latestLastSeen === new Date(0).toISOString() ? '' : latestLastSeen,
         phases: allPhases.length > 0 ? allPhases : [
           { phase: 'L1', phaseName: 'Fase R', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
           { phase: 'L2', phaseName: 'Fase S', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
@@ -488,9 +459,6 @@ async function loadStores(): Promise<Store[]> {
             latestLastSeen = d.lastSeen
           }
         })
-        if (latestLastSeen === new Date(0).toISOString()) {
-          latestLastSeen = new Date().toISOString()
-        }
 
         stores.unshift({
           id: `iot-${primaryDev.deviceId}`,
@@ -502,7 +470,7 @@ async function loadStores(): Promise<Store[]> {
           status,
           ...storeEnergy(devGroup),
           deviceCount: devGroup.length,
-          lastUpdate: latestLastSeen,
+          lastUpdate: latestLastSeen === new Date(0).toISOString() ? '' : latestLastSeen,
           phases: allPhases,
           deviceId: primaryDev.deviceId,
           isRecording,
