@@ -530,11 +530,7 @@ async function loadStoreById(storeId: string): Promise<Store | null> {
       ...storeEnergy(iot ? [iot] : []),
       deviceCount: iot ? 1 : 0,
       lastUpdate: iot?.lastSeen || new Date().toISOString(),
-      phases: iot?.phases || [
-        { phase: 'L1', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
-        { phase: 'L2', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
-        { phase: 'L3', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
-      ],
+      phases: iot?.phases ?? [],
       deviceId: iot?.deviceId,
       plnPowerVa: s.pln_power_va ? parseInt(s.pln_power_va) : undefined,
       is24Hours: s.is_24_hours,

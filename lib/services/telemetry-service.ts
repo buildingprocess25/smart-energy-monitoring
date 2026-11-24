@@ -19,6 +19,7 @@ import { getIotDeviceDataList, getStoreById, getStores } from './store-service'
 import { getEnergyIndex, VALID_SAMPLE_SQL } from './energy-service'
 import { jakartaRange } from '@/lib/jakarta-range'
 import { sensorColor as getSensorColor } from '@/lib/phase-keys'
+import { analyticsStore } from '@/lib/store-choice'
 import { createStaleCache } from '@/lib/stale-cache'
 import { dailyThreshold, findSpikes, SPIKE_LIMITS } from '@/lib/usage-insights'
 
@@ -40,21 +41,12 @@ export async function getStoreAnalyticsData(
   const PLN_TARIFF = 1444.7
 
   // 1. Dapatkan data store
-  let store: Store | null = null
-  if (storeCodeOrId) {
-    store = await getStoreById(storeCodeOrId)
-  }
-  if (!store) {
-    const stores = await getStores()
-    store = stores.find((s) => s.status === 'live') || stores[0] || null
-  }
+  const store = storeCodeOrId
+    ? analyticsStore<Store>(true, await getStoreById(storeCodeOrId), [])
+    : analyticsStore<Store>(false, null, await getStores())
+  if (!store?.deviceId) return null
 
-  if (!store) return null
-
-  const deviceId = store.deviceId || 'MC1 :'
-  const storeCode = store.code || '2JC2'
-  const storeName = store.name || 'DC Cianjur'
-  const branch = store.branch || 'CIANJUR'
+  const { deviceId, code: storeCode, name: storeName, branch } = store
   const isLive = store.status === 'live'
 
   const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']

@@ -60,15 +60,15 @@ export default async function MonitoringDetailPage({ params }: PageProps) {
   const myEco = await getMyEcoStore(store.code)
 
   // Without an own device there is no panel, session or analytics to show for this store.
-  if (myEco && !store.deviceId) {
+  if (!store.deviceId) {
     return (
       <div className="flex flex-col gap-6 pb-12">
-        <StoreHero store={store} myEcoOnly />
+        <StoreHero store={store} myEcoOnly={myEco !== null} />
         <p className="text-sm text-muted-foreground">
-          Toko ini hanya punya data AC dari myECO. Panel R/S/T, sesi rekaman, dan biaya tampil setelah alat IoT SPARTA
-          terpasang.
+          {myEco ? 'Toko ini hanya punya data AC dari myECO.' : 'Toko ini belum punya alat IoT.'} Panel R/S/T, sesi
+          rekaman, dan biaya tampil setelah alat IoT SPARTA terpasang.
         </p>
-        <MyEcoAcSection storeCode={myEco.code} />
+        {myEco && <MyEcoAcSection storeCode={myEco.code} />}
       </div>
     )
   }

@@ -38,7 +38,7 @@ export function StoreHero({ store, myEcoOnly = false }: StoreHeroProps) {
         </div>
       </div>
 
-      {!myEcoOnly && (
+      {store.deviceId && (
       <dl className="grid grid-cols-2 gap-x-8 gap-y-3 sm:flex sm:flex-wrap">
         <div>
           <dt className="text-xs text-muted-foreground">

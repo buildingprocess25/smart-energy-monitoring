@@ -156,7 +156,12 @@ export function StoreAnalyticsWidget({
       })
       .catch((err) => {
         console.error(err)
-        if (isMounted) setIsLoading(false)
+        if (!isMounted) return
+        // Never leave another store's numbers under the chosen name.
+        setAnalytics((shown) =>
+          shown?.storeCode === selectedStoreId || shown?.storeId === selectedStoreId ? shown : null
+        )
+        setIsLoading(false)
       })
 
     return () => {

@@ -212,8 +212,10 @@ scripts/                            # agent-note check, asset copy
 - `/perangkat` shows the branch, store, sensor tree (`getDeviceTree()`). Charts are shared by overview and store detail in `components/analytics/`.
 
 **`lib/services/myeco-service.ts`** (rules in `lib/myeco.ts`, client in `lib/myeco-client.ts`, both pure)
-- AC meters from the myECO Open API for the stores in `MYECO_STORES` (meter id to store code), flagged myECO, for scope `all` only. One list call per 15 s serves every viewer; hourly logs are cached 5 minutes; power samples live in memory (1 hour). They are sub-meters: never add them to store totals, cost or the LIVE count. Stores without an own device show only this section.
+- AC meters from the myECO Open API for the stores in `MYECO_STORES` (meter id to store code), flagged myECO, for scope `all` only. One list call per 15 s serves every viewer; hourly logs are cached 5 minutes; `startMyEcoRecorder()` (production, from `instrumentation.ts`) reads without viewers and saves power every minute to `REPORT_DATA_DIR/myeco/<date>.jsonl`, 30 days; charts show 1 hour, 24 hours or 7 days. They are sub-meters: never add them to store totals, cost or the LIVE count. Stores without an own device show only this section.
 - `MYECO_API_KEY` stays on the server and out of logs (`MyEcoError` has fixed messages).
+
+**`lib/store-choice.ts`**: analytics never replace a requested store with another one; a store without a device has none (`null`, API 404), and its detail page says so.
 
 **`lib/services/workbook-service.ts`, `report-template-store.ts`, `report-mail-service.ts`**
 - `/laporan/excel`: custom workbooks (sheets, columns, stores, periods). Rules are pure in `lib/workbook.ts`; column labels in `REPORT_COLUMNS` are saved in templates, so do not rename them.

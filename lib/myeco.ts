@@ -78,6 +78,12 @@ export interface MyEcoLive {
   samples: PowerSample[]
 }
 
+export interface MyEcoPower {
+  meters: { id: string; label: string }[]
+  bucketMs: number
+  samples: PowerSample[]
+}
+
 export interface MyEcoHistory {
   meters: { id: string; label: string; hours: HourUsage[]; days: DayUsage[] }[]
 }

@@ -7,13 +7,14 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { MYECO_POLL_MS, type MeterState, type MyEcoHistory, type MyEcoLive } from '@/lib/myeco'
+import { MYECO_POLL_MS, type MeterState, type MyEcoHistory, type MyEcoLive, type MyEcoPower } from '@/lib/myeco'
 import { DEFAULT_PALETTE } from '@/lib/phase-keys'
 
 const HISTORY_REFRESH_MS = 10 * 60_000
 const HOUR_MS = 60 * 60_000
+const POWER_REFRESH_MS = 60_000
 // A longer pause between samples is drawn as a gap.
-const GAP_MS = 4 * MYECO_POLL_MS
+const LIVE_GAP_MS = 4 * MYECO_POLL_MS
 const PRESSED = 'aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground'
 
 const STATE: Record<MeterState, { label: string; variant: 'secondary' | 'outline' | 'destructive' }> = {
@@ -27,6 +28,7 @@ const wib = (options: Intl.DateTimeFormatOptions) => {
   return (epoch: number) => format.format(epoch)
 }
 const clock = wib({ hour: '2-digit', minute: '2-digit', second: '2-digit' })
+const dayClock = wib({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 const hourMinute = wib({ hour: '2-digit', minute: '2-digit' })
 const dayHour = wib({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 const dayLabel = (date: string) =>
@@ -117,17 +119,32 @@ function Legend({ meters }: { meters: { id: string; label: string }[] }) {
   )
 }
 
-function LiveChart({ live }: { live: MyEcoLive }) {
-  const data = live.samples.flatMap((s, i) => {
+type PowerView = '1h' | '24h' | '7d'
+const POWER_VIEWS: { value: PowerView; label: string; title: string }[] = [
+  { value: '1h', label: '1 jam', title: 'Daya, sampai 1 jam terakhir' },
+  { value: '24h', label: '24 jam', title: 'Daya rata-rata per 2 menit, 24 jam terakhir' },
+  { value: '7d', label: '7 hari', title: 'Daya rata-rata per 15 menit, 7 hari terakhir' },
+]
+
+function PowerChart({
+  meters,
+  samples,
+  gapMs,
+}: {
+  meters: { id: string; label: string }[]
+  samples: MyEcoLive['samples']
+  gapMs: number
+}) {
+  const data = samples.flatMap((s, i) => {
     const row: Record<string, number | null> = { at: s.at, ...s.power }
-    const previous = live.samples[i - 1]
-    return previous && s.at - previous.at > GAP_MS ? [{ at: previous.at + 1 }, row] : [row]
+    const previous = samples[i - 1]
+    return previous && s.at - previous.at > gapMs ? [{ at: previous.at + 1 }, row] : [row]
   })
-  if (live.samples.length < 2) {
-    return <p className="text-sm text-muted-foreground">Grafik mulai terisi setelah dua pembacaan, sekitar 15 detik lagi.</p>
+  if (samples.length < 2) {
+    return <p className="text-sm text-muted-foreground">Belum ada cukup data. Grafik terisi setelah dua pembacaan.</p>
   }
   // Minutes alone repeat on the axis while the chart is still short.
-  const span = live.samples[live.samples.length - 1].at - live.samples[0].at
+  const span = samples[samples.length - 1].at - samples[0].at
   return (
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -139,12 +156,12 @@ function LiveChart({ live }: { live: MyEcoLive }) {
             type="number"
             scale="time"
             domain={['dataMin', 'dataMax']}
-            tickFormatter={span < 10 * 60_000 ? clock : hourMinute}
+            tickFormatter={span < 10 * 60_000 ? clock : span > 26 * HOUR_MS ? dayHour : hourMinute}
             minTickGap={48}
           />
           <YAxis {...AXIS} width={64} tickFormatter={(v: number) => num(v, 0, 'W')} />
-          <Tooltip content={chartTooltip((at) => `${clock(Number(at))} WIB`, 'W')} />
-          {live.meters.map((m, i) => (
+          <Tooltip content={chartTooltip((at) => `${dayClock(Number(at))} WIB`, 'W')} />
+          {meters.map((m, i) => (
             <Line
               key={m.id}
               dataKey={m.id}
@@ -212,6 +229,17 @@ function HistoryChart({ history, view }: { history: MyEcoHistory; view: 'hour' |
   )
 }
 
+function StoredPower({ src, range }: { src: string; range: PowerView }) {
+  const { data, error } = useMyEco<MyEcoPower>(`${src}?view=power&range=${range}`, POWER_REFRESH_MS)
+  return (
+    <>
+      {error && <Problem text={error} />}
+      {!data && !error && <Skeleton className="h-64 w-full rounded-xl motion-reduce:animate-none" />}
+      {data && <PowerChart meters={data.meters} samples={data.samples} gapMs={2 * data.bucketMs} />}
+    </>
+  )
+}
+
 function Problem({ text }: { text: string }) {
   return (
     <p role="alert" className="text-sm text-destructive">
@@ -224,6 +252,7 @@ export function MyEcoAcSection({ storeCode }: { storeCode: string }) {
   const src = `/api/stores/${encodeURIComponent(storeCode)}/myeco`
   const { data: live, error: liveError } = useMyEco<MyEcoLive>(src, MYECO_POLL_MS)
   const { data: history, error: historyError } = useMyEco<MyEcoHistory>(`${src}?view=history`, HISTORY_REFRESH_MS)
+  const [powerView, setPowerView] = useState<PowerView>('1h')
   const [view, setView] = useState<'hour' | 'day'>('hour')
 
   return (
@@ -296,8 +325,27 @@ export function MyEcoAcSection({ storeCode }: { storeCode: string }) {
             </TableBody>
           </Table>
           <div className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold">Daya, sampai 1 jam terakhir</h3>
-            <LiveChart live={live} />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold">{POWER_VIEWS.find((v) => v.value === powerView)?.title}</h3>
+              <ToggleGroup
+                aria-label="Rentang daya AC"
+                variant="outline"
+                spacing={0}
+                value={[powerView]}
+                onValueChange={(value) => value[0] && setPowerView(value[0] as PowerView)}
+              >
+                {POWER_VIEWS.map((v) => (
+                  <ToggleGroupItem key={v.value} value={v.value} className={PRESSED}>
+                    {v.label}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            </div>
+            {powerView === '1h' ? (
+              <PowerChart meters={live.meters} samples={live.samples} gapMs={LIVE_GAP_MS} />
+            ) : (
+              <StoredPower key={powerView} src={src} range={powerView} />
+            )}
             <Legend meters={live.meters} />
           </div>
         </>
