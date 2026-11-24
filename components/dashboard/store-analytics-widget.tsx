@@ -18,25 +18,24 @@ import {
   BarChart3,
   Sparkles,
 } from 'lucide-react'
-import {
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts'
-import { Store, StoreAnalyticsResult, DailyConsumption, RealMonthlyConsumption } from '@/lib/types'
+import { Store, StoreAnalyticsResult, DailyConsumption } from '@/lib/types'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { TelemetryDatePicker } from '@/components/monitoring/telemetry-date-picker'
+import {
+  EnergyChart,
+  EnergyChartControls,
+  formatRupiah,
+  type EnergyChartType,
+  type EnergyRow,
+  type EnergyUnit,
+} from '@/components/analytics/energy-chart'
+import { LoadProfileChart, spikeText } from '@/components/analytics/load-profile-chart'
+import { PeriodSummary } from '@/components/analytics/period-summary'
+import { usagePeriod } from '@/lib/usage-period'
+import { PLN_TARIFF_PER_KWH } from '@/lib/usage-insights'
 import { cn } from '@/lib/utils'
-
-const PLN_TARIFF_PER_KWH = 1444.7
 
 const ID_DAYS_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 const ID_DAYS_FULL = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
@@ -57,7 +56,7 @@ function CustomXAxisTick({ x, y, payload }: any) {
   const label: string = payload?.value || ''
   const match = label.match(/^([A-Za-z]+)\s*\((.+)\)$/)
   const day = match ? match[1] : label
-  const date = match ? match[2] : ''
+  const date = match ? match[2].slice(0, 2) : ''
 
   return (
     <g transform={`translate(${x},${y})`}>
@@ -107,6 +106,8 @@ export function StoreAnalyticsWidget({
   // 3-Granularity Tabs: 'daily' (24 Jam) | 'weekly' (7 Hari) | 'monthly' (Bulan Riil Tercatat)
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly' | 'monthly'>('daily')
   const [weekOffset, setWeekOffset] = useState<number>(0)
+  const [chartUnit, setChartUnit] = useState<EnergyUnit>('kwh')
+  const [chartType, setChartType] = useState<EnergyChartType>('bar')
   const [selectedDailyDate, setSelectedDailyDate] = useState<string>('')
 
   // Available dates for Daily 24h curve selection
@@ -260,6 +261,54 @@ export function StoreAnalyticsWidget({
 
   const realMonthlyList = analytics?.monthlyHistory || []
   const monthlySummary = analytics?.monthlySummary
+  const sangatBoros = analytics?.sangatBoros || null
+
+  const hasMainPanel = analytics?.hasMainPanel ?? false
+  const activeUnit: EnergyUnit = hasMainPanel ? chartUnit : 'kwh'
+  const threshold = analytics?.threshold ?? null
+  const dailyLimit = threshold && {
+    kwh: threshold.kwhPerDay,
+    label: threshold.source === 'standard' ? 'Standar SPARTA' : '120% dari hari biasa toko ini',
+  }
+  const monthlyLimit =
+    hasMainPanel && sangatBoros ? { kwh: sangatBoros.store.standardKwhPerMonth, label: 'Standar SPARTA' } : null
+  const weeklyRows: EnergyRow[] = displayedTrend.map((d) => {
+    const recorded = dbDataMap.get(d.dayDate)
+    return {
+      label: d.dayLabel || d.day,
+      title: d.dayFullDate || d.dayDate,
+      kwh: recorded && (recorded.hours ?? 0) > 0 ? recorded.kwh : null,
+      mainKwh: recorded?.mainPanelKwh ?? 0,
+    }
+  })
+  const monthlyRows: EnergyRow[] = realMonthlyList.map((m) => ({
+    label: m.monthLabel,
+    title: m.monthLabel,
+    kwh: m.kwh,
+    mainKwh: m.mainPanelKwh ?? 0,
+    diffPct: m.diffPct,
+  }))
+  const period = usagePeriod(
+    activeTab,
+    (analytics?.dailyConsumption || []).map((d) => ({
+      date: d.dayDate,
+      kwh: d.kwh,
+      mainKwh: d.mainPanelKwh ?? 0,
+      hours: d.hours ?? 0,
+    })),
+    analytics?.anchorDate || '',
+    weekOffset,
+    { day: analytics?.anchorDateLabel || '', week: periodLabel }
+  )
+  const chartControls = (
+    <EnergyChartControls
+      unit={activeUnit}
+      onUnitChange={setChartUnit}
+      type={chartType}
+      onTypeChange={setChartType}
+      hasMainPanel={hasMainPanel}
+    />
+  )
 
   return (
     <div className="flex flex-col min-w-0 rounded-2xl bg-card ring-1 ring-foreground/10 p-5 transition-all lg:col-span-8">
@@ -435,8 +484,7 @@ export function StoreAnalyticsWidget({
             </div>
           </div>
         </div>
-      ) : (
-        /* Daily / Weekly Quick Metrics Bar */
+      ) : activeTab === 'daily' ? (
         <div className="mt-3.5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           <div className="flex items-center gap-2.5 rounded-lg border bg-muted/20 p-2.5">
             <div className="flex size-7 shrink-0 items-center justify-center rounded bg-warning/10 text-warning">
@@ -486,16 +534,17 @@ export function StoreAnalyticsWidget({
             </div>
             <div>
               <div className="text-xs font-medium text-muted-foreground">
-                Total Periode
+                Lonjakan 24 Jam
               </div>
               <div className="text-sm font-bold text-foreground">
-                {windowTotalKwh.toLocaleString('id-ID')}{' '}
-                <span className="text-xs font-normal text-muted-foreground">kWh</span>
+                {spikeText(analytics?.loadProfile24h || [])}
               </div>
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+
+      <PeriodSummary {...period} hasMainPanel={hasMainPanel} />
 
       {/* Chart Section */}
       <div className="mt-4 flex-1">
@@ -532,78 +581,12 @@ export function StoreAnalyticsWidget({
               </span>
             </div>
 
-            <div className="h-60 w-full sm:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={analytics?.loadProfile24h || []}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="emeraldLoadGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="currentColor"
-                    className="text-border/40"
-                  />
-                  <XAxis
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    dataKey="time"
-                    tickLine={false}
-                    axisLine={false}
-                    stroke="currentColor"
-                    className="text-xs text-muted-foreground"
-                    interval={3}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    stroke="currentColor"
-                    className="text-xs text-muted-foreground"
-                    width={56}
-                    tickFormatter={(val) => `${(val / 1000).toLocaleString('id-ID')} kW`}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload
-                        return (
-                          <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
-                            <p className="font-semibold text-xs text-muted-foreground">
-                              Waktu: {data.fullTime || data.time} ({analytics?.anchorDateLabel || ''})
-                            </p>
-                            <p className="mt-1 font-bold text-sm text-primary">
-                              {data.powerKw} kW ({data.powerWatts.toLocaleString('id-ID')} W)
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Est. Biaya: Rp{' '}
-                              {Math.round(
-                                (data.powerKw * PLN_TARIFF_PER_KWH)
-                              ).toLocaleString('id-ID')}
-                              /jam
-                            </p>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="powerWatts"
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#emeraldLoadGradient)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <LoadProfileChart
+              points={analytics?.loadProfile24h || []}
+              dateLabel={analytics?.anchorDateLabel || ''}
+              className="h-60 w-full sm:h-64"
+              hasMainPanel={hasMainPanel}
+            />
           </div>
         ) : activeTab === 'weekly' ? (
           /* Tab 2: 7-Day Daily Consumption Bar Chart (Mingguan) */
@@ -659,65 +642,16 @@ export function StoreAnalyticsWidget({
               </div>
             </div>
 
-            <div className="h-60 w-full sm:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={displayedTrend}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="currentColor"
-                    className="text-border/40"
-                  />
-                  <XAxis
-                    dataKey="dayLabel"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={<CustomXAxisTick />}
-                    interval={0}
-                    height={38}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    stroke="currentColor"
-                    className="text-xs text-muted-foreground"
-                    tickFormatter={(val) => `${val}`}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload
-                        return (
-                          <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md">
-                            <p className="font-semibold text-xs text-muted-foreground">
-                              {data.dayFullDate || data.day}
-                            </p>
-                            <p className="mt-1 font-bold text-sm text-primary">
-                              {data.kwh.toLocaleString('id-ID', { maximumFractionDigits: 1 })}{' '}
-                              kWh
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Est. Biaya PLN: Rp {data.cost.toLocaleString('id-ID')}
-                            </p>
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <Bar
-                    dataKey="kwh"
-                    fill="currentColor"
-                    className="fill-primary hover:fill-primary"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {chartControls}
+            <EnergyChart
+              rows={weeklyRows}
+              unit={activeUnit}
+              type={chartType}
+              limit={dailyLimit}
+              periodNoun="hari"
+              className="h-60 w-full sm:h-64"
+              tick={<CustomXAxisTick />}
+            />
           </div>
         ) : (
           /* Tab 3: Real Monthly Consumption History (Bulanan Murni Riil) */
@@ -743,82 +677,22 @@ export function StoreAnalyticsWidget({
               </div>
             </div>
 
-            <div className="h-60 w-full sm:h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={realMonthlyList}
-                  margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="currentColor"
-                    className="text-border/40"
-                  />
-                  <XAxis
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    dataKey="monthLabel"
-                    tickLine={false}
-                    axisLine={false}
-                    stroke="currentColor"
-                    className="text-xs text-muted-foreground font-semibold"
-                  />
-                  <YAxis
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    tickLine={false}
-                    axisLine={false}
-                    stroke="currentColor"
-                    className="text-xs text-muted-foreground"
-                    tickFormatter={(val) => `${val}`}
-                  />
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data: RealMonthlyConsumption = payload[0].payload
-                        const diff = data.diffPct
-                        return (
-                          <div className="rounded-lg border bg-popover p-3 text-popover-foreground shadow-md min-w-[200px] space-y-1">
-                            <p className="font-bold text-xs text-foreground border-b pb-1">
-                              Bulan {data.monthLabel}
-                            </p>
-                            <p className="mt-1 font-bold text-sm text-primary">
-                              {data.kwh.toLocaleString('id-ID')} kWh
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Est. Biaya PLN: Rp {data.cost.toLocaleString('id-ID')}
-                            </p>
-                            {diff !== undefined && (
-                              <div className="pt-1 border-t flex items-center justify-between text-xs">
-                                <span className="text-muted-foreground font-medium">MoM (vs Bulan Lalu):</span>
-                                <span className={cn(
-                                  "font-bold",
-                                  diff <= 0 ? "text-primary" : "text-destructive"
-                                )}>
-                                  {diff > 0 ? `+${diff}% (Naik)` : `${diff}% (Turun)`}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      }
-                      return null
-                    }}
-                  />
-                  <Bar
-                    dataKey="kwh"
-                    fill="var(--primary)"
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            {chartControls}
+            <EnergyChart
+              rows={monthlyRows}
+              unit={activeUnit}
+              type={chartType}
+              limit={monthlyLimit}
+              periodNoun="bulan"
+              className="h-60 w-full sm:h-64"
+            />
 
             {/* Bottom Insight Footer */}
             <div className="mt-1 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground flex items-center justify-between flex-wrap gap-2">
               <span className="flex items-center gap-1.5">
                 <Sparkles className="size-3.5 text-primary shrink-0" />
                 <span>
-                  Total Biaya Listrik ({realMonthlyList.length} bulan): <strong>Rp {monthlySummary?.totalCost.toLocaleString('id-ID') || 0}</strong>
+                  Total Biaya Listrik ({realMonthlyList.length} bulan): <strong>{hasMainPanel ? formatRupiah(realMonthlyList.reduce((sum, m) => sum + (m.mainPanelKwh ?? 0), 0) * PLN_TARIFF_PER_KWH) : '-'}</strong>
                 </span>
               </span>
               <span className="text-xs font-semibold text-foreground">

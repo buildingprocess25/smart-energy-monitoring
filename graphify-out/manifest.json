@@ -120,9 +120,9 @@
     "semantic_hash": ""
   },
   "components/dashboard/store-analytics-widget.tsx": {
-    "mtime": 1795504948.0781279,
-    "seen": 1795505031.5312576,
-    "ast_hash": "b27adb8e8a128005860070857554c716",
+    "mtime": 1795506471.405381,
+    "seen": 1795506513.6017053,
+    "ast_hash": "38194cb8fe2285d2e3879582fe0a7507",
     "semantic_hash": ""
   },
   "components/dashboard/store-card.tsx": {
@@ -198,9 +198,9 @@
     "semantic_hash": ""
   },
   "components/monitoring/store-detail-analytics.tsx": {
-    "mtime": 1795491759.410741,
-    "seen": 1795493020.1681333,
-    "ast_hash": "0d0ba9927fa727cc1fc5a9d744c2cf26",
+    "mtime": 1795506471.5054157,
+    "seen": 1795506513.6017053,
+    "ast_hash": "9d40347fb14fde47a98cd3b727407d7e",
     "semantic_hash": ""
   },
   "components/monitoring/store-hero.tsx": {
@@ -342,15 +342,15 @@
     "semantic_hash": ""
   },
   "lib/services/telemetry-service.ts": {
-    "mtime": 1795491759.4512613,
-    "seen": 1795493020.1681333,
-    "ast_hash": "5762669a35af5093c979b5a41e95c6a5",
+    "mtime": 1795505993.122921,
+    "seen": 1795506461.0518644,
+    "ast_hash": "032f22a114b63e2aa5131244ddae0e25",
     "semantic_hash": ""
   },
   "lib/types.ts": {
-    "mtime": 1795493574.9631674,
-    "seen": 1795494191.046813,
-    "ast_hash": "c4777e0eb7f9a976796afaec52345500",
+    "mtime": 1795505993.1212265,
+    "seen": 1795506461.0518644,
+    "ast_hash": "66d6c417adcc2d2d1cade58116d8b066",
     "semantic_hash": ""
   },
   "lib/utils.ts": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "package.json": {
-    "mtime": 1795502760.597371,
-    "seen": 1795503555.3752935,
-    "ast_hash": "1c4c15801706fd148a48db319065c00f",
+    "mtime": 1795505954.4905114,
+    "seen": 1795506461.0518644,
+    "ast_hash": "513c10aad5f9dc1288877e8a1273f420",
     "semantic_hash": ""
   },
   "postcss.config.mjs": {
@@ -744,9 +744,9 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1795505178.3623765,
-    "seen": 1795505186.7427642,
-    "ast_hash": "13bec3a87a9c99000225e2a20ece502a",
+    "mtime": 1795506368.300941,
+    "seen": 1795506461.0518644,
+    "ast_hash": "d068d0702a46dcf119db840e92e71f6c",
     "semantic_hash": ""
   },
   "GEMINI.md": {
@@ -1284,9 +1284,9 @@
     "semantic_hash": ""
   },
   "app/(dashboard)/perangkat/page.tsx": {
-    "mtime": 1795494051.5986829,
-    "seen": 1795494191.046813,
-    "ast_hash": "ecbc6c81ce0d468b4f9d9de03d64ed4b",
+    "mtime": 1795506095.5487063,
+    "seen": 1795506461.0518644,
+    "ast_hash": "2fd54010b4e69631b287025fc60a6504",
     "semantic_hash": ""
   },
   "app/api/control/capture/route.ts": {
@@ -1743,6 +1743,66 @@
     "mtime": 1795504050.3246202,
     "seen": 1795504729.9699423,
     "ast_hash": "407aac5570a232ece9137242a70a69c8",
+    "semantic_hash": ""
+  },
+  "components/analytics/energy-chart.tsx": {
+    "mtime": 1795506471.3685331,
+    "seen": 1795506513.6017053,
+    "ast_hash": "b8691be1889490812defeb24fb7bfd92",
+    "semantic_hash": ""
+  },
+  "components/analytics/load-profile-chart.tsx": {
+    "mtime": 1795506093.6071575,
+    "seen": 1795506461.0518644,
+    "ast_hash": "bdbc8c35f529175f41b209f6d6868a16",
+    "semantic_hash": ""
+  },
+  "components/analytics/period-summary.tsx": {
+    "mtime": 1795506371.272781,
+    "seen": 1795506461.0518644,
+    "ast_hash": "be4bf92e5d7593f0c8c33524e717ff27",
+    "semantic_hash": ""
+  },
+  "components/devices/device-tree.tsx": {
+    "mtime": 1795505993.106239,
+    "seen": 1795506461.0518644,
+    "ast_hash": "fd04ae804a6024cdec6ae76992e7ac91",
+    "semantic_hash": ""
+  },
+  "lib/device-tree.ts": {
+    "mtime": 1795505993.1072464,
+    "seen": 1795506461.0518644,
+    "ast_hash": "12c0a559a82a39b77acb163177293c0b",
+    "semantic_hash": ""
+  },
+  "lib/services/device-tree-service.ts": {
+    "mtime": 1795505992.0141866,
+    "seen": 1795506461.0518644,
+    "ast_hash": "8ba539ee37070e000a026d1726131c37",
+    "semantic_hash": ""
+  },
+  "lib/usage-insights.ts": {
+    "mtime": 1795506368.2977178,
+    "seen": 1795506461.0518644,
+    "ast_hash": "a2023201da5dc40ce592f6810bd2ebf8",
+    "semantic_hash": ""
+  },
+  "lib/usage-period.ts": {
+    "mtime": 1795506368.2977178,
+    "seen": 1795506461.0518644,
+    "ast_hash": "9340cda65061a72d1e648212f7cad657",
+    "semantic_hash": ""
+  },
+  "tests/device-tree.test.mjs": {
+    "mtime": 1795505953.0448503,
+    "seen": 1795506461.0518644,
+    "ast_hash": "db4e83220f4510f3df62e99a81290e7c",
+    "semantic_hash": ""
+  },
+  "tests/usage-insights.test.mjs": {
+    "mtime": 1795506368.299942,
+    "seen": 1795506461.0518644,
+    "ast_hash": "e090b8ea36df9fd3eb514a67be146bf5",
     "semantic_hash": ""
   },
   "pnpm-lock.yaml": {

@@ -1,3 +1,5 @@
+import type { DailyThreshold, SpikeLevel } from './usage-insights.ts'
+
 export type StoreStatus = 'live' | 'historical' | 'unassigned'
 
 export interface DailyConsumption {
@@ -7,6 +9,7 @@ export interface DailyConsumption {
   dayFullDate?: string
   kwh: number
   mainPanelKwh?: number // Only main panel phases R/S/T, excluding sub-metering sensors
+  hours?: number // time with a reading
   cost: number
 }
 
@@ -15,6 +18,8 @@ export interface LoadProfilePoint {
   fullTime?: string // "14:00 WIB"
   powerWatts: number | null // null when nothing was recorded in that hour
   powerKw: number | null
+  typicalWatts?: number | null // median of this hour on earlier days
+  spike?: SpikeLevel | null
 }
 
 export interface RealMonthlyConsumption {
@@ -59,6 +64,8 @@ export interface StoreAnalyticsResult {
   monthlyHistory?: RealMonthlyConsumption[]
   monthlySummary?: MonthlyTrendSummary
   sangatBoros?: SangatBorosComparison | null
+  hasMainPanel: boolean
+  threshold: DailyThreshold | null
 }
 
 // One row of the read-only view v_toko_sangat_boros in DB 1 (owned by sparta-energy)

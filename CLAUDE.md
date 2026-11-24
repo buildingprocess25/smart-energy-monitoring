@@ -207,6 +207,10 @@ scripts/                            # agent-note check, asset copy
 - `buildReport()` feeds `/laporan` through `GET /api/reports` (type, store, from, to; at most 366 days). Pure builders, CSV and param rules live in `lib/reports.ts`. Excel, CSV and print are made in the browser; nothing is stored. Sangat Boros is for scope `all` only.
 - The energy index reads everything again when `buffered_telemetry.replayed_at` changes (at most every 15 minutes), because devices fill old rows in place after being offline.
 
+**`lib/usage-insights.ts`, `usage-period.ts`, `device-tree.ts`** (pure)
+- Period summaries compare per recorded hour; spikes compare an hour with the same hour on up to 28 earlier recorded days (`SPIKE_LIMITS`); the daily limit is the SPARTA standard, otherwise 120% of the store's median full day. Rupiah and limits are for main panels only.
+- `/perangkat` shows the branch, store, sensor tree (`getDeviceTree()`). Charts are shared by overview and store detail in `components/analytics/`.
+
 **`lib/services/workbook-service.ts`, `report-template-store.ts`, `report-mail-service.ts`**
 - `/laporan/excel`: custom workbooks (sheets, columns, stores, periods). Rules are pure in `lib/workbook.ts`; column labels in `REPORT_COLUMNS` are saved in templates, so do not rename them.
 - Templates, schedules and send results are JSON files in `REPORT_DATA_DIR` (Dokploy volume at `/data`), never in a database. Only ADMIN sees or changes them.

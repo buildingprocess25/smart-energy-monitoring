@@ -20,6 +20,7 @@ import { getEnergyIndex, VALID_SAMPLE_SQL } from './energy-service'
 import { jakartaRange } from '@/lib/jakarta-range'
 import { sensorColor as getSensorColor } from '@/lib/phase-keys'
 import { createStaleCache } from '@/lib/stale-cache'
+import { dailyThreshold, findSpikes, SPIKE_LIMITS } from '@/lib/usage-insights'
 
 // Compared per recorded hour, so a partly recorded month is never set against a full one.
 function hourlyAverageDiffPct(
@@ -92,6 +93,11 @@ export async function getStoreAnalyticsData(
     }
 
     const hourlyWatts = energy.loadProfile(deviceId, anchorDate)
+    const patternDates = availableDates.filter((date) => date < anchorDate).slice(0, SPIKE_LIMITS.days)
+    const hourPattern = findSpikes(
+      hourlyWatts,
+      patternDates.map((date) => energy.loadProfile(deviceId, date))
+    )
 
     const loadProfile24h: LoadProfilePoint[] = []
     let peakPowerWatts = 0
@@ -115,6 +121,8 @@ export async function getStoreAnalyticsData(
         fullTime: `${hourStr} WIB`,
         powerWatts: pWatts === null ? null : Math.round(pWatts),
         powerKw: pWatts === null ? null : Math.round((pWatts / 1000) * 10) / 10,
+        typicalWatts: hourPattern[h].typicalWatts,
+        spike: hourPattern[h].level,
       })
     }
 
@@ -152,6 +160,7 @@ export async function getStoreAnalyticsData(
         dayFullDate,
         kwh,
         mainPanelKwh: Math.round(r.mainKwh * 10) / 10,
+        hours: r.hours,
         cost: Math.round(kwh * PLN_TARIFF),
       }
     })
@@ -221,6 +230,8 @@ export async function getStoreAnalyticsData(
       sangatBoros: sangatBorosStore
         ? compareWithSangatBoros(sangatBorosStore, dailyConsumption, anchorDate)
         : null,
+      hasMainPanel: energy.total(deviceId).hasMain,
+      threshold: dailyThreshold(dailyEnergy, anchorDate, sangatBorosStore?.standardKwhPerDay ?? null),
     }
 
     return result

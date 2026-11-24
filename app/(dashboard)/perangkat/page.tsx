@@ -7,6 +7,7 @@ import { getManagedDevices } from '@/lib/services/device-service'
 import { CaptureControls } from '@/components/devices/capture-controls'
 import { CaptureFacts, DeviceBadges } from '@/components/devices/device-summary'
 import { DeviceHealthSection } from '@/components/devices/device-health'
+import { DeviceTree } from '@/components/devices/device-tree'
 import { Skeleton } from '@/components/ui/skeleton'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
@@ -59,6 +60,11 @@ export default async function DevicesPage() {
             </Card>
           ))}
         </div>
+      )}
+      {devices.length > 0 && (
+        <Suspense fallback={<Skeleton className="h-40 w-full rounded-2xl" />}>
+          <DeviceTree />
+        </Suspense>
       )}
       <Suspense fallback={<Skeleton className="h-64 w-full rounded-2xl" />}>
         <DeviceHealthSection />
