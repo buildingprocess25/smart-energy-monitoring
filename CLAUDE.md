@@ -304,7 +304,7 @@ Details and reasons are in `AI_CONTEXT.md`.
 
 ## graphify
 
-This project has a knowledge graph at `graphify-out/` (about 630 nodes, 1,600 edges, 21 communities) built from the code and the docs. The folders `.agents`, `.claude`, `.codex`, `.cursor`, `.gemini`, `.github`, and `.opencode` are excluded (see `graphify-out/.graphify_build.json`). When a new agent or skill folder appears, add it there before the next update.
+This project has a knowledge graph at `graphify-out/` (current size in `graphify-out/GRAPH_REPORT.md`, section Summary) built from the code and the docs. The folders `.agents`, `.claude`, `.codex`, `.cursor`, `.gemini`, `.github`, and `.opencode` are excluded (see `graphify-out/.graphify_build.json`). When a new agent or skill folder appears, add it there before the next update.
 
 The graph is refreshed automatically in Claude Code: a `PostToolUse` hook in `.claude/settings.json` marks the graph stale after any Edit/Write, and a `Stop` hook runs `graphify update .` once at the end of that turn. Other agents must run the update themselves.
 
@@ -314,12 +314,14 @@ Rules:
 - Read `graphify-out/GRAPH_REPORT.md` only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST only, no API cost). After changing docs or agent notes, run `/graphify . --update` so the changed docs are re-extracted.
 - A committed `graphify-out/graph.json` is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
-- Main communities in the graph:
-  - **Store API Routes** and **Dashboard Overview & Map**: `store-service.ts`, `telemetry-service.ts`, `app/api/stores`, overview widgets.
-  - **Store Detail Analytics** and **SVG Phase Gauges**: `components/monitoring`.
-  - **Admin Shell & Navigation**: `components/layout`.
-  - **3-Pillar Architecture Plan** and **Dual-DB Session Linking**: `ARCHITECTURE_PLAN.md` and the integration notes.
-  - **Agent Governance Rules**: `AGENTS.md`, `AI_RULES.md`, task-note guard.
+- Main areas of the graph (community names change on every build; `graphify-out/GRAPH_REPORT.md` has the current list):
+  - **Stores and telemetry**: `store-service.ts`, `telemetry-service.ts`, `energy-service.ts`, `live-buffer-service.ts`, `app/api/stores`, overview widgets.
+  - **Store detail**: `components/monitoring`.
+  - **Access and sessions**: `lib/auth`, `proxy.ts`, `app/api/auth`.
+  - **Device control and health**: `device-control.ts`, `health-service.ts`, `app/api/control`, `/perangkat`, `/sesi-rekaman`.
+  - **Reports and email**: `report-service.ts`, `workbook.ts`, `report-mail-service.ts`, `smtp.ts`, `/laporan`.
+  - **Admin shell**: `components/layout`.
+  - **Architecture and governance docs**: `ARCHITECTURE_PLAN.md`, `AGENTS.md`, `AI_RULES.md`, agent notes, task-note guard.
 
 ## Task Notes and Commits
 

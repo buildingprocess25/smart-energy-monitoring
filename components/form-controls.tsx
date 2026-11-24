@@ -38,7 +38,7 @@ export function SelectField({
         <SelectTrigger aria-label={label} className="w-full min-w-0">
           <SelectValue className="truncate" />
         </SelectTrigger>
-        <SelectContent alignItemWithTrigger={false} align="start" className="w-auto max-w-[calc(100vw-2rem)] min-w-(--anchor-width)">
+        <SelectContent>
           <SelectGroup>
             {choices.map((c) => (
               <SelectItem key={c.value} value={c.value}>

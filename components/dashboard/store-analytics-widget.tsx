@@ -279,7 +279,7 @@ export function StoreAnalyticsWidget({
             <SelectTrigger aria-label="Pilih Toko" className="max-w-full font-semibold">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent alignItemWithTrigger={false} align="start" className="w-auto max-w-[calc(100vw-2rem)] min-w-(--anchor-width)">
+            <SelectContent>
               <SelectGroup>
                 {stores.map((s) => (
                   <SelectItem key={s.id} value={s.code || s.id}>

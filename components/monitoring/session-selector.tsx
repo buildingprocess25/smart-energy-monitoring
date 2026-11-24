@@ -4,6 +4,7 @@ import { AuditSession } from '@/lib/types'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -50,11 +51,13 @@ export function SessionSelector({
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {sessions.map((session) => (
-            <SelectItem key={session.id} value={session.id}>
-              {session.label}
-            </SelectItem>
-          ))}
+          <SelectGroup>
+            {sessions.map((session) => (
+              <SelectItem key={session.id} value={session.id}>
+                {session.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
         </SelectContent>
       </Select>
     </div>

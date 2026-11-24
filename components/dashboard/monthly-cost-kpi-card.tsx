@@ -17,6 +17,7 @@ import { MonthlyCostRecord } from '@/lib/types'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -150,23 +151,25 @@ function MonthlyCostCard({
               <SelectValue>{() => activeRecord.monthShortLabel || activeRecord.monthLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent align="end" className="w-48 text-xs">
-              {enrichedMonthlyCosts.map((item) => (
-                <SelectItem key={item.monthKey} value={item.monthKey}>
-                  <div className="flex items-center justify-between w-full gap-2">
-                    <span>{item.monthLabel}</span>
-                    {item.isCurrentMonth && (
-                      <span className="text-xs font-semibold text-primary">
-                        (Aktif)
-                      </span>
-                    )}
-                  </div>
-                </SelectItem>
-              ))}
-              {enrichedMonthlyCosts.length > 1 && (
-                <SelectItem value="all">
-                  <span className="font-semibold">Semua Periode (Total)</span>
-                </SelectItem>
-              )}
+              <SelectGroup>
+                {enrichedMonthlyCosts.map((item) => (
+                  <SelectItem key={item.monthKey} value={item.monthKey}>
+                    <div className="flex items-center justify-between w-full gap-2">
+                      <span>{item.monthLabel}</span>
+                      {item.isCurrentMonth && (
+                        <span className="text-xs font-semibold text-primary">
+                          (Aktif)
+                        </span>
+                      )}
+                    </div>
+                  </SelectItem>
+                ))}
+                {enrichedMonthlyCosts.length > 1 && (
+                  <SelectItem value="all">
+                    <span className="font-semibold">Semua Periode (Total)</span>
+                  </SelectItem>
+                )}
+              </SelectGroup>
             </SelectContent>
           </Select>
         </div>
