@@ -1,29 +1,29 @@
 # Graph Report - smart-energy-monitoring  (2026-11-24)
 
 ## Corpus Check
-- 207 files · ~96,825 words
+- 228 files · ~105,234 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 14 file(s) not represented in the graph (top: (none) 9, .ico 2, .example 1)
 
 ## Summary
-- 1203 nodes · 3029 edges · 80 communities (74 shown, 6 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 222 edges (avg confidence: 0.92)
+- 1328 nodes · 3600 edges · 73 communities (69 shown, 4 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 224 edges (avg confidence: 0.92)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `63059999`
+- Built from commit: `9f8aa760`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- api-guard.ts
+- next
 - Rapikan File Graphify dan Isi Repo
 - sangat-boros-service.ts
 - (dashboard)/layout.tsx
 - access-rules.ts
 - 3-Pillar Architecture Plan
 - app/layout.tsx
-- next
+- Button
 - Package Manifest
 - shadcn Config
 - TypeScript Config
@@ -37,7 +37,7 @@
 - ESLint Config
 - PostCSS Config
 - dotenv
-- POST
+- Sign-out, Ganti Peran, dan security
 - Store Analytics Widget with Load Profile
 - CLAUDE.md
 - telemetry-service.ts
@@ -46,79 +46,72 @@
 - store-monitoring-page.tsx
 - Ignore graphify-out
 - AI Context - SPARTA Smart Energy Monitoring
-- app-header.tsx
+- react
 - Fakta dari Flask yang dipakai plan ini
-- app-sidebar.tsx
-- sesi-rekaman/page.tsx
+- control-commands.ts
+- createSharedFetch
 - Tambah skill frontend-design dari sparta-office
-- SPARTA & Aiven Real Data Integration
+- app-sidebar.tsx
 - Tombol "Kembali ke SPARTA" di header portal
 - store-table.tsx
 - Non-IoT security hardening
 - Tombol "Kembali ke SPARTA" di header portal
 - live-buffer-service.ts
-- session-invalid/route.ts
+- logout/route.ts
 - SSO redirect loop guard
 - energy-service.ts
 - Agent Docs: Skills Matrix, graphify Rules, and Project Context
-- getStoreAnalyticsData
+- app/layout.tsx
 - Portal Akses Role (Admin, Auditor, GS)
-- next.config.ts
+- breadcrumb.tsx
 - GEMINI.md
 - phase-gauge-grid.tsx
-- Standardize GitHub Actions Deploy Workflow
+- Services
 - [storeId]/page.tsx
-- store-analytics-widget.tsx
 - session-service.ts
-- lucide-react
+- monthly-cost-kpi-card.tsx
 - requireApiAccess
 - Sembunyikan toko DEMO dari Prioritas Pasang IoT di production
-- scopeKey
-- next
+- device-control.ts
+- Store
 - Store MEP Simulator — Lighting Snap to Gypsum Tile Main Tee Grid & Asymmetry Shift Cycle
 - Global Constraints
-- Angka energi dan performa
-- Alamat API Flask dan cache status capture
+- energy-service.ts
 - Dashboard streaming dan cache biaya bulanan
-- Sidebar Active Indicator and Modern Hover
-- package.json
+- telemetry-api.ts
 - dashboard-overview.tsx
 - Backlog
-- Store
-- Tabel prioritas dan sesi rekaman
-- react
-- monthly-cost-kpi-card.tsx
-- Telemetry Interval Delta Energy
-- IoT Session Assignment & Multi-Session Architecture
-- breadcrumb.tsx
-- Migrasi fitur dashboard meter lama ke portal
-- akses-ditolak/page.tsx
-- Tampilan mengikuti Energy
-- contentSecurityPolicy
+- store-analytics-widget.tsx
+- perangkat/page.tsx
+- pools.ts
+- stale-cache.ts
+- Integrasi 12 Toko Sangat Boros
+- Tahap
+- network-map-leaflet.tsx
 
 ## God Nodes (most connected - your core abstractions)
-1. `cn()` - 130 edges
-2. `react` - 33 edges
-3. `Store` - 32 edges
-4. `next` - 32 edges
-5. `getStoreAnalyticsData()` - 26 edges
-6. `lucide-react` - 26 edges
-7. `ARCHITECTURE_PLAN.md - 3-Pillar Energy System Architecture` - 24 edges
-8. `Button()` - 22 edges
-9. `requireApiAccess()` - 22 edges
-10. `getTelemetryPool()` - 22 edges
+1. `cn()` - 136 edges
+2. `next` - 41 edges
+3. `react` - 38 edges
+4. `Store` - 32 edges
+5. `Button()` - 29 edges
+6. `getTelemetryPool()` - 28 edges
+7. `requireApiAccess()` - 27 edges
+8. `lucide-react` - 27 edges
+9. `getStoreAnalyticsData()` - 26 edges
+10. `ARCHITECTURE_PLAN.md - 3-Pillar Energy System Architecture` - 24 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Tahap 2 (garis besar, dibuat sebagai plan terpisah)` --references--> `POST()`  [INFERRED]
-  docs/superpowers/plans/2026-11-09-pindah-fitur-smart-energy-meter.md → app/api/auth/logout/route.ts
+- `Context and Sources` --references--> `resolveRole()`  [INFERRED]
+  docs/agent-notes/2026-10-26-0920-portal-akses-role.md → lib/auth/access-rules.ts
 - `Task 4: Proxy dan route API` --references--> `requireApiAccess()`  [INFERRED]
   docs/superpowers/plans/2026-10-26-portal-akses-role.md → lib/auth/api-guard.ts
-- `Task 2: Akses per request` --references--> `getSpartaPool()`  [INFERRED]
-  docs/superpowers/plans/2026-10-26-portal-akses-role.md → lib/db/pools.ts
+- `Global Constraints` --references--> `requireApiAccess()`  [INFERRED]
+  docs/superpowers/plans/2026-11-09-pindah-fitur-smart-energy-meter.md → lib/auth/api-guard.ts
 - `Jaminan untuk Alur IoT` --references--> `getTelemetryPool()`  [INFERRED]
   docs/superpowers/plans/2026-11-09-pindah-fitur-smart-energy-meter.md → lib/db/pools.ts
-- `Domain Rules That Code Must Keep` --references--> `mainPanelKwh()`  [INFERRED]
-  CLAUDE.md → lib/format-energy.ts
+- `Task 9: Dokumen, catatan task, dan verifikasi akhir` --references--> `readOnlyQuery()`  [INFERRED]
+  docs/superpowers/plans/2026-11-09-pindah-fitur-smart-energy-meter.md → lib/db/read-only.ts
 
 ## Import Cycles
 - None detected.
@@ -134,43 +127,43 @@
 - **Energy kWh Correctness Fixes** — concept_per_phase_energy_delta, concept_phase_normalization, concept_interval_delta_energy, concept_physics_bounded_energy_guard [INFERRED 0.85]
 - **Real data pipeline from SPARTA and Aiven DBs** — lib_db_pools, lib_services_store_service, lib_services_telemetry_service, docs_agent_notes_2026_08_21_1013_sparta_aiven_real_data_integration_aiven_iot_db, docs_agent_notes_2026_08_21_1013_sparta_aiven_real_data_integration_sparta_energy_db, docs_agent_notes_2026_08_18_1130_dual_db_integration_architecture_dual_database_architecture [INFERRED 0.85]
 
-## Communities (80 total, 6 thin omitted)
+## Communities (73 total, 4 thin omitted)
 
-### Community 0 - "api-guard.ts"
-Cohesion: 0.29
-Nodes (10): dynamic, GET(), getAssignedDeviceIds(), getRequestAccess, requireInternalAccess(), getSpartaPool(), getIotDeviceDataList, loadStoreById() (+2 more)
+### Community 0 - "next"
+Cohesion: 0.14
+Nodes (22): dynamic, GET(), dynamic, GET(), dynamic, GET(), dynamic, GET() (+14 more)
 
 ### Community 1 - "Rapikan File Graphify dan Isi Repo"
 Cohesion: 0.25
 Nodes (7): Changed Files, Context and Sources, Decisions, Rapikan File Graphify dan Isi Repo, Remaining Work and Risks, Scope, Verification
 
 ### Community 2 - "sangat-boros-service.ts"
-Cohesion: 0.19
-Nodes (18): Services, StoreGalleryProps, SangatBorosPriorityProps, Changed Files, Scope, getEnergyIndex(), compareWithSangatBoros(), getSangatBorosByCode() (+10 more)
+Cohesion: 0.24
+Nodes (15): StoreGalleryProps, SangatBorosPriorityProps, Changed Files, compareWithSangatBoros(), getSangatBorosByCode(), getSangatBorosStores(), mapRow(), MONTH_SHORT (+7 more)
 
 ### Community 3 - "(dashboard)/layout.tsx"
 Cohesion: 0.30
-Nodes (9): DashboardLayout(), AccessCheckFailed(), AdminShell(), portalDecision(), Fetch, revokeSpartaSession(), ROLE_SWITCH_ROLES, roleSwitchUrl() (+1 more)
+Nodes (8): AccessDeniedPage(), metadata, DashboardLayout(), AccessCheckFailed(), spartaUrl(), ROLE_SWITCH_ROLES, roleSwitchUrl(), spartaHref()
 
 ### Community 4 - "access-rules.ts"
-Cohesion: 0.14
-Nodes (26): dynamic, Context and Sources, Task 1: Aturan role dan lingkup (modul murni, TDD), RequestAccess, AccessScope, anonymousPageTarget(), BOUNCE_COOKIE, BOUNCE_MAX_AGE_SECONDS (+18 more)
+Cohesion: 0.16
+Nodes (23): Task 1: Aturan role dan lingkup (modul murni, TDD), getAssignedDeviceIds(), RequestAccess, AccessScope, anonymousPageTarget(), BOUNCE_COOKIE, BOUNCE_MAX_AGE_SECONDS, INTERNAL_TOKEN_HEADER (+15 more)
 
 ### Community 5 - "3-Pillar Architecture Plan"
 Cohesion: 0.05
-Nodes (62): AGENTS.md - Project Agent Instructions, AI_RULES.md - AI Coding Rules, app/globals.css, ARCHITECTURE_PLAN.md - 3-Pillar Energy System Architecture, better-auth Shared SSO, DB 1 sparta_energy (stores, users, audits), DB 2 energy_meter (devices, telemetry, history), Environment Variables Specification (+54 more)
+Nodes (66): AGENTS.md - Project Agent Instructions, AI_RULES.md - AI Coding Rules, app/globals.css, ARCHITECTURE_PLAN.md - 3-Pillar Energy System Architecture, better-auth Shared SSO, DB 1 sparta_energy (stores, users, audits), DB 2 energy_meter (devices, telemetry, history), Environment Variables Specification (+58 more)
 
 ### Community 6 - "app/layout.tsx"
-Cohesion: 0.10
-Nodes (14): ASSET_DIRS, CONTENT_TYPES, Agent Task Note Pre-Commit Guard, Clean copy-assets Scripts, Ignore Scratch Files and Update Gitignore, .gitignore, checkAgentTaskNote(), isExempt() (+6 more)
+Cohesion: 0.11
+Nodes (13): ASSET_DIRS, CONTENT_TYPES, Agent Task Note Pre-Commit Guard, Ignore Scratch Files and Update Gitignore, .gitignore, checkAgentTaskNote(), isExempt(), isTaskNote() (+5 more)
 
-### Community 7 - "next"
-Cohesion: 0.16
-Nodes (11): dynamic, GET(), dynamic, GET(), dynamic, GET(), Global Constraints, Jaminan untuk Alur IoT (+3 more)
+### Community 7 - "Button"
+Cohesion: 0.15
+Nodes (25): AdminShell(), AppHeader(), noSubscription(), THEME_OPTIONS, ThemeToggle(), initialsOf(), ROLE_LABELS, ShellViewer (+17 more)
 
 ### Community 8 - "Package Manifest"
-Cohesion: 0.11
-Nodes (19): devDependencies, prettier@^3.8.3, prettier-plugin-tailwindcss@^0.8.0, shadcn@^4.23.0, tailwindcss@^4, @types/leaflet@^1.9.22, @types/pg@^8.23.1, @types/react@^19 (+11 more)
+Cohesion: 0.10
+Nodes (27): devDependencies, prettier@^3.8.3, prettier-plugin-tailwindcss@^0.8.0, shadcn@^4.23.0, tailwindcss@^4, @tailwindcss/postcss@^4, @types/leaflet@^1.9.22, @types/node@^20 (+19 more)
 
 ### Community 9 - "shadcn Config"
 Cohesion: 0.09
@@ -181,16 +174,16 @@ Cohesion: 0.10
 Nodes (19): compilerOptions, allowImportingTsExtensions, allowJs, esModuleInterop, incremental, isolatedModules, jsx, lib (+11 more)
 
 ### Community 11 - "Runtime Dependencies"
-Cohesion: 0.10
-Nodes (21): dependencies, @base-ui/react@^1.6.0, class-variance-authority@^0.7.1, clsx@^2.1.1, leaflet@^1.9.4, lucide-react@^1.27.0, next@16.4.6, next-themes@^0.4.6 (+13 more)
+Cohesion: 0.09
+Nodes (23): dependencies, @base-ui/react@^1.6.0, class-variance-authority@^0.7.1, clsx@^2.1.1, leaflet@^1.9.4, lucide-react@^1.27.0, next@16.4.6, pg@^8.23.0 (+15 more)
 
 ### Community 12 - "cn"
 Cohesion: 0.13
-Nodes (29): AvatarBadge(), AvatarGroup(), AvatarGroupCount(), AvatarImage(), Input(), Separator(), SidebarContext, SidebarContextProps (+21 more)
+Nodes (27): AvatarBadge(), AvatarGroup(), AvatarGroupCount(), AvatarImage(), Separator(), SheetContent(), SheetOverlay(), SidebarContext (+19 more)
 
 ### Community 13 - "getTelemetryHistory"
-Cohesion: 0.31
-Nodes (8): August 28 MQTT Topic Format Migration, history table (session captures), raw_combined CTE for Phase Grouping, telemetry table (15-min background monitoring), Fix Weekly Energy kWh Calculation and Telemetry Integration, Normalize Phase Mapping to Eliminate Weekly Chart Disparity, Fix GROUP BY Aggregate Function Error in Sensor Query, getTelemetryHistory()
+Cohesion: 0.22
+Nodes (10): August 28 MQTT Topic Format Migration, history table (session captures), raw_combined CTE for Phase Grouping, telemetry table (15-min background monitoring), Fix Weekly Energy kWh Calculation and Telemetry Integration, Normalize Phase Mapping to Eliminate Weekly Chart Disparity, Fix GROUP BY Aggregate Function Error in Sensor Query, Default Analytics to Latest Recorded Date (+2 more)
 
 ### Community 14 - "npm Scripts"
 Cohesion: 0.12
@@ -205,8 +198,8 @@ Cohesion: 0.29
 Nodes (4): fs, destDir, srcDir, path
 
 ### Community 17 - "session-records.ts"
-Cohesion: 0.12
-Nodes (31): sensorList(), Remaining Work and Risks, Task 2: Parser live buffer, Task 8: Buka File Rekaman, FIELD_MAP, formatJakartaTime(), isRecord(), parseLiveBuffer() (+23 more)
+Cohesion: 0.06
+Nodes (62): TelemetryChart(), TelemetryChartProps, downloadSession(), exportExcel(), sensorList(), Context and Sources, Pindah fitur Smart Energy Meter ke portal: Tahap 1, Remaining Work and Risks (+54 more)
 
 ### Community 18 - "ESLint Config"
 Cohesion: 0.33
@@ -216,73 +209,73 @@ Nodes (5): eslintConfig, eslint@^9, eslint-config-next@16.4.6, eslint, eslint-co
 Cohesion: 0.40
 Nodes (4): dotenv@^17.4.2, prisma@^7.9.1, dotenv, prisma
 
-### Community 22 - "POST"
-Cohesion: 0.13
-Nodes (15): POST(), Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Sign-out, Ganti Peran, dan security, Verification (+7 more)
+### Community 22 - "Sign-out, Ganti Peran, dan security"
+Cohesion: 0.25
+Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Sign-out, Ganti Peran, dan security, Verification
 
 ### Community 23 - "Store Analytics Widget with Load Profile"
-Cohesion: 0.19
-Nodes (9): StatusBadgeProps, Dynamic 7-Day Energy Trend Navigation, DailyConsumption interface, Store Analytics Widget with Load Profile, getStoreAnalyticsData(), PaginationMeta, SessionInfo, StoreStatus (+1 more)
+Cohesion: 0.17
+Nodes (7): Dynamic 7-Day Energy Trend Navigation, DailyConsumption interface, Store Analytics Widget with Load Profile, MOCK_AUDIT_SESSIONS, MOCK_STORES, PaginationMeta, SessionInfo
 
 ### Community 24 - "CLAUDE.md"
-Cohesion: 0.08
-Nodes (23): Adding a Feature, antislop, Code Organization Patterns, Common Commands, Component Patterns, Data Layer, Databases, Debugging (+15 more)
+Cohesion: 0.09
+Nodes (21): Adding a Feature, antislop, Code Organization Patterns, Common Commands, Component Patterns, Debugging, Development Workflow, Directory Structure (+13 more)
 
 ### Community 25 - "telemetry-service.ts"
-Cohesion: 0.13
-Nodes (20): Codebase Map, dynamic, GET(), Aiven to Biznet VPS PostgreSQL Migration, Aiven IoT PostgreSQL/TimescaleDB (devices, telemetry, history), Remove Hardcoded DB Secrets, createPoolConfig(), getAivenPool (+12 more)
+Cohesion: 0.12
+Nodes (14): PZEM Energy Counter Reset / Rollover, getStoreAnalyticsData(), Dashboard Time-Grain Switcher and Real Monthly History, Fix Energy Meter Reset Rollover False Spike, jakartaRange(), getEnergyIndex(), auditSessionCache, AuditSessionRow (+6 more)
 
 ### Community 26 - "store-service.ts"
-Cohesion: 0.26
-Nodes (10): EnergyTotal, getEnergyIndexWithin(), IotDeviceData, LatestRow, loadCaptureStatus, loadEnergyIndex(), loadIotDeviceDataList(), loadLatestRows() (+2 more)
+Cohesion: 0.16
+Nodes (17): isDeviceAllowed(), isCaptureStalled(), parseWibTimestamp(), EnergyTotal, getEnergyIndexWithin(), CaptureReport, IotDeviceData, LatestRow (+9 more)
 
 ### Community 27 - "getRequestScope"
-Cohesion: 0.22
-Nodes (14): dynamic, GET(), dynamic, metadata, MonitoringPage(), DashboardPage(), dynamic, StoreGallery() (+6 more)
+Cohesion: 0.19
+Nodes (17): dynamic, GET(), dynamic, metadata, MonitoringPage(), DashboardPage(), dynamic, NoAssignedDevices() (+9 more)
 
 ### Community 28 - "store-monitoring-page.tsx"
-Cohesion: 0.15
-Nodes (22): emptyMessage(), LIVE_METRICS, LiveState, LiveTelemetryChart(), STATE_BADGE, METRIC_CONFIG, TelemetryChart(), TelemetryChartProps (+14 more)
+Cohesion: 0.05
+Nodes (52): emptyMessage(), LIVE_METRICS, LiveState, LiveTelemetryChart(), STATE_BADGE, SessionSelectorProps, CustomXAxisTick(), formatDateToIso() (+44 more)
 
 ### Community 29 - "Ignore graphify-out"
 Cohesion: 0.25
 Nodes (7): Changed Files, Context and Sources, Decisions, Ignore graphify-out, Remaining Work and Risks, Scope, Verification
 
 ### Community 30 - "AI Context - SPARTA Smart Energy Monitoring"
-Cohesion: 0.07
-Nodes (28): AI Context - SPARTA Smart Energy Monitoring, Alur IoT dan Flask, Alur Pengguna, Aturan Perhitungan Telemetri, Biaya PLN, Energi (kWh), Format angka, Normalisasi fase (+20 more)
+Cohesion: 0.12
+Nodes (15): AI Context - SPARTA Smart Energy Monitoring, Alur IoT dan Flask, Alur Pengguna, Aturan Perhitungan Telemetri, Biaya PLN, Energi (kWh), Format angka, Normalisasi fase (+7 more)
 
-### Community 31 - "app-header.tsx"
-Cohesion: 0.16
-Nodes (23): AppHeader(), noSubscription(), THEME_OPTIONS, ThemeToggle(), ROLE_LABELS, ShellViewer, signOut(), SpartaLinks (+15 more)
+### Community 31 - "react"
+Cohesion: 0.14
+Nodes (27): CaptureControls(), submit(), CommandError(), IntervalField(), Open, Message(), SensorRow(), save() (+19 more)
 
 ### Community 32 - "Fakta dari Flask yang dipakai plan ini"
-Cohesion: 0.13
-Nodes (14): Fakta dari Flask yang dipakai plan ini, Task 1: Modul fase bersama, Task 3: Route live per toko, Task 4: Grafik real-time di detail toko, Task 5: Data record sesi dan route-nya, Task 6: Export Excel dan backup JSON, Task 9: Dokumen, catatan task, dan verifikasi akhir, QueryClient (+6 more)
+Cohesion: 0.16
+Nodes (12): Task 5: Data record sesi dan route-nya, QueryClient, QueryPool, readOnlyQuery(), SESSION_QUERY_TIMEOUT_MS, readLastRecordTimes(), DeviceRow, getManagedDevices() (+4 more)
 
-### Community 33 - "app-sidebar.tsx"
-Cohesion: 0.18
-Nodes (18): AppSidebar(), NavItem, NavItemButton(), navItems, initialsOf(), Logo(), LogoProps, Avatar() (+10 more)
+### Community 33 - "control-commands.ts"
+Cohesion: 0.10
+Nodes (31): dynamic, POST(), dynamic, POST(), dynamic, POST(), asRecord(), fail() (+23 more)
 
-### Community 34 - "sesi-rekaman/page.tsx"
-Cohesion: 0.22
-Nodes (8): dynamic, loadSessions(), metadata, SessionsPage(), BackoffError, createSharedFetch(), Entry, SharedFetchOptions
+### Community 34 - "createSharedFetch"
+Cohesion: 0.15
+Nodes (11): Alamat API Flask dan cache status capture, Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Verification, BackoffError (+3 more)
 
 ### Community 35 - "Tambah skill frontend-design dari sparta-office"
 Cohesion: 0.25
 Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Tambah skill frontend-design dari sparta-office, Verification
 
-### Community 36 - "SPARTA & Aiven Real Data Integration"
-Cohesion: 0.20
-Nodes (7): SessionSelectorProps, Dual-Database Architecture (sparta_energy + energy_meter), SPARTA & Aiven Real Data Integration, SPARTA Energy DB (stores, audits), MOCK_AUDIT_SESSIONS, MOCK_STORES, AuditSession
+### Community 36 - "app-sidebar.tsx"
+Cohesion: 0.17
+Nodes (21): AppSidebar(), NavItem, NavItemButton(), navItems, Logo(), LogoProps, Avatar(), AvatarFallback() (+13 more)
 
 ### Community 37 - "Tombol "Kembali ke SPARTA" di header portal"
 Cohesion: 0.25
 Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Tombol "Kembali ke SPARTA" di header portal, Verification
 
 ### Community 38 - "store-table.tsx"
-Cohesion: 0.32
-Nodes (16): formatRelativeTime(), StoreTable(), formatDate(), formatKwh(), SangatBorosPriority(), DATE_OPTIONS, formatEpoch(), SessionTable() (+8 more)
+Cohesion: 0.31
+Nodes (17): StoreGallery(), formatRelativeTime(), StoreTable(), formatDate(), formatKwh(), SangatBorosPriority(), DATE_OPTIONS, formatEpoch() (+9 more)
 
 ### Community 39 - "Non-IoT security hardening"
 Cohesion: 0.25
@@ -293,169 +286,149 @@ Cohesion: 0.40
 Nodes (4): Desain, Di luar cakupan, Latar belakang, Tombol "Kembali ke SPARTA" di header portal
 
 ### Community 41 - "live-buffer-service.ts"
-Cohesion: 0.33
-Nodes (9): dynamic, GET(), getStoreLiveBuffer(), loadLiveBuffer, resolveDeviceId, fetchTelemetryApi(), telemetryApiBase(), TelemetryApiError (+1 more)
+Cohesion: 0.26
+Nodes (11): dynamic, GET(), dynamic, GET(), Changed Files, scopeKey(), parseSinceParam(), getDeviceLiveBuffer() (+3 more)
 
-### Community 42 - "session-invalid/route.ts"
-Cohesion: 0.39
-Nodes (6): dynamic, GET(), Access Control, clearSessionCookie(), expiredSessionCookies(), relativeRedirect()
+### Community 42 - "logout/route.ts"
+Cohesion: 0.17
+Nodes (15): dynamic, POST(), dynamic, GET(), Access Control, Changed Files, DEV_ROLE_COOKIE, SESSION_COOKIE (+7 more)
 
 ### Community 43 - "SSO redirect loop guard"
-Cohesion: 0.25
-Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, SSO redirect loop guard, Verification
+Cohesion: 0.29
+Nodes (6): Context and Sources, Decisions, Remaining Work and Risks, Scope, SSO redirect loop guard, Verification
 
 ### Community 44 - "energy-service.ts"
-Cohesion: 0.08
-Nodes (28): register(), Bucket, BUCKET_MS, bucketEnergy(), BucketRow, createEnergyIndex(), loadProfile(), merge() (+20 more)
+Cohesion: 0.15
+Nodes (16): Bucket, BUCKET_MS, bucketEnergy(), BucketRow, createEnergyIndex(), loadProfile(), merge(), summary() (+8 more)
 
 ### Community 45 - "Agent Docs: Skills Matrix, graphify Rules, and Project Context"
 Cohesion: 0.25
 Nodes (7): Agent Docs: Skills Matrix, graphify Rules, and Project Context, Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Verification
 
-### Community 46 - "getStoreAnalyticsData"
-Cohesion: 0.28
-Nodes (6): Fix Weekly Chart Switching and Timezone Alignment, Default Analytics to Latest Recorded Date, Remove Hardcoded Date Fallbacks, getStoreAnalyticsData(), getTelemetryChartData, hourlyAverageDiffPct()
+### Community 46 - "app/layout.tsx"
+Cohesion: 0.18
+Nodes (12): fontMono, geist, metadata, RootLayout(), isTypingTarget(), ThemeHotkey(), onKeyDown(), ThemeProvider() (+4 more)
 
 ### Community 47 - "Portal Akses Role (Admin, Auditor, GS)"
-Cohesion: 0.33
-Nodes (5): Decisions, Portal Akses Role (Admin, Auditor, GS), Remaining Work and Risks, Scope, Verification
+Cohesion: 0.29
+Nodes (6): Context and Sources, Decisions, Portal Akses Role (Admin, Auditor, GS), Remaining Work and Risks, Scope, Verification
 
-### Community 48 - "next.config.ts"
-Cohesion: 0.50
-Nodes (3): assetHeaders, nextConfig, securityHeaders
+### Community 48 - "breadcrumb.tsx"
+Cohesion: 0.40
+Nodes (9): BreadcrumbNav(), ROUTE_LABELS, Breadcrumb(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage() (+1 more)
 
 ### Community 50 - "phase-gauge-grid.tsx"
 Cohesion: 0.26
 Nodes (8): CircularGauge(), CircularGaugeProps, getPhaseColor(), PhaseGaugeGrid(), PhaseGaugeGridProps, SVG Circular Gauge Setup, PhaseData, Recharts
 
-### Community 51 - "Standardize GitHub Actions Deploy Workflow"
+### Community 51 - "Services"
 Cohesion: 0.40
-Nodes (5): Dokploy Webhook CI/CD Deploy, Smart-Energy-Meter-Vps project, sparta-energy project, Standardize GitHub Actions Deploy Workflow, .github/workflows/deploy.yml
+Nodes (9): Codebase Map, dynamic, GET(), Services, getAivenPool, getRecordingSessions(), getStoreById, getAuditSessions() (+1 more)
 
 ### Community 52 - "[storeId]/page.tsx"
 Cohesion: 0.43
 Nodes (7): dynamic, MonitoringDetailPage(), PageProps, StoreDetail(), StoreDetailFallback(), StoreHero(), StoreMonitoringPage()
 
-### Community 53 - "store-analytics-widget.tsx"
-Cohesion: 0.08
-Nodes (32): CustomXAxisTick(), formatDateToIso(), formatKw(), ID_DAYS_FULL, ID_DAYS_SHORT, ID_MONTHS_FULL, ID_MONTHS_SHORT, StoreAnalyticsWidget() (+24 more)
-
 ### Community 54 - "session-service.ts"
-Cohesion: 0.17
-Nodes (18): dynamic, GET(), Struktur File, Task 7: Halaman Sesi Rekaman, scopeKey(), parseSessionId(), getRecordingSessions(), getSessionRecords() (+10 more)
+Cohesion: 0.16
+Nodes (15): formatDuration(), UNITS, loadSessionRows(), MAX_SESSION_RECORDS, SessionListRow, SessionMetaRow, SessionRows, sessionRowsCache (+7 more)
 
-### Community 55 - "lucide-react"
-Cohesion: 0.20
-Nodes (15): GalleryToolbar(), GalleryToolbarProps, STATUS_LABELS, SessionSelector(), SelectContent(), SelectGroup(), SelectItem(), SelectLabel() (+7 more)
+### Community 55 - "monthly-cost-kpi-card.tsx"
+Cohesion: 0.13
+Nodes (28): GalleryToolbar(), GalleryToolbarProps, STATUS_LABELS, MonthlyCostCard(), MonthlyCostKpiCardProps, StatusBadgeProps, SessionSelector(), SelectContent() (+20 more)
 
 ### Community 56 - "requireApiAccess"
-Cohesion: 0.26
-Nodes (11): HistoryParams, isIsoDate(), MAX_PAGE_SIZE, parseDateParam(), parseHistoryParams(), parsePositiveInt(), ParseResult, parseSinceParam() (+3 more)
+Cohesion: 0.16
+Nodes (17): dynamic, GET(), dynamic, GET(), HistoryParams, isIsoDate(), MAX_PAGE_SIZE, parseDateParam() (+9 more)
 
 ### Community 57 - "Sembunyikan toko DEMO dari Prioritas Pasang IoT di production"
-Cohesion: 0.25
-Nodes (7): Changed Files, Context and Sources, Decisions, Lanjutan di sparta-energy, Remaining Work and Risks, Sembunyikan toko DEMO dari Prioritas Pasang IoT di production, Verification
+Cohesion: 0.22
+Nodes (8): Changed Files, Context and Sources, Decisions, Lanjutan di sparta-energy, Remaining Work and Risks, Scope, Sembunyikan toko DEMO dari Prioritas Pasang IoT di production, Verification
 
-### Community 58 - "scopeKey"
-Cohesion: 0.29
-Nodes (6): Changed Files, Context and Sources, Decisions, Pindah fitur Smart Energy Meter ke portal: Tahap 1, Scope, Verification
+### Community 58 - "device-control.ts"
+Cohesion: 0.20
+Nodes (19): CaptureCommand, DeviceCommand, SessionCommand, captureStates(), ControlError, findDevice(), findSession(), runCaptureCommand() (+11 more)
 
-### Community 59 - "next"
-Cohesion: 0.26
-Nodes (15): createStoreIcon(), FloatingMapControls(), MapViewController(), NetworkMapLeaflet(), NetworkMapLeaflet, NetworkMapWidget(), StatusBadge(), formatRelativeTime() (+7 more)
+### Community 59 - "Store"
+Cohesion: 0.13
+Nodes (15): DashboardKpiSummaryProps, DashboardOverviewProps, StatusBadge(), StoreAnalyticsWidgetProps, formatRelativeTime(), StoreCard(), StoreCardProps, StoreTableProps (+7 more)
 
 ### Community 60 - "Store MEP Simulator — Lighting Snap to Gypsum Tile Main Tee Grid & Asymmetry Shift Cycle"
 Cohesion: 0.25
 Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Store MEP Simulator — Lighting Snap to Gypsum Tile Main Tee Grid & Asymmetry Shift Cycle, Verification
 
 ### Community 61 - "Global Constraints"
-Cohesion: 0.25
-Nodes (7): Global Constraints, Portal Akses Role Implementation Plan, Task 2: Akses per request, Task 3: Penyaringan di service, Task 4: Proxy dan route API, Task 5: Halaman dan tampilan, Task 6: Verifikasi dan dokumen
+Cohesion: 0.15
+Nodes (14): Data Layer, Databases, Global Constraints, Portal Akses Role Implementation Plan, Task 2: Akses per request, Task 3: Penyaringan di service, Task 4: Proxy dan route API, Task 5: Halaman dan tampilan (+6 more)
 
-### Community 62 - "Angka energi dan performa"
-Cohesion: 0.25
-Nodes (7): Angka energi dan performa, Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Verification
-
-### Community 63 - "Alamat API Flask dan cache status capture"
-Cohesion: 0.25
-Nodes (7): Alamat API Flask dan cache status capture, Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Verification
+### Community 63 - "energy-service.ts"
+Cohesion: 0.20
+Nodes (13): Aiven to Biznet VPS PostgreSQL Migration, VPS Database Migration and Dynamic Equipment Monitoring, Decisions, register(), getTelemetryPool(), EnergyIndex, EnergyState, lastId() (+5 more)
 
 ### Community 64 - "Dashboard streaming dan cache biaya bulanan"
 Cohesion: 0.29
 Nodes (6): Context and Sources, Dashboard streaming dan cache biaya bulanan, Decisions, Remaining Work and Risks, Scope, Verification
 
-### Community 66 - "package.json"
-Cohesion: 0.15
-Nodes (12): react-dom@19.2.4, tw-animate-css@^1.4.0, @tailwindcss/postcss@^4, @types/node@^20, name, private, type, version (+4 more)
+### Community 66 - "telemetry-api.ts"
+Cohesion: 0.57
+Nodes (6): fetchTelemetryApi(), sendTelemetryCommand(), telemetryApiBase(), TelemetryApiError, TelemetryReply, tokenHeaders()
 
 ### Community 67 - "dashboard-overview.tsx"
-Cohesion: 0.27
-Nodes (15): DashboardKpiSummary(), DashboardKpiSummaryProps, DashboardOverview(), MonthlyCostFallback(), MonthlyCostSection(), StoreAnalyticsFallback(), StoreAnalyticsSection(), MonthlyCostKpiCard() (+7 more)
-
-### Community 69 - "Store"
-Cohesion: 0.24
-Nodes (11): DashboardOverviewProps, NetworkMapLeafletProps, NetworkMapWidgetProps, StoreAnalyticsWidgetProps, StoreCardProps, StoreTableProps, StoreDetailAnalyticsProps, StoreHeroProps (+3 more)
-
-### Community 70 - "Tabel prioritas dan sesi rekaman"
-Cohesion: 0.25
-Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Tabel prioritas dan sesi rekaman, Verification
-
-### Community 71 - "react"
-Cohesion: 0.18
-Nodes (20): DashboardError(), DashboardLoading(), fontMono, geist, metadata, RootLayout(), MetricCard(), isTypingTarget() (+12 more)
-
-### Community 72 - "monthly-cost-kpi-card.tsx"
-Cohesion: 0.23
-Nodes (15): MonthlyCostCard(), Badge(), badgeVariants, Sheet(), SheetContent(), SheetDescription(), SheetFooter(), SheetHeader() (+7 more)
-
-### Community 73 - "Telemetry Interval Delta Energy"
 Cohesion: 0.33
-Nodes (3): PZEM Energy Counter Reset / Rollover, Telemetry Interval Delta Energy, Fix Energy Meter Reset Rollover False Spike
+Nodes (13): DashboardKpiSummary(), DashboardOverview(), MonthlyCostFallback(), MonthlyCostSection(), StoreAnalyticsFallback(), StoreAnalyticsSection(), MonthlyCostKpiCard(), NetworkMapWidget() (+5 more)
 
-### Community 74 - "IoT Session Assignment & Multi-Session Architecture"
-Cohesion: 0.14
-Nodes (7): IoT Session Assignment & Multi-Session Architecture, IotAuditSession model (store_id, device_id, start/end time), Dual-Database Integration Architecture, 3-Pillar Ecosystem (sparta-energy, smart-energy-meter-vps, smart-energy-monitoring), Integrate Real Leaflet Mapping, smart-energy-meter-vps (sister project), sparta-energy (sister project)
+### Community 69 - "store-analytics-widget.tsx"
+Cohesion: 0.26
+Nodes (10): CustomXAxisTick(), formatDateToIso(), formatKw(), ID_DAYS_FULL, ID_DAYS_SHORT, ID_MONTHS_FULL, ID_MONTHS_SHORT, StoreAnalyticsWidget() (+2 more)
 
-### Community 75 - "breadcrumb.tsx"
-Cohesion: 0.40
-Nodes (9): BreadcrumbNav(), ROUTE_LABELS, Breadcrumb(), BreadcrumbEllipsis(), BreadcrumbItem(), BreadcrumbLink(), BreadcrumbList(), BreadcrumbPage() (+1 more)
+### Community 71 - "perangkat/page.tsx"
+Cohesion: 0.21
+Nodes (22): DashboardError(), DashboardLoading(), DevicePage(), dynamic, metadata, DevicesPage(), dynamic, metadata (+14 more)
 
-### Community 76 - "Migrasi fitur dashboard meter lama ke portal"
-Cohesion: 0.33
-Nodes (5): Aturan tetap, Index, Keputusan fitur, Migrasi fitur dashboard meter lama ke portal, Perlu dicek di DB 2 (hanya baca, dengan izin user)
+### Community 72 - "pools.ts"
+Cohesion: 0.29
+Nodes (7): Dual-Database Architecture (sparta_energy + energy_meter), SPARTA & Aiven Real Data Integration, Aiven IoT PostgreSQL/TimescaleDB (devices, telemetry, history), SPARTA Energy DB (stores, audits), Remove Hardcoded DB Secrets, createPoolConfig(), POOL_STATEMENT_TIMEOUT_MS
 
-### Community 77 - "akses-ditolak/page.tsx"
-Cohesion: 0.67
-Nodes (3): AccessDeniedPage(), metadata, spartaUrl()
+### Community 73 - "stale-cache.ts"
+Cohesion: 0.29
+Nodes (3): createStaleCache(), Entry, StaleCacheOptions
 
-### Community 78 - "Tampilan mengikuti Energy"
-Cohesion: 0.25
-Nodes (7): Changed Files, Context and Sources, Decisions, Remaining Work and Risks, Scope, Tampilan mengikuti Energy, Verification
+### Community 75 - "Integrasi 12 Toko Sangat Boros"
+Cohesion: 0.29
+Nodes (6): Context and Sources, Decisions, Integrasi 12 Toko Sangat Boros, Remaining Work and Risks, Scope, Verification
+
+### Community 76 - "Tahap"
+Cohesion: 0.15
+Nodes (12): Aturan tetap, Index, Keputusan fitur, M0. Keamanan Flask (project Flask, sebelum kontrol apa pun), M1. Baca-saja (project portal, tidak menunggu M0), M2. Kontrol rekaman dan sesi (setelah M0), M3. Pengaturan perangkat dan sensor, M4. Pensiun dashboard lama (+4 more)
+
+### Community 78 - "network-map-leaflet.tsx"
+Cohesion: 0.13
+Nodes (11): createStoreIcon(), FloatingMapControls(), MapViewController(), NetworkMapLeaflet(), NetworkMapLeafletProps, NetworkMapLeaflet, NetworkMapWidgetProps, IoT Session Assignment & Multi-Session Architecture (+3 more)
 
 ## Ambiguous Edges - Review These
 - `Dual-Database Architecture (sparta_energy + energy_meter)` → `Aiven IoT PostgreSQL/TimescaleDB (devices, telemetry, history)`  [AMBIGUOUS]
   docs/agent-notes/2026-08-21-1013-sparta-aiven-real-data-integration.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **6 isolated node(s):** `August 28 MQTT Topic Format Migration`, `PZEM Energy Counter Reset / Rollover`, `getTelemetryChartData`, `sparta-energy project`, `.gitignore` (+1 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 389 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 isolated node(s):** `August 28 MQTT Topic Format Migration`, `PZEM Energy Counter Reset / Rollover`, `getTelemetryChartData`, `sparta-energy project`, `PLN B2/TR Tariff (Rp 1.444,7/kWh)` (+1 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 400 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `next` connect `next` to `api-guard.ts`, `(dashboard)/layout.tsx`, `access-rules.ts`, `app/layout.tsx`, `next`, `Runtime Dependencies`, `telemetry-service.ts`, `getRequestScope`, `app-sidebar.tsx`, `sesi-rekaman/page.tsx`, `store-table.tsx`, `live-buffer-service.ts`, `next.config.ts`, `[storeId]/page.tsx`, `store-analytics-widget.tsx`, `session-service.ts`, `package.json`, `dashboard-overview.tsx`, `react`, `breadcrumb.tsx`, `akses-ditolak/page.tsx`?**
-  _High betweenness centrality (0.111) - this node is a cross-community bridge._
-- **Are the 5 inferred relationships involving `getStoreAnalyticsData()` (e.g. with `Codebase Map` and `Services`) actually correct?**
-  _`getStoreAnalyticsData()` has 5 INFERRED edges - model-reasoned connections that need verification._
+- **Why does `next` connect `next` to `(dashboard)/layout.tsx`, `access-rules.ts`, `app/layout.tsx`, `Package Manifest`, `Runtime Dependencies`, `getRequestScope`, `react`, `control-commands.ts`, `app-sidebar.tsx`, `store-table.tsx`, `live-buffer-service.ts`, `logout/route.ts`, `app/layout.tsx`, `breadcrumb.tsx`, `Services`, `[storeId]/page.tsx`, `requireApiAccess`, `Store`, `dashboard-overview.tsx`, `store-analytics-widget.tsx`, `perangkat/page.tsx`, `network-map-leaflet.tsx`?**
+  _High betweenness centrality (0.119) - this node is a cross-community bridge._
 - **What connects `August 28 MQTT Topic Format Migration`, `PZEM Energy Counter Reset / Rollover`, `getTelemetryChartData` to the rest of the system?**
   _6 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `access-rules.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.13763440860215054 - nodes in this community are weakly interconnected._
-- **Why does `cn()` connect `cn` to `app-sidebar.tsx`, `dashboard-overview.tsx`, `store-table.tsx`, `react`, `monthly-cost-kpi-card.tsx`, `breadcrumb.tsx`, `phase-gauge-grid.tsx`, `[storeId]/page.tsx`, `store-analytics-widget.tsx`, `lucide-react`, `next`, `store-monitoring-page.tsx`, `app-header.tsx`?**
-  _High betweenness centrality (0.094) - this node is a cross-community bridge._
+- **Should `next` be split into smaller, more focused modules?**
+  _Cohesion score 0.1354679802955665 - nodes in this community are weakly interconnected._
+- **Why does `cn()` connect `cn` to `dashboard-overview.tsx`, `app-sidebar.tsx`, `store-analytics-widget.tsx`, `store-table.tsx`, `Button`, `perangkat/page.tsx`, `network-map-leaflet.tsx`, `app/layout.tsx`, `breadcrumb.tsx`, `session-records.ts`, `phase-gauge-grid.tsx`, `[storeId]/page.tsx`, `monthly-cost-kpi-card.tsx`, `Store`, `store-monitoring-page.tsx`, `react`?**
+  _High betweenness centrality (0.086) - this node is a cross-community bridge._
 - **Should `3-Pillar Architecture Plan` be split into smaller, more focused modules?**
-  _Cohesion score 0.05485232067510549 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.050200803212851405 - nodes in this community are weakly interconnected._
+- **Why does `react` connect `react` to `dashboard-overview.tsx`, `access-rules.ts`, `store-analytics-widget.tsx`, `store-table.tsx`, `perangkat/page.tsx`, `Button`, `Package Manifest`, `Runtime Dependencies`, `cn`, `network-map-leaflet.tsx`, `app/layout.tsx`, `breadcrumb.tsx`, `[storeId]/page.tsx`, `monthly-cost-kpi-card.tsx`, `store-service.ts`, `store-monitoring-page.tsx`?**
+  _High betweenness centrality (0.064) - this node is a cross-community bridge._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._

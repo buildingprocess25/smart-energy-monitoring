@@ -86,6 +86,7 @@ export function StoreTable({ stores }: StoreTableProps) {
                 <StatusBadge
                   status={store.status}
                   isRecording={store.isRecording}
+                  recordingStalled={store.recordingStalled}
                   recordingSessionName={store.recordingSessionName}
                 />
               </TableCell>

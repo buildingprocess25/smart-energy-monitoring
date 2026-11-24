@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { RecordingSessionSummary } from '@/lib/types'
 import { comparePhase, isExcludedPhase, normalizePhaseKey } from '@/lib/phase-keys'
 import { Input } from '@/components/ui/input'
+import { SessionActions } from './session-actions'
 import { formatDuration } from '@/lib/format-duration'
 import {
   STICKY_HEADER_CLASS,
@@ -34,7 +35,13 @@ function sensorList(phases: string[]) {
   return [...keys].sort(comparePhase).join(', ')
 }
 
-export function SessionTable({ sessions }: { sessions: RecordingSessionSummary[] }) {
+export function SessionTable({
+  sessions,
+  canControl,
+}: {
+  sessions: RecordingSessionSummary[]
+  canControl: boolean
+}) {
   const [query, setQuery] = useState('')
 
   const visible = useMemo(() => {
@@ -74,12 +81,15 @@ export function SessionTable({ sessions }: { sessions: RecordingSessionSummary[]
             <TableHead className="max-sm:hidden">Waktu rekam</TableHead>
             <TableHead className="text-right max-md:hidden">Record</TableHead>
             <TableHead className="max-lg:hidden">Sensor</TableHead>
+            <TableHead className="w-14">
+              <span className="sr-only">Aksi</span>
+            </TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {visible.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="py-12 text-center whitespace-normal text-muted-foreground">
+              <TableCell colSpan={6} className="py-12 text-center whitespace-normal text-muted-foreground">
                 {sessions.length === 0
                   ? 'Belum ada sesi rekaman dari perangkat yang boleh Anda lihat.'
                   : 'Tidak ada sesi yang cocok. Coba kata lain atau kosongkan pencarian.'}
@@ -140,6 +150,9 @@ export function SessionTable({ sessions }: { sessions: RecordingSessionSummary[]
                     <span title={sensors} className="block truncate text-muted-foreground">
                       {sensors}
                     </span>
+                  </TableCell>
+                  <TableCell className="w-14 py-3">
+                    <SessionActions session={s} canControl={canControl} />
                   </TableCell>
                 </TableRow>
               )

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { unstable_rethrow } from 'next/navigation'
+import { getRequestAccess } from '@/lib/auth/access'
+import { canControlDevices } from '@/lib/auth/access-rules'
 import { getRecordingSessions } from '@/lib/services/session-service'
 import { BackoffError } from '@/lib/shared-fetch'
 import { SessionTable } from '@/components/sessions/session-table'
@@ -24,7 +26,8 @@ async function loadSessions(): Promise<RecordingSessionSummary[] | null> {
 }
 
 export default async function SessionsPage() {
-  const sessions = await loadSessions()
+  const [access, sessions] = await Promise.all([getRequestAccess(), loadSessions()])
+  const canControl = access.status === 'ok' && canControlDevices(access.viewer?.role ?? null)
 
   return (
     <div className="flex flex-col gap-6">
@@ -37,7 +40,7 @@ export default async function SessionsPage() {
         </p>
       </div>
       {sessions ? (
-        <SessionTable sessions={sessions} />
+        <SessionTable sessions={sessions} canControl={canControl} />
       ) : (
         <p role="alert" className="text-sm text-muted-foreground">
           Daftar sesi belum bisa dimuat. Coba lagi sebentar lagi.

@@ -126,6 +126,7 @@ export interface Store {
   salesAreaM2?: number
   warehouseAreaM2?: number
   isRecording?: boolean
+  recordingStalled?: boolean // reported as recording, but no new rows arrive
   recordingSessionName?: string
   isOnline?: boolean
 }
@@ -251,4 +252,42 @@ export interface SessionSummaryStats {
   avgFrequency: number
   avgPowerFactor: number
   energyKwh: number
+}
+
+export interface CaptureState {
+  active: boolean
+  finalizing: boolean
+  sessionId: string | null
+  sessionName: string | null
+  interval: number | null // seconds
+  count: number
+  startedAt: string | null
+  lastRecordAt?: number | null // epoch ms; undefined when it could not be read
+  stalled?: boolean
+}
+
+export interface ManagedSensor {
+  phase: string
+  name: string
+  enabled: boolean
+  color: string | null
+}
+
+export interface ManagedDevice {
+  id: string
+  name: string
+  kind: 'CT' | 'Plug' | 'Meter energi'
+  online: boolean
+  lastSeen: string | null
+  storeId: string | null
+  position: { latitude: number | null; longitude: number | null }
+  sensors: ManagedSensor[]
+  capture: CaptureState | null // null when the IoT server did not answer
+}
+
+export interface StoreOption {
+  id: string
+  code: string
+  name: string
+  branch: string
 }

@@ -258,6 +258,7 @@ export function NetworkMapWidget({ stores = [] }: NetworkMapWidgetProps) {
                     <StatusBadge
                       status={selectedStore.status}
                       isRecording={selectedStore.isRecording}
+                      recordingStalled={selectedStore.recordingStalled}
                       recordingSessionName={selectedStore.recordingSessionName}
                     />
                   </div>

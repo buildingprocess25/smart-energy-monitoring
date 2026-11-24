@@ -83,12 +83,22 @@ const sharedSessions = createSharedFetch((key) => loadSessionRows(JSON.parse(key
 })
 const sessionRowsCache = createStaleCache<SessionRows>({ ttlMs: 60_000 })
 
+// On globalThis because the control routes and the page are bundled apart.
+declare global {
+  var _sessionListVersion: number | undefined
+}
+
+export function expireSessionList() {
+  globalThis._sessionListVersion = (globalThis._sessionListVersion ?? 0) + 1
+}
+
 export async function getRecordingSessions(): Promise<RecordingSessionSummary[]> {
   const scope = await getRequestScope()
   if (scope.kind === 'none') return []
   const key = scopeKey(scope)
+  const version = globalThis._sessionListVersion ?? 0
   const [rows, stores] = await Promise.all([
-    sessionRowsCache(key, () => sharedSessions(key)),
+    sessionRowsCache(`${version} ${key}`, () => sharedSessions(key)),
     getStores(),
   ])
   return toSummaries(rows, stores)

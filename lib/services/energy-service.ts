@@ -128,3 +128,8 @@ export async function getEnergyIndexWithin(ms: number): Promise<EnergyIndex | nu
     clearTimeout(timer)
   }
 }
+
+// Deleted rows are only noticed by a full read.
+export function requestFullEnergyRead() {
+  if (globalThis._energyState) globalThis._energyState.fullReadAt = 0
+}

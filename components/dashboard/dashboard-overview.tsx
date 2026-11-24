@@ -246,6 +246,7 @@ export function DashboardOverview({
                       <StatusBadge
                         status={store.status}
                         isRecording={store.isRecording}
+                        recordingStalled={store.recordingStalled}
                         recordingSessionName={store.recordingSessionName}
                       />
                     </td>

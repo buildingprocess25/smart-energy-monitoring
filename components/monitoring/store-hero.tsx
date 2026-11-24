@@ -22,6 +22,7 @@ export function StoreHero({ store }: StoreHeroProps) {
           <StatusBadge
             status={store.status}
             isRecording={store.isRecording}
+            recordingStalled={store.recordingStalled}
             recordingSessionName={store.recordingSessionName}
           />
           <span className="flex items-center gap-1.5">

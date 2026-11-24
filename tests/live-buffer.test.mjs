@@ -79,3 +79,9 @@ test('parseLiveBuffer treats null and empty values as missing, not zero', () => 
   assert.equal(r.points[0].R_powerFactor, 0.9)
   assert.equal(r.points[0].totalPower, 0)
 })
+
+test('the live total counts R/S/T only when the device has a main panel', () => {
+  const sample = (data) => parseLiveBuffer([{ timestamp: 1000, data }], null).points[0].totalPower
+  assert.equal(sample({ R: { 'Power (W)': 100 }, S: { 'Power (W)': 50 }, FREEZER_01: { 'Power (W)': 30 } }), 150)
+  assert.equal(sample({ PG: { 'Power (W)': 30 } }), 30)
+})

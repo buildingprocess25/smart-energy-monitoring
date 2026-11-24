@@ -3,7 +3,8 @@ import type { LiveBufferResult } from '@/lib/types'
 import { parseLiveBuffer } from '@/lib/live-buffer'
 import { createSharedFetch } from '@/lib/shared-fetch'
 import { getRequestScope } from '@/lib/auth/access'
-import { scopeKey } from '@/lib/auth/access-rules'
+import { isDeviceAllowed, scopeKey } from '@/lib/auth/access-rules'
+import { parseDeviceStatus, type DeviceStatus } from '@/lib/device-status'
 import { getStoreById } from '@/lib/services/store-service'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 
@@ -46,4 +47,15 @@ export async function getStoreLiveBuffer(
   if (!deviceId) return null
   const raw = await loadLiveBuffer(deviceId)
   return parseLiveBuffer(raw, since)
+}
+
+// Returns null when the device is outside the caller's scope.
+export async function getDeviceLiveBuffer(
+  deviceId: string,
+  since: number | null
+): Promise<(LiveBufferResult & { status: DeviceStatus }) | null> {
+  const scope = await getRequestScope()
+  if (!isDeviceAllowed(scope, deviceId)) return null
+  const raw = await loadLiveBuffer(deviceId)
+  return { ...parseLiveBuffer(raw, since), status: parseDeviceStatus(raw) }
 }

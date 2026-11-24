@@ -44,6 +44,11 @@ export function portalDecision(role: Role | null): PortalDecision {
   return { allow: false, redirect: 'forbidden' }
 }
 
+// Recording, sessions and device settings change data in DB 2 through Flask.
+export function canControlDevices(role: Role | null): boolean {
+  return role === 'ADMIN'
+}
+
 // A page request without sso_session goes to the sparta login once. Coming back still
 // without it while the bounce cookie lives means sparta set no session cookie: stop there.
 export function anonymousPageTarget(bounced: boolean): 'sparta-login' | 'session-denied' {

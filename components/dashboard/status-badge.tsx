@@ -4,11 +4,25 @@ import { StoreStatus } from '@/lib/types'
 interface StatusBadgeProps {
   status: StoreStatus
   isRecording?: boolean
+  recordingStalled?: boolean
   recordingSessionName?: string
   className?: string
 }
 
-export function StatusBadge({ status, isRecording, recordingSessionName, className }: StatusBadgeProps) {
+export function StatusBadge({
+  status,
+  isRecording,
+  recordingStalled,
+  recordingSessionName,
+  className,
+}: StatusBadgeProps) {
+  if (isRecording && recordingStalled) {
+    return (
+      <Badge variant="destructive" className={className} title={recordingSessionName}>
+        Rekaman macet
+      </Badge>
+    )
+  }
   if (isRecording) {
     return (
       <Badge className={className} title={recordingSessionName}>

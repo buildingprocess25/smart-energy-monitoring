@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { DeviceStatus } from '@/lib/device-status'
 import type { LiveBufferResult, MetricType, SensorMeta, TelemetryPoint } from '@/lib/types'
 import { TelemetryChart, METRIC_CONFIG } from './telemetry-chart'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +31,8 @@ function emptyMessage(state: LiveState): string {
   return 'Menunggu data dari perangkat'
 }
 
-export function LiveTelemetryChart({ storeId }: { storeId: string }) {
+export function LiveTelemetryChart({ src, showRelay = false }: { src: string; showRelay?: boolean }) {
+  const [status, setStatus] = useState<DeviceStatus | null>(null)
   const [points, setPoints] = useState<TelemetryPoint[]>([])
   const [sensors, setSensors] = useState<SensorMeta[]>([])
   const [state, setState] = useState<LiveState>('loading')
@@ -51,13 +53,14 @@ export function LiveTelemetryChart({ storeId }: { storeId: string }) {
       }
       try {
         const qs = lastEpoch.current ? `?since=${lastEpoch.current}` : ''
-        const res = await fetch(`/api/stores/${encodeURIComponent(storeId)}/live${qs}`, { cache: 'no-store' })
+        const res = await fetch(`${src}${qs}`, { cache: 'no-store' })
         if (!res.ok) throw new Error(String(res.status))
-        const data = (await res.json()) as LiveBufferResult
+        const data = (await res.json()) as LiveBufferResult & { status?: DeviceStatus }
         if (cancelled) return
         if (data.lastEpoch) lastEpoch.current = data.lastEpoch
         if (data.sensors.length) setSensors(data.sensors)
         if (data.points.length) setPoints((prev) => [...prev, ...data.points].slice(-MAX_POINTS))
+        if (data.status) setStatus(data.status)
         setState(data.offline ? 'offline' : 'live')
       } catch {
         if (!cancelled) setState('error')
@@ -70,7 +73,7 @@ export function LiveTelemetryChart({ storeId }: { storeId: string }) {
       cancelled = true
       clearTimeout(timer)
     }
-  }, [storeId])
+  }, [src])
 
   const badge = STATE_BADGE[state]
 
@@ -103,6 +106,27 @@ export function LiveTelemetryChart({ storeId }: { storeId: string }) {
           </Button>
         ))}
       </div>
+
+      {status && (
+        <dl className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+          {showRelay && (
+            <div>
+              <dt className="text-xs text-muted-foreground">Relay</dt>
+              <dd className="font-medium">
+                {state === 'offline' || !status.relay ? 'Tidak diketahui' : status.relay === 'ON' ? 'Menyala' : 'Mati'}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-xs text-muted-foreground">Sinyal WiFi</dt>
+            <dd className="font-medium">{status.wifi ?? '-'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Uptime</dt>
+            <dd className="font-medium">{status.uptime ?? '-'}</dd>
+          </div>
+        </dl>
+      )}
 
       {points.length === 0 ? (
         <div className="flex h-[320px] w-full items-center justify-center rounded-xl border border-dashed px-4 text-center text-sm text-muted-foreground">

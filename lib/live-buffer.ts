@@ -19,6 +19,8 @@ const FIELD_MAP: Record<string, string> = {
   'Active Energy (kWh)': 'energy',
 }
 
+const MAIN_PHASES = new Set(['R', 'S', 'T'])
+
 const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Jakarta',
   hour: '2-digit',
@@ -73,6 +75,8 @@ export function parseLiveBuffer(raw: unknown, since: number | null): LiveBufferR
       totalPower: 0,
     }
     let hasReading = false
+    let mainPower: number | null = null
+    let sensorPower = 0
     for (const [key, value] of Object.entries(item.data)) {
       if (!isPhaseKey(key) || isExcludedPhase(key) || !isRecord(value)) continue
       const phase = normalizePhaseKey(key)
@@ -81,10 +85,15 @@ export function parseLiveBuffer(raw: unknown, since: number | null): LiveBufferR
         const n = toNumber(value[field])
         if (n === null) continue
         point[`${phase}_${metric}`] = n
-        if (metric === 'power') point.totalPower = (point.totalPower ?? 0) + n
+        if (metric === 'power') {
+          sensorPower += n
+          if (MAIN_PHASES.has(phase)) mainPower = (mainPower ?? 0) + n
+        }
         hasReading = true
       }
     }
+    // Sub-meters measure part of the main panel, so they are not added to it.
+    point.totalPower = mainPower ?? sensorPower
     // A sample with no sensor reading would draw a false zero.
     if (hasReading) points.push(point)
   }

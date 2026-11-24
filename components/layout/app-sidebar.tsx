@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Store, History, type LucideIcon } from 'lucide-react'
+import { Cpu, LayoutDashboard, Store, History, type LucideIcon } from 'lucide-react'
 import {
   Sidebar,
   SidebarContent,
@@ -47,6 +47,12 @@ const navItems: NavItem[] = [
     href: '/sesi-rekaman',
     icon: History,
     isActive: (pathname) => pathname.startsWith('/sesi-rekaman'),
+  },
+  {
+    title: 'Perangkat',
+    href: '/perangkat',
+    icon: Cpu,
+    isActive: (pathname) => pathname.startsWith('/perangkat'),
   },
 ]
 

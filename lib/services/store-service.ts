@@ -5,6 +5,8 @@ import { isDeviceAllowed } from '@/lib/auth/access-rules'
 import { Store, PhaseData, StoreStatus } from '@/lib/types'
 import { extractStoreCode } from '@/lib/store-code'
 import { createSharedFetch } from '@/lib/shared-fetch'
+import { isCaptureStalled } from '@/lib/capture-health'
+import { readLastRecordTimes } from '@/lib/services/capture-health-service'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 import { getEnergyIndexWithin } from '@/lib/services/energy-service'
 import type { EnergyTotal } from '@/lib/energy-index'
@@ -54,10 +56,28 @@ interface IotDeviceData {
   phases: PhaseData[]
   energy: EnergyTotal | null
   isRecording: boolean
+  recordingStalled: boolean
   recordingSessionName?: string
   latitude?: number
   longitude?: number
   storeId?: string
+}
+
+interface CaptureReport {
+  active?: boolean
+  session_id?: string | null
+  session_name?: string
+  interval?: number
+  started_at?: string | null
+}
+
+function parseCaptureState(raw: unknown): CaptureReport | null {
+  if (typeof raw !== 'string') return (raw as CaptureReport | null) ?? null
+  try {
+    return JSON.parse(raw) as CaptureReport
+  } catch {
+    return null
+  }
 }
 
 interface SensorConfig {
@@ -189,10 +209,10 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
     }
 
     // Active capture states from Flask, shared across requests (see loadCaptureStatus)
-    const liveApiCaptureMap = new Map<string, { active: boolean; session_name?: string }>()
+    const liveApiCaptureMap = new Map<string, CaptureReport>()
     try {
       const data = (await captureStatus) as {
-        devices?: Record<string, { active?: boolean; finalizing?: boolean; session_name?: string } | null>
+        devices?: Record<string, (CaptureReport & { finalizing?: boolean }) | null>
       } | null
       if (data && data.devices) {
         for (const [did, dinfo] of Object.entries(data.devices)) {
@@ -200,6 +220,9 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
             liveApiCaptureMap.set(did, {
               active: true,
               session_name: dinfo.session_name,
+              session_id: dinfo.session_id,
+              interval: dinfo.interval,
+              started_at: dinfo.started_at,
             })
           }
         }
@@ -209,24 +232,22 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
     }
 
     const allowedIds = devRows.map((d) => String(d.id)).filter((id) => isDeviceAllowed(scope, id))
-    const [latestRows, energy] = await Promise.all([loadLatestRows(allowedIds), energyIndex])
+    const activeSessions = devRows.flatMap((d) => {
+      const report = liveApiCaptureMap.get(d.id) ?? parseCaptureState(d.capture_state)
+      return report?.active && report.session_id ? [report.session_id] : []
+    })
+    const [latestRows, energy, lastRecord] = await Promise.all([
+      loadLatestRows(allowedIds),
+      energyIndex,
+      readLastRecordTimes(activeSessions),
+    ])
     const results: IotDeviceData[] = []
 
     for (const dev of devRows) {
       if (!isDeviceAllowed(scope, String(dev.id))) continue
       const storeCode = extractStoreCode(dev.name)
 
-      let captureStateObj: any = null
-      if (dev.capture_state) {
-        if (typeof dev.capture_state === 'object') {
-          captureStateObj = dev.capture_state
-        } else if (typeof dev.capture_state === 'string') {
-          try {
-            captureStateObj = JSON.parse(dev.capture_state)
-          } catch {}
-        }
-      }
-
+      const captureStateObj = parseCaptureState(dev.capture_state)
       const apiCapture = liveApiCaptureMap.get(dev.id)
       const isRecording = Boolean(
         apiCapture?.active || (captureStateObj && captureStateObj.active === true)
@@ -234,7 +255,18 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
       const recordingSessionName =
         apiCapture?.session_name ||
         captureStateObj?.session_name ||
-        captureStateObj?.session_id
+        captureStateObj?.session_id ||
+        undefined
+      const report = apiCapture?.active ? apiCapture : captureStateObj
+      const recordingStalled = isCaptureStalled(
+        {
+          active: isRecording,
+          interval: report?.interval ?? null,
+          startedAt: report?.started_at ?? null,
+          lastRecordAt: lastRecord(report?.session_id ?? null),
+        },
+        Date.now()
+      )
       const lat = dev.latitude ? parseFloat(dev.latitude) : undefined
       const lng = dev.longitude ? parseFloat(dev.longitude) : undefined
 
@@ -313,6 +345,7 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
         ],
         energy: energy ? energy.total(String(dev.id)) : null,
         isRecording,
+        recordingStalled,
         recordingSessionName,
         latitude: lat,
         longitude: lng,
@@ -427,6 +460,7 @@ async function loadStores(): Promise<Store[]> {
         salesAreaM2: s.sales_area_m2 ? parseFloat(s.sales_area_m2) : undefined,
         warehouseAreaM2: s.warehouse_area_m2 ? parseFloat(s.warehouse_area_m2) : undefined,
         isRecording,
+        recordingStalled: matchingDevices.some((d) => d.recordingStalled),
         recordingSessionName,
         isOnline,
       }
@@ -472,6 +506,7 @@ async function loadStores(): Promise<Store[]> {
           phases: allPhases,
           deviceId: primaryDev.deviceId,
           isRecording,
+          recordingStalled: devGroup.some((d) => d.recordingStalled),
           recordingSessionName,
           isOnline,
         })

@@ -354,7 +354,7 @@ export function StoreMonitoringPage({
     <div className="flex flex-col gap-6 pb-12">
       {/* Store Header Info */}
       <StoreHero store={store} />
-      {store.deviceId && store.status !== 'unassigned' && <LiveTelemetryChart key={store.id} storeId={store.id} />}
+      {store.deviceId && store.status !== 'unassigned' && <LiveTelemetryChart key={store.id} src={`/api/stores/${encodeURIComponent(store.id)}/live`} />}
 
       {/* Sub-Tab Navigation Bar */}
       <div className="flex items-center gap-2 border-b pb-0">
