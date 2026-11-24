@@ -1,7 +1,7 @@
 # Graph Report - smart-energy-monitoring  (2026-11-24)
 
 ## Corpus Check
-- 292 files · ~133,872 words
+- 292 files · ~133,925 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 14 file(s) not represented in the graph (top: (none) 9, .ico 2, .example 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `4e153608`
+- Built from commit: `a55a7944`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -470,7 +470,7 @@ Nodes (5): BackoffError, createSharedFetch(), Entry, SharedFetchOptions, T0
   docs/agent-notes/2026-08-21-1013-sparta-aiven-real-data-integration.md · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **7 isolated node(s):** `RFC-2047`, `PZEM Energy Counter Reset / Rollover`, `August 28 MQTT Topic Format Migration`, `getTelemetryChartData`, `sparta-energy project` (+2 more)
+- **7 isolated node(s):** `RFC-2047`, `August 28 MQTT Topic Format Migration`, `PZEM Energy Counter Reset / Rollover`, `getTelemetryChartData`, `PLN B2/TR Tariff (Rp 1.444,7/kWh)` (+2 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 483 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
 - **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
@@ -478,17 +478,17 @@ Nodes (5): BackoffError, createSharedFetch(), Entry, SharedFetchOptions, T0
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `next` connect `next` to `next`, `app/layout.tsx`, `Package Manifest`, `Runtime Dependencies`, `cn`, `report-mail-service.ts`, `getStoreAnalyticsData`, `capture-controls.tsx`, `report-mail-service.ts`, `device-control.ts`, `device-tree-service.ts`, `monthly-cost-kpi-card.tsx`, `(dashboard)/layout.tsx`, `store-analytics-widget.tsx`, `breadcrumb.tsx`, `session-service.ts`, `perangkat/page.tsx`, `access.ts`, `workbook.ts`, `[deviceId]/page.tsx`, `device-health.tsx`, `access-rules.ts`, `react`, `report-service.ts`, `types.ts`, `server-only`, `store-card.tsx`, `app/layout.tsx`?**
-  _High betweenness centrality (0.104) - this node is a cross-community bridge._
-- **What connects `RFC-2047`, `PZEM Energy Counter Reset / Rollover`, `August 28 MQTT Topic Format Migration` to the rest of the system?**
+  _High betweenness centrality (0.107) - this node is a cross-community bridge._
+- **What connects `RFC-2047`, `August 28 MQTT Topic Format Migration`, `PZEM Energy Counter Reset / Rollover` to the rest of the system?**
   _7 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `next` be split into smaller, more focused modules?**
   _Cohesion score 0.14039408866995073 - nodes in this community are weakly interconnected._
 - **Why does `cn()` connect `cn` to `store-detail-analytics.tsx`, `monthly-cost-kpi-card.tsx`, `Button`, `react`, `store-analytics-widget.tsx`, `types.ts`, `telemetry-date-picker.tsx`, `server-only`, `phase-gauge-grid.tsx`, `store-card.tsx`, `app/layout.tsx`, `breadcrumb.tsx`, `perangkat/page.tsx`, `workbook.ts`, `store-monitoring-page.tsx`, `capture-controls.tsx`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **Should `types.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.12380952380952381 - nodes in this community are weakly interconnected._
 - **Why does `react` connect `capture-controls.tsx` to `Button`, `Package Manifest`, `Runtime Dependencies`, `cn`, `session-actions.tsx`, `getStoreAnalyticsData`, `store-service.ts`, `store-monitoring-page.tsx`, `store-detail-analytics.tsx`, `monthly-cost-kpi-card.tsx`, `store-analytics-widget.tsx`, `telemetry-date-picker.tsx`, `breadcrumb.tsx`, `store-service.ts`, `health-service.ts`, `perangkat/page.tsx`, `access.ts`, `workbook.ts`, `react`, `store-gallery.tsx`, `types.ts`, `app/layout.tsx`?**
-  _High betweenness centrality (0.065) - this node is a cross-community bridge._
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
 
 ### Low-confidence Hints
 _AMBIGUOUS edges — the extractor was unsure. Verify before acting on these._

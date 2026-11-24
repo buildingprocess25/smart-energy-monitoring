@@ -1752,9 +1752,9 @@
     "semantic_hash": ""
   },
   "components/analytics/load-profile-chart.tsx": {
-    "mtime": 1795506093.6071575,
-    "seen": 1795506461.0518644,
-    "ast_hash": "bdbc8c35f529175f41b209f6d6868a16",
+    "mtime": 1795506674.4651344,
+    "seen": 1795506722.98736,
+    "ast_hash": "f7d9fc1cb92318ff7ad919fcdadf9abc",
     "semantic_hash": ""
   },
   "components/analytics/period-summary.tsx": {

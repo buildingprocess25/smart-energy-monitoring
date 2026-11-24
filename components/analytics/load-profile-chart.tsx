@@ -30,12 +30,15 @@ export function LoadProfileChart({
 }) {
   const spikes = points.filter((p) => p.spike)
   const hasPattern = points.some((p) => p.typicalWatts != null)
+  // The usual load stops at the last recorded hour, so hours that have not happened stay empty.
+  const lastRecorded = points.findLastIndex((p) => p.powerWatts !== null)
+  const data = points.map((p, hour) => (hour > lastRecorded ? { ...p, typicalWatts: null } : p))
 
   return (
     <div className="flex flex-col gap-2">
       <div className={className}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/40" />
             <XAxis
               tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
@@ -54,7 +57,7 @@ export function LoadProfileChart({
             <Tooltip
               content={({ active, payload }) => {
                 const point = payload?.[0]?.payload as LoadProfilePoint | undefined
-                if (!active || !point) return null
+                if (!active || !point || (point.powerWatts === null && point.typicalWatts == null)) return null
                 return (
                   <div className="flex flex-col gap-0.5 rounded-lg border bg-popover p-3 text-xs text-popover-foreground shadow-md">
                     <p className="font-semibold text-muted-foreground">
