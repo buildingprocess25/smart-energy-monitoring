@@ -92,6 +92,39 @@ Semua aturan ini ada di `lib/services/telemetry-service.ts`.
 - Nama equipment untuk sub-metering diambil dari `devices.sensors` dan
   `history.phase_name`.
 
+### Topologi SpartaEnergy (CT dan Plug)
+
+- Perangkat `CT-<MAC>` dan `Plug-<MAC>` membawa lokasinya di `notes`
+  (`<kode toko>/<panel>/<fase>`). Flask menyimpannya di `device_topology` (DB 2,
+  kontrak di `ARCHITECTURE_PLAN.md` bagian 7). Portal menggabungkan semua
+  perangkat yang sedang atau pernah ditempatkan di satu toko menjadi satu
+  perangkat virtual `SPARTA-<kode toko>` (`lib/device-topology.ts`,
+  `lib/services/topology-service.ts`). Perangkat fisik tetap dipakai di
+  `/perangkat`, kesehatan, sesi rekaman, dan kontrol.
+- Panel utama adalah `MDP` dan `LVMDP`. Fase `R`, `S`, `T`, dan `1F` di panel
+  utama dihitung sebagai total toko. Panel lain adalah sub-meter.
+- Riwayat mengikuti lokasi: sampel sebelum perangkat dipindah tetap milik toko
+  lama, sampel sesudahnya milik toko baru. Batasnya saat Flask menerima
+  `notes` yang berubah, jadi data antara pemindahan fisik dan flash `notes`
+  baru tetap tercatat di toko lama.
+- Lokasi pertama sebuah MAC berlaku sejak awal (`valid_from = 0`).
+- Kalau dua MAC diisi lokasi dan fase yang sama, yang dikonfigurasi terakhir
+  menang mulai saat itu. Sampel MAC lama sesudahnya tetap di perangkat
+  fisiknya dan tidak masuk total toko.
+- Kunci fase asli `R`, `S`, `T` dari perangkat SpartaEnergy (CT 3 fase) tetap
+  memakai fasenya sendiri; fase dari `notes` hanya untuk kanal yang tidak
+  membawa fase.
+- GS melihat toko SpartaEnergy hanya jika semua MAC yang pernah ditempatkan di
+  toko itu ada di `user_device_access`.
+- Kalau topologi tidak bisa dibaca, portal memakai topologi kosong dan
+  mencatat galatnya, supaya indeks energi dan halaman perangkat tetap jalan.
+- `docs/SPARTA_MQTT_INTEGRATION_GUIDE.md` adalah dokumen vendor, tidak dilacak
+  git. Aturan "abaikan legacy" di dalamnya tidak dipakai: perangkat `EM-*`,
+  `MC*`, dan topik `AlfaEnergy/*` tetap diproses.
+- Satu toko tidak boleh punya panel utama dari perangkat lama (EM) dan dari
+  SpartaEnergy sekaligus: `storeEnergy()` akan menghitung dua kali. Belum ada
+  toko seperti itu.
+
 ### Energi (kWh)
 
 - Kolom `energy` adalah counter kumulatif. Konsumsi per interval adalah
@@ -194,6 +227,9 @@ Data dan infrastruktur:
   ekstensi `.ts` (`allowImportingTsExtensions`) dan `import type` untuk tipe,
   tanpa `@/`.
 - Toko Sangat Boros (view DB 1) → `lib/services/sangat-boros-service.ts`
+- Topologi SpartaEnergy (tabel `device_topology` DB 2) →
+  `lib/services/topology-service.ts`; aturan murni di `lib/device-topology.ts`
+  (dites `tests/device-topology.test.mjs`)
 - Tipe data → `lib/types.ts`
 - Data mock lama (tidak dipakai lagi) → `lib/mock-data.ts`
 - Utilitas → `lib/utils.ts`, `hooks/use-mobile.ts`

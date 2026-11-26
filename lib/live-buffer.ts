@@ -19,7 +19,7 @@ const FIELD_MAP: Record<string, string> = {
   'Active Energy (kWh)': 'energy',
 }
 
-const MAIN_PHASES = new Set(['R', 'S', 'T'])
+const MAIN_PHASES = new Set(['R', 'S', 'T', '1F'])
 
 const TIME_FORMAT = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Jakarta',
@@ -104,4 +104,33 @@ export function parseLiveBuffer(raw: unknown, since: number | null): LiveBufferR
   })
 
   return { sensors, points, offline, lastEpoch }
+}
+
+// One store, several SpartaEnergy devices: samples of the same second become one sample,
+// with each device's channel renamed to the store phase it measures. R/S/T a device reports
+// itself are kept, after its prefix (same rule as storePhaseFor in device-topology.ts).
+export function combineLiveBuffers(parts: { raw: unknown; phase: string; prefix: string }[]): unknown[] {
+  const seconds = new Map<number, { timestamp: number; data: Record<string, unknown> }>()
+  for (const { raw, phase, prefix } of parts) {
+    for (const item of Array.isArray(raw) ? raw : []) {
+      if (!isRecord(item) || !isRecord(item.data)) continue
+      const epoch = toNumber(item.timestamp)
+      if (epoch === null) continue
+      const second = Math.floor(epoch / 1000)
+      let slot = seconds.get(second)
+      if (!slot) seconds.set(second, (slot = { timestamp: epoch, data: { offline: true } }))
+      if (item.data.offline === true) continue
+      delete slot.data.offline
+      const keys = Object.keys(item.data).filter((k) => isPhaseKey(k) && !isExcludedPhase(k))
+      const channels = keys.filter((k) => !MAIN_PHASES.has(normalizePhaseKey(k)))
+      for (const key of keys) {
+        const own = normalizePhaseKey(key)
+        const name = MAIN_PHASES.has(own) && own !== '1F'
+          ? `${prefix} ${own}`.trim()
+          : channels.length === 1 ? phase : `${phase} ${key}`
+        slot.data[name] = item.data[key]
+      }
+    }
+  }
+  return [...seconds.values()].sort((a, b) => a.timestamp - b.timestamp)
 }

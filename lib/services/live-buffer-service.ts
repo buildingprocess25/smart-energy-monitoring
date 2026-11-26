@@ -1,6 +1,6 @@
 import 'server-only'
 import type { LiveBufferResult } from '@/lib/types'
-import { parseLiveBuffer } from '@/lib/live-buffer'
+import { combineLiveBuffers, parseLiveBuffer } from '@/lib/live-buffer'
 import { createSharedFetch } from '@/lib/shared-fetch'
 import { getRequestScope } from '@/lib/auth/access'
 import { isDeviceAllowed, scopeKey } from '@/lib/auth/access-rules'
@@ -25,11 +25,11 @@ const MAX_STORE_ID_LENGTH = 64
 // per 60 s, with a 15 s pause after a failure. The loader runs in the first caller's
 // request, whose scope equals the key's scope, so the result is valid for every caller
 // with that key. A GS revocation takes effect within 60 s.
-const resolveDeviceId = createSharedFetch(
+const resolveStoreDevice = createSharedFetch(
   async (key) => {
     const storeId = key.slice(key.indexOf(KEY_SEPARATOR) + 1)
     const store = await getStoreById(storeId)
-    return store?.deviceId ?? null
+    return store?.deviceId ? { deviceId: store.deviceId, members: store.members ?? [] } : null
   },
   { ttlMs: 60_000, failureBackoffMs: 15_000 }
 )
@@ -43,10 +43,14 @@ export async function getStoreLiveBuffer(
   const scope = await getRequestScope()
   if (scope.kind === 'none') return null
 
-  const deviceId = await resolveDeviceId(scopeKey(scope) + KEY_SEPARATOR + storeId)
-  if (!deviceId) return null
-  const raw = await loadLiveBuffer(deviceId)
-  return parseLiveBuffer(raw, since)
+  const device = await resolveStoreDevice(scopeKey(scope) + KEY_SEPARATOR + storeId)
+  if (!device) return null
+  if (device.members.length === 0) return parseLiveBuffer(await loadLiveBuffer(device.deviceId), since)
+  // Each member is still fetched through the shared 3 s cache, so viewers do not multiply Flask calls.
+  const parts = await Promise.all(
+    device.members.map(async (m) => ({ raw: await loadLiveBuffer(m.deviceId).catch(() => null), phase: m.phase, prefix: m.prefix }))
+  )
+  return parseLiveBuffer(combineLiveBuffers(parts), since)
 }
 
 // Returns null when the device is outside the caller's scope.

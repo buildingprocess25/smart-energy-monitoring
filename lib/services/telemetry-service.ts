@@ -22,6 +22,41 @@ import { sensorColor as getSensorColor } from '@/lib/phase-keys'
 import { analyticsStore } from '@/lib/store-choice'
 import { createStaleCache } from '@/lib/stale-cache'
 import { dailyThreshold, findSpikes, SPIKE_LIMITS } from '@/lib/usage-insights'
+import { isVirtualDeviceId, sqlSource, type TopologyMap } from '@/lib/device-topology'
+import { getDeviceTopology } from './topology-service'
+
+const PHASE_SQL = `CASE
+              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
+              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
+              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
+              ELSE phase
+            END`
+
+const NO_TOPOLOGY: TopologyMap = new Map()
+
+// Normal devices never depend on topology. For a store device a topology error is thrown,
+// so an empty result is not cached as if the store had no data.
+const topologyMap = async (deviceId: string): Promise<TopologyMap> =>
+  isVirtualDeviceId(deviceId) ? (await getDeviceTopology()).map : NO_TOPOLOGY
+
+// The phase parameters of sqlSource are dropped and the rest renumbered, because a query
+// that only filters would leave them unreferenced and Postgres rejects that.
+function sqlFilter(deviceId: string, map: TopologyMap, firstParam: number): { where: string; params: unknown[] } {
+  const src = sqlSource(deviceId, map, firstParam, 'phase')
+  const params: unknown[] = []
+  const renumbered = new Map<number, number>()
+  const where = src.where.replace(/\$(\d+)/g, (_, n: string) => {
+    const old = Number(n)
+    let next = renumbered.get(old)
+    if (next === undefined) {
+      next = firstParam + params.length
+      renumbered.set(old, next)
+      params.push(src.params[old - firstParam])
+    }
+    return `$${next}`
+  })
+  return { where, params }
+}
 
 // Compared per recorded hour, so a partly recorded month is never set against a full one.
 function hourlyAverageDiffPct(
@@ -257,15 +292,16 @@ export async function getAuditSessions(storeId: string): Promise<AuditSession[]>
   const aiven = getAivenPool()
   try {
     const rows = await auditSessionCache(deviceId, async () => {
+      const filter = sqlFilter(deviceId, await topologyMap(deviceId), 1)
       const res = await aiven.query<AuditSessionRow>(
       `
       SELECT session_id, session_name, MIN(timestamp) as start_time, MAX(timestamp) as end_time, MIN(epoch) as min_epoch, MAX(epoch) as max_epoch, COUNT(*) as total_rows
       FROM history
-      WHERE device_id = $1
+      WHERE ${filter.where}
       GROUP BY session_id, session_name
       ORDER BY MAX(epoch) DESC
     `,
-      [deviceId]
+      filter.params
       )
       return res.rows
     })
@@ -372,7 +408,8 @@ async function loadHistory(
   targetSessionId: string | undefined
 ): Promise<HistoryPayload> {
     const aiven = getAivenPool()
-    const energy = await getEnergyIndex()
+    const [energy, map] = await Promise.all([getEnergyIndex(), topologyMap(deviceId)])
+    const src = sqlSource(deviceId, map, 1, PHASE_SQL)
     const availableDates = energy.dates(deviceId)
     const todayJakarta = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
 
@@ -382,24 +419,26 @@ async function loadHistory(
     }
 
     if (rangeType === 'session' && !targetSessionId) {
+      const filter = sqlFilter(deviceId, map, 1)
       const latest = await aiven.query<{ session_id: string }>(
-        `SELECT session_id FROM history WHERE device_id = $1 ORDER BY id DESC LIMIT 1`,
-        [deviceId]
+        `SELECT session_id FROM history WHERE ${filter.where} ORDER BY id DESC LIMIT 1`,
+        filter.params
       )
       targetSessionId = latest.rows[0]?.session_id ?? ''
     }
 
     // Epoch bounds, not a date expression per row, so an index on epoch can be used.
     const range = rangeType === 'session' ? null : jakartaRange(rangeType, targetDate)
-    const queryParams: (string | number)[] = range
-      ? [deviceId, range.from, range.to]
-      : [deviceId, targetSessionId ?? '']
-    const periodWhere = range ? 'epoch >= $2 AND epoch < $3' : 'session_id = $2'
+    const queryParams: unknown[] = range
+      ? [...src.params, range.from, range.to]
+      : [...src.params, targetSessionId ?? '']
+    const p = src.params.length
+    const periodWhere = range ? `epoch >= $${p + 1} AND epoch < $${p + 2}` : `session_id = $${p + 1}`
     const sensorSources = range
-      ? `SELECT phase, phase_name FROM history WHERE device_id = $1 AND ${periodWhere}
+      ? `SELECT ${src.phase} AS phase, phase_name FROM history WHERE ${src.where} AND ${periodWhere}
           UNION ALL
-          SELECT phase, NULL as phase_name FROM telemetry WHERE device_id = $1 AND ${periodWhere}`
-      : `SELECT phase, phase_name FROM history WHERE device_id = $1 AND ${periodWhere}`
+          SELECT ${src.phase} AS phase, NULL as phase_name FROM telemetry WHERE ${src.where} AND ${periodWhere}`
+      : `SELECT ${src.phase} AS phase, phase_name FROM history WHERE ${src.where} AND ${periodWhere}`
     const sensorWhere = `WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'`
 
     const sensorSql = `
@@ -455,9 +494,9 @@ async function loadHistory(
             END as phase,
             phase_name
           FROM (
-            SELECT phase, phase_name FROM history WHERE device_id = $1
+            SELECT ${src.phase} AS phase, phase_name FROM history WHERE ${src.where}
             UNION ALL
-            SELECT phase, NULL as phase_name FROM telemetry WHERE device_id = $1
+            SELECT ${src.phase} AS phase, NULL as phase_name FROM telemetry WHERE ${src.where}
           ) combined_sensors
           WHERE phase != 'L6' AND phase NOT ILIKE '%dummy%'
         )
@@ -477,7 +516,7 @@ async function loadHistory(
         GROUP BY phase
         ORDER BY phase ASC
       `,
-        [deviceId]
+        src.params
       )
     }
 
@@ -526,27 +565,17 @@ async function loadHistory(
         WITH raw_day AS (
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -589,27 +618,17 @@ async function loadHistory(
         WITH raw_week AS (
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -652,27 +671,17 @@ async function loadHistory(
         WITH raw_month AS (
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -715,27 +724,17 @@ async function loadHistory(
         WITH raw_year AS (
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
           UNION ALL
           SELECT 
             epoch, 
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM telemetry
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         buckets AS (
           SELECT 
@@ -804,15 +803,10 @@ async function loadHistory(
         WITH raw_sess AS (
           SELECT 
             epoch,
-            CASE
-              WHEN phase IN ('L12', 'L1', 'R', 'r') THEN 'R'
-              WHEN phase IN ('L13', 'L2', 'S', 's') THEN 'S'
-              WHEN phase IN ('L14', 'L3', 'T', 't') THEN 'T'
-              ELSE phase
-            END as phase,
+            ${src.phase} as phase,
             power, voltage, current, energy, power_factor, frequency
           FROM history
-          WHERE device_id = $1 AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
         ),
         agg AS (
           SELECT 
@@ -916,14 +910,15 @@ export async function getLiveTelemetry(storeId: string): Promise<PhaseData[]> {
   const deviceId = store.deviceId
   const aiven = getAivenPool()
   try {
+    const src = sqlSource(deviceId, await topologyMap(deviceId), 1, 'phase')
     const res = await aiven.query(
       `
-      SELECT DISTINCT ON (phase) phase, voltage, current, power, power_factor
+      SELECT DISTINCT ON (1) ${src.phase} AS phase, voltage, current, power, power_factor
       FROM telemetry
-      WHERE device_id = $1
-      ORDER BY phase, id DESC
+      WHERE ${src.where}
+      ORDER BY 1, id DESC
     `,
-      [deviceId]
+      src.params
     )
 
     return res.rows.map((row) => ({

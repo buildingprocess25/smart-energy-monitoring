@@ -81,3 +81,8 @@ test('sensor colours keep 3:1 against the light and dark card', () => {
     }
   }
 })
+
+test('1F is a main panel phase after R, S and T', () => {
+  assert.equal(defaultPhaseName('1F'), '1 Fasa')
+  assert.deepEqual(['OVEN', '1F', 'T', 'R'].sort(comparePhase), ['R', 'T', '1F', 'OVEN'])
+})

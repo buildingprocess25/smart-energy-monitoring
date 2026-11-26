@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getRequestAccess } from '@/lib/auth/access'
 import { canControlDevices } from '@/lib/auth/access-rules'
+import { defaultPhaseName } from '@/lib/phase-keys'
 import { getManagedDevices } from '@/lib/services/device-service'
 import { CaptureControls } from '@/components/devices/capture-controls'
 import { CaptureFacts, DeviceBadges } from '@/components/devices/device-summary'
@@ -11,6 +12,9 @@ import { DeviceTree } from '@/components/devices/device-tree'
 import { Skeleton } from '@/components/ui/skeleton'
 import { buttonVariants } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+
+// Factory names say nothing about the device; the id is already the card title.
+const FACTORY_NAME = /^(sparta ct|sparta plug|tasmota)$/i
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Perangkat | Smart Energy Monitoring' }
@@ -39,7 +43,12 @@ export default async function DevicesPage() {
             <Card key={device.id}>
               <CardHeader>
                 <CardTitle>{device.id}</CardTitle>
-                <CardDescription>{device.name}</CardDescription>
+                {!FACTORY_NAME.test(device.name.trim()) && <CardDescription>{device.name}</CardDescription>}
+                {device.location && (
+                  <p className="text-xs text-muted-foreground">
+                    {device.location.storeCode} · {defaultPhaseName(device.location.phase)}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="flex flex-1 flex-col gap-4">
                 <DeviceBadges device={device} />

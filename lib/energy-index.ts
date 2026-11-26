@@ -10,7 +10,7 @@ const MAX_STEP = 2
 const POWER_MARGIN = 1.8
 const SLACK_KWH = 0.05
 
-const MAIN_PHASES = new Set(['R', 'S', 'T'])
+const MAIN_PHASES = new Set(['R', 'S', 'T', '1F'])
 
 export interface BucketRow {
   deviceId: string

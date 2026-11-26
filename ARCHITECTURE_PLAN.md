@@ -174,6 +174,12 @@ capture, rename, hapus) direncanakan di Tahap 2.
   membuat view read-only `v_toko_sangat_boros` di DB 1 (lihat bagian 7).
   Portal monitoring membacanya untuk daftar "Prioritas Pasang IoT" dan garis
   standar konsumsi energi di grafik kWh.
+* **26 November 2026 - Topologi SpartaEnergy.** Perangkat SpartaEnergy (satu MAC
+  per fase atau per beban) membawa lokasinya di payload `notes`. Flask
+  menyimpannya sebagai riwayat di tabel `device_topology` (DB 2, lihat bagian
+  7) dan portal menggabungkan perangkat satu toko menjadi satu perangkat virtual
+  `SPARTA-<kode toko>`. Portal tetap tidak menulis ke database dan tidak
+  terhubung ke broker MQTT.
 
 ---
 
@@ -206,3 +212,30 @@ Dipakai di `lib/services/sangat-boros-service.ts`. Kalau view belum ada
 (`42P01`), halaman tetap jalan dan menampilkan pesan bahwa view belum dibuat.
 Di lokal kedua repo memakai user DB yang sama, jadi tidak perlu `GRANT`; di
 production, pastikan user `SPARTA_DATABASE_URL` punya `SELECT` pada view ini.
+
+### `device_topology` (DB 2)
+
+Tabel ini dibuat dan dimiliki `smart-energy-meter-vps` (Flask), bukan view DB 1.
+`smart-energy-monitoring` hanya membaca (`lib/services/topology-service.ts`).
+Menambah kolom aman; mengubah atau menghapus kolom harus dikoordinasikan.
+
+| Kolom | Tipe | Isi |
+| :--- | :--- | :--- |
+| `mac` | varchar(12) | 6 hex huruf besar, contoh `E62A34` |
+| `notes` | text | Payload `notes` apa adanya, format `<kode toko>/<panel>/<fase>` |
+| `valid_from` | bigint | Epoch ms. `0` untuk lokasi pertama MAC itu |
+| `valid_to` | bigint | Epoch ms. `NULL` berarti masih berlaku |
+
+- Flask mengisinya dari topik retained `SpartaEnergy/meta/<MAC>/notes`
+  (`backend/topology.py`, `_save_topology` di `app.py`). Payload yang sama tidak
+  mengubah apa pun. Payload baru menutup baris lama (`valid_to`) dan membuka
+  baris baru. Payload kosong hanya menutup. Payload lebih dari 200 karakter
+  diabaikan.
+- Lokasi pertama sebuah MAC berlaku sejak awal (`valid_from = 0`), karena
+  perangkat di-flash sebelum dipasang. Lokasi berikutnya berlaku sejak Flask
+  menerima `notes` itu.
+- Indeks unik parsial menjamin paling banyak satu baris terbuka per `mac`.
+- Notes yang tiba sebelum tabel siap ditahan di antrean dan ditulis setelah
+  `init_db()`.
+- Sebelum tabel ada (`42P01`), portal memakai topologi kosong: perangkat
+  `CT-<MAC>` dan `Plug-<MAC>` tampil seperti perangkat biasa.

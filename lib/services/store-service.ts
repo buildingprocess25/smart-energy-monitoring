@@ -10,6 +10,10 @@ import { readLastRecordTimes } from '@/lib/services/capture-health-service'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 import { getEnergyIndexWithin } from '@/lib/services/energy-service'
 import type { EnergyTotal } from '@/lib/energy-index'
+import { currentMembers, isVirtualDeviceId, macOf, macsEverIn } from '@/lib/device-topology'
+import { defaultPhaseName, normalizePhaseKey } from '@/lib/phase-keys'
+import { getDeviceTopology } from '@/lib/services/topology-service'
+import type { TopologyMap } from '@/lib/device-topology'
 
 // /capture/status is the same for every viewer (scope is applied afterwards): ask Flask at most every 5 s,
 // and after a failure use DB capture_states for 15 s instead of waiting on the timeout.
@@ -33,6 +37,7 @@ interface IotDeviceData {
   latitude?: number
   longitude?: number
   storeId?: string
+  members?: { deviceId: string; phase: string; prefix: string }[] // physical SpartaEnergy devices behind a SPARTA-<code> device
 }
 
 interface CaptureReport {
@@ -143,6 +148,73 @@ export const getIotDeviceDataList = cache(loadIotDeviceDataList)
 export const getStores = cache(loadStores)
 export const getStoreById = cache(loadStoreById)
 
+// SpartaEnergy devices measure one phase or one load each, so the devices placed in a store
+// become one SPARTA-<code> device. A store they left stays as a historical device with its data.
+function foldPlacedDevices(
+  devices: IotDeviceData[],
+  map: TopologyMap,
+  allowed: (deviceId: string) => boolean,
+  energy: { total(id: string): EnergyTotal } | null
+): IotDeviceData[] {
+  if (map.size === 0) return devices
+  const members = currentMembers(map, Date.now())
+  const byMac = new Map(devices.flatMap((d) => {
+    const mac = macOf(d.deviceId)
+    return mac ? [[mac, d] as const] : []
+  }))
+  const virtualIds = new Set([...map.values()].flatMap((list) => list.map((p) => p.deviceId)))
+  const folded = new Set<string>()
+  const virtual: IotDeviceData[] = []
+
+  for (const id of virtualIds) {
+    // A GS sees the store only when every device it ever had is in their list.
+    if (!macsEverIn(map, id).every((mac) => allowed(`CT-${mac}`) || allowed(`Plug-${mac}`))) continue
+    const placed = (members.get(id) ?? []).flatMap((m) => {
+      const device = byMac.get(m.mac)
+      return device ? [{ device, phase: m.phase, prefix: m.prefix }] : []
+    })
+    placed.forEach(({ device }) => folded.add(device.deviceId))
+    const list = placed.map((p) => p.device)
+    const newest = (pick: (d: IotDeviceData) => number | null) =>
+      list.reduce<number | null>((max, d) => {
+        const v = pick(d)
+        return v === null ? max : max === null ? v : Math.max(max, v)
+      }, null)
+    const recording = list.find((d) => d.isRecording && d.recordingSessionName)
+
+    virtual.push({
+      deviceId: id,
+      deviceName: `SpartaEnergy [${id.slice('SPARTA-'.length)}]`,
+      storeCode: id.slice('SPARTA-'.length),
+      online: list.some((d) => d.online),
+      lastSeen: new Date(newest((d) => Date.parse(d.lastSeen)) ?? 0).toISOString(),
+      deviceClock: newest((d) => d.deviceClock),
+      phases: placed.flatMap(({ device, phase, prefix }) => {
+        // Latest values are per key with no age limit, so a device that once reported R/S/T and now
+        // sends one channel would show both. Its own channels win; R/S/T only when it has nothing else.
+        const isReported = (p: PhaseData) => ['R', 'S', 'T'].includes(normalizePhaseKey(p.phase))
+        const channels = device.phases.filter((p) => !isReported(p))
+        const shown = channels.length > 0 ? channels : device.phases
+        return shown.map((p) => {
+          const key = isReported(p)
+            ? `${prefix} ${normalizePhaseKey(p.phase)}`.trim()
+            : shown.length === 1 ? phase : `${phase} ${p.phase}`
+          return { ...p, phase: key, phaseName: defaultPhaseName(key) }
+        })
+      }),
+      energy: energy ? energy.total(id) : null,
+      isRecording: list.some((d) => d.isRecording),
+      recordingStalled: list.some((d) => d.recordingStalled),
+      recordingSessionName: recording?.recordingSessionName,
+      latitude: list.find((d) => d.latitude)?.latitude,
+      longitude: list.find((d) => d.longitude)?.longitude,
+      storeId: list.find((d) => d.storeId)?.storeId,
+      members: placed.map(({ device, phase, prefix }) => ({ deviceId: device.deviceId, phase, prefix })),
+    })
+  }
+  return [...devices.filter((d) => !folded.has(d.deviceId)), ...virtual]
+}
+
 async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
   const telemetryDb = getTelemetryPool()
 
@@ -208,10 +280,11 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
       const report = liveApiCaptureMap.get(d.id) ?? parseCaptureState(d.capture_state)
       return report?.active && report.session_id ? [report.session_id] : []
     })
-    const [latestRows, energy, lastRecord] = await Promise.all([
+    const [latestRows, energy, lastRecord, topology] = await Promise.all([
       loadLatestRows(allowedIds),
       energyIndex,
       readLastRecordTimes(activeSessions),
+      getDeviceTopology().catch(() => null),
     ])
     const results: IotDeviceData[] = []
 
@@ -327,7 +400,7 @@ async function loadIotDeviceDataList(): Promise<IotDeviceData[]> {
       })
     }
 
-    return results
+    return topology ? foldPlacedDevices(results, topology.map, (id) => isDeviceAllowed(scope, id), energy) : results
   } catch (error) {
     console.error('Error fetching IoT device data:', error)
     return []
@@ -405,7 +478,9 @@ async function loadStores(): Promise<Store[]> {
         }
       })
 
-      const primaryIot = matchingDevices.find((d) => d.isRecording) || matchingDevices.find((d) => d.online) || matchingDevices[0]
+      const primaryIot =
+        matchingDevices.find((d) => isVirtualDeviceId(d.deviceId) && d.energy?.hasMain) ||
+        matchingDevices.find((d) => d.isRecording) || matchingDevices.find((d) => d.online) || matchingDevices[0]
       const latitude = primaryIot?.latitude || (s.latitude ? parseFloat(s.latitude) : undefined)
       const longitude = primaryIot?.longitude || (s.longitude ? parseFloat(s.longitude) : undefined)
 
@@ -426,6 +501,7 @@ async function loadStores(): Promise<Store[]> {
           { phase: 'L3', phaseName: 'Fase T', voltage: 0, current: 0, power: 0, powerFactor: 1.0 },
         ],
         deviceId: primaryIot?.deviceId,
+        members: primaryIot?.members,
         plnPowerVa: s.pln_power_va ? parseInt(s.pln_power_va) : undefined,
         is24Hours: s.is_24_hours,
         salesAreaM2: s.sales_area_m2 ? parseFloat(s.sales_area_m2) : undefined,
@@ -473,6 +549,7 @@ async function loadStores(): Promise<Store[]> {
           lastUpdate: latestLastSeen === new Date(0).toISOString() ? '' : latestLastSeen,
           phases: allPhases,
           deviceId: primaryDev.deviceId,
+          members: primaryDev.members,
           isRecording,
           recordingStalled: devGroup.some((d) => d.recordingStalled),
           recordingSessionName,

@@ -1,5 +1,6 @@
 import 'server-only'
 import { getRequestScope } from '@/lib/auth/access'
+import { virtualDeviceId } from '@/lib/device-topology'
 import { normalizePhaseKey } from '@/lib/phase-keys'
 import { buildConsumption, buildLoadProfile, buildSummary, REPORT_COLUMNS, REPORT_TYPES, type ReportDevice, type ReportParams, type ReportTable } from '@/lib/reports'
 import { getManagedDevices } from '@/lib/services/device-service'
@@ -84,9 +85,13 @@ export async function buildReport(params: ReportParams): Promise<ReportTable | {
       rows: list.stores
         .filter((s) => wanted(s.storeCode) && !s.isDemo)
         .map((s) => {
-          const device = devices.find((d) => d.storeCode === s.storeCode && index.total(d.id).hasMain)
-          const daily = device
-            ? index.daily(device.id).filter((d) => d.date <= to).map((d) => ({ day: '', dayDate: d.date, kwh: d.kwh, mainPanelKwh: d.mainKwh, cost: 0 }))
+          const virtualId = virtualDeviceId(s.storeCode)
+          const deviceId =
+            (index.total(virtualId).hasMain ? virtualId : null) ??
+            devices.find((d) => d.storeCode === s.storeCode && index.total(d.id).hasMain)?.id ??
+            null
+          const daily = deviceId
+            ? index.daily(deviceId).filter((d) => d.date <= to).map((d) => ({ day: '', dayDate: d.date, kwh: d.kwh, mainPanelKwh: d.mainKwh, cost: 0 }))
             : []
           const c = compareWithSangatBoros(s, daily, to)
           return [s.rank, s.storeCode, s.storeName, s.branch, Math.round(s.actualPlnKwhPerMonth), Math.round(s.standardKwhPerMonth), s.gapPercent, c.avgDailyMainKwh, c.mainPanelDays, c.reductionVsPlnPct === null ? null : -c.reductionVsPlnPct, c.vsStandardPct]

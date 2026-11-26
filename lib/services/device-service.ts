@@ -7,7 +7,9 @@ import { readOnlyQuery } from '@/lib/db/read-only'
 import { isCaptureStalled, parseWibTimestamp } from '@/lib/capture-health'
 import { readLastRecordTimes } from '@/lib/services/capture-health-service'
 import { deviceKind } from '@/lib/device-status'
+import { macOf, placementAt } from '@/lib/device-topology'
 import { isPhaseKey } from '@/lib/phase-keys'
+import { EMPTY_TOPOLOGY, getDeviceTopology } from '@/lib/services/topology-service'
 import { fetchTelemetryApi } from '@/lib/services/telemetry-api'
 import type { CaptureState, ManagedDevice } from '@/lib/types'
 
@@ -77,13 +79,17 @@ export const getManagedDevices = cache(loadManagedDevices)
 async function loadManagedDevices(): Promise<ManagedDevice[]> {
   const scope = await getRequestScope()
   if (scope.kind === 'none') return []
-  const [res, states] = await Promise.all([
+  const [res, states, topology] = await Promise.all([
     readOnlyQuery<DeviceRow>(
       getTelemetryPool(),
       'SELECT id, name, online, last_seen, sensors, store_id, latitude, longitude FROM devices ORDER BY id',
       []
     ),
     readCaptureStates().catch(() => null),
+    getDeviceTopology().catch((error) => {
+      console.error('Topologi perangkat tidak terbaca', error)
+      return EMPTY_TOPOLOGY
+    }),
   ])
   const allowed = res.rows.filter((r) => isDeviceAllowed(scope, r.id))
   const activeSessions = allowed.flatMap((r) => {
@@ -98,7 +104,10 @@ async function loadManagedDevices(): Promise<ManagedDevice[]> {
   }
 
   return allowed
-    .map((r) => ({
+    .map((r) => {
+      const mac = macOf(r.id)
+      const placed = mac ? placementAt(topology.map, mac, now) : null
+      return {
       id: r.id,
       name: r.name || r.id,
       kind: deviceKind(r.id),
@@ -108,6 +117,8 @@ async function loadManagedDevices(): Promise<ManagedDevice[]> {
       storeId: r.store_id,
       position: { latitude: r.latitude, longitude: r.longitude },
       sensors: parseSensors(r.sensors),
+      location: placed ? { storeCode: placed.storeCode, phase: placed.phase } : undefined,
       capture: states ? withHealth(states.get(r.id) ?? IDLE_CAPTURE) : null,
-    }))
+      }
+    })
 }

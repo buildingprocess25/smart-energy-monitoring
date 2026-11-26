@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseLiveBuffer, formatJakartaTime } from '../lib/live-buffer.ts'
+import { parseLiveBuffer, formatJakartaTime, combineLiveBuffers } from '../lib/live-buffer.ts'
 
 const metrics = (w, v = 220) => ({
   'Voltage (V)': v,
@@ -84,4 +84,37 @@ test('the live total counts R/S/T only when the device has a main panel', () => 
   const sample = (data) => parseLiveBuffer([{ timestamp: 1000, data }], null).points[0].totalPower
   assert.equal(sample({ R: { 'Power (W)': 100 }, S: { 'Power (W)': 50 }, FREEZER_01: { 'Power (W)': 30 } }), 150)
   assert.equal(sample({ PG: { 'Power (W)': 30 } }), 30)
+})
+
+test('combineLiveBuffers puts each device under its store phase', () => {
+  const r = [{ timestamp: 1000, data: { CT: { 'Power (W)': 100 }, status: { relay: 'ON' } } }]
+  const s = [
+    { timestamp: 1400, data: { CT: { 'Power (W)': 200 } } },
+    { timestamp: 2000, data: { offline: true } },
+  ]
+  assert.deepEqual(combineLiveBuffers([{ raw: r, phase: 'R', prefix: '' }, { raw: s, phase: 'S', prefix: '' }]), [
+    { timestamp: 1000, data: { R: { 'Power (W)': 100 }, S: { 'Power (W)': 200 } } },
+    { timestamp: 2000, data: { offline: true } },
+  ])
+})
+
+test('combineLiveBuffers keeps every channel of a multi-channel device', () => {
+  const raw = [{ timestamp: 1000, data: { CT1: { 'Power (W)': 1 }, CT2: { 'Power (W)': 2 } } }]
+  assert.deepEqual(combineLiveBuffers([{ raw, phase: 'OVEN', prefix: 'OVEN' }]), [
+    { timestamp: 1000, data: { 'OVEN CT1': { 'Power (W)': 1 }, 'OVEN CT2': { 'Power (W)': 2 } } },
+  ])
+})
+
+test('combineLiveBuffers keeps the phases a three-phase device reports itself', () => {
+  const raw = [{ timestamp: 1000, data: { L12: { 'Power (W)': 1 }, S: { 'Power (W)': 2 } } }]
+  assert.deepEqual(combineLiveBuffers([{ raw, phase: 'R', prefix: '' }]), [
+    { timestamp: 1000, data: { R: { 'Power (W)': 1 }, S: { 'Power (W)': 2 } } },
+  ])
+  assert.deepEqual(combineLiveBuffers([{ raw, phase: 'AC', prefix: 'AC' }]), [
+    { timestamp: 1000, data: { 'AC R': { 'Power (W)': 1 }, 'AC S': { 'Power (W)': 2 } } },
+  ])
+})
+
+test('combineLiveBuffers ignores what is not a buffer', () => {
+  assert.deepEqual(combineLiveBuffers([{ raw: null, phase: 'R', prefix: '' }, { raw: [{ nope: 1 }], phase: 'S', prefix: '' }]), [])
 })

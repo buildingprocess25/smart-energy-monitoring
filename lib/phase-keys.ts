@@ -10,7 +10,7 @@ const PHASE_ALIASES: Record<string, 'R' | 'S' | 'T'> = {
 // Keys in a Flask live payload that are not sensors.
 const NON_PHASE_KEYS = new Set(['Timestamp', 'timestamp', 'meta', 'offline', 'status', 'cmd', 'realtime', 'RealTime'])
 const PHASE_KEY_PATTERN = /^[A-Za-z0-9_\-\s]{1,50}$/
-const MAIN_ORDER: Record<string, number> = { R: 0, S: 1, T: 2 }
+const MAIN_ORDER: Record<string, number> = { R: 0, S: 1, T: 2, '1F': 3 }
 
 export function normalizePhaseKey(raw: string): string {
   const key = raw.trim()
@@ -38,6 +38,7 @@ export function comparePhase(a: string, b: string): number {
 }
 
 export function defaultPhaseName(phase: string): string {
+  if (phase === '1F') return '1 Fasa'
   return Object.hasOwn(MAIN_ORDER, phase) ? `Fase ${phase}` : phase
 }
 

@@ -65,7 +65,7 @@ pnpm format              # Prettier (ts, tsx)
 pnpm check:agent-note    # same check the pre-commit hook runs
 pnpm test:agent-note     # tests for that check
 pnpm test:access         # role, access-scope and sign-out rules (node --test)
-pnpm test:data           # pure data modules: phase keys, live buffer, shared fetch, stale cache, read-only, session records
+pnpm test:data           # pure data modules: phase keys, live buffer, shared fetch, stale cache, read-only, session records, device topology
 
 pnpm prisma:validate     # allowed: does not touch the database
 pnpm prisma:generate     # allowed: does not touch the database
@@ -147,7 +147,7 @@ lib/
 │   ├── telemetry-api.ts            # fetchTelemetryApi: server-side GET to Flask (TELEMETRY_API_URL)
 │   ├── sangat-boros-service.ts     # v_toko_sangat_boros (DB 1 view), install status, comparison
 │   └── telemetry-service.ts        # analytics, telemetry history, live phases, sessions, monthly cost
-├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts, stale-cache.ts, energy-index.ts, jakarta-range.ts, format-energy.ts  # pure modules (tested by test:data)
+├── phase-keys.ts, live-buffer.ts, session-records.ts, shared-fetch.ts, stale-cache.ts, energy-index.ts, jakarta-range.ts, format-energy.ts, device-topology.ts  # pure modules (tested by test:data)
 ├── db/read-only.ts                 # readOnlyQuery: BEGIN READ ONLY + 15 s statement_timeout on getTelemetryPool()
 ├── types.ts                        # Store, PhaseData, TelemetryPoint, AuditSession, MonthlyCostRecord, ...
 ├── mock-data.ts                    # legacy mock data, no longer imported
@@ -195,6 +195,10 @@ scripts/                            # agent-note check, asset copy
 - `getTelemetryHistory()`: paginated points (96 per day at 15 minutes) for a metric and time range.
 - `getLiveTelemetry()`, `getAuditSessions()`, `getMonthlyCostSummary()`.
 - `getEnergyIndex()` (`lib/services/energy-service.ts`, pure rules in `lib/energy-index.ts`) is the only source for energy totals, daily and monthly kWh, cost, recorded dates and the load profile. It reads `history` and `telemetry` once as 15-minute buckets, then only rows past the last id every 60 s, with a full read every 6 h; it lives on `globalThis` because pages, API routes and `instrumentation.ts` are bundled apart. It holds every device, so callers ask only for devices in scope. Do not add new `MAX(energy) - MIN(energy)` queries over long periods: they miss counter resets.
+
+**`lib/services/topology-service.ts`** (rules in `lib/device-topology.ts`, pure)
+- Reads `device_topology` (DB 2, owned and written by Flask; contract in `ARCHITECTURE_PLAN.md` section 7) through `readOnlyQuery()`, cached with `createStaleCache`. A missing table (`42P01`) gives an empty topology. Callers that must not fail because of topology (energy index, store history, `/perangkat`) catch other errors, log them and use `EMPTY_TOPOLOGY`.
+- Devices `CT-<MAC>` and `Plug-<MAC>` that have a location are folded into one virtual device `SPARTA-<store code>` (`foldPlacedDevices` in `store-service.ts`; the store carries `members`). The energy index expands bucket rows through the topology (`expandBucketRows`), store history reads every member with `sqlSource`, the live buffer merges member buffers (`combineLiveBuffers`). Physical devices stay in `/perangkat`, health, sessions and control.
 
 **`lib/services/live-buffer-service.ts`, `telemetry-api.ts`**
 - `getStoreLiveBuffer()`: latest samples of a store's device from Flask `GET /api/live-buffer/<device_id>`, called only from the server. `lib/shared-fetch.ts` allows at most 1 call per device per 3 s and pauses 15 s after a failure. The store to device lookup is cached per (access scope, store) for 60 s, so a GS revocation reaches this route within 60 s.
@@ -265,7 +269,8 @@ Details and reasons are in `AI_CONTEXT.md`.
 - **Bad samples:** sensor frames with voltage above 300 V or current above 500 A, and offline rows, are never used (`VALID_SAMPLE_SQL`). Time without records (more than 30 minutes) adds no energy, and month comparisons are per recorded hour.
 - **Sources:** combine `telemetry` and `history` when computing energy so the record has no gaps.
 - **Cost:** PLN tariff is `1444.7` rupiah per kWh (`PLN_TARIFF` in `telemetry-service.ts`).
-- **Store total:** only main panel phases R/S/T count as the store's total consumption (`mainPanelKwh`). Sub-metering sensors are excluded from baselines and reduction percentages so nothing is counted twice.
+- **SpartaEnergy topology:** main panels are `MDP` and `LVMDP`; phases `R`, `S`, `T` and `1F` there count as the store total, other panels are sub-meters. History follows location: a sample belongs to the store where its device was when Flask received the `notes` that placed it. A MAC's first location is valid from 0 (`valid_from = 0`, `valid_to NULL` is open). When two MACs share a location and phase, the last configured wins from that moment. Raw `R`/`S`/`T` keys sent by the device keep their own phase. GS sees a virtual store only if every MAC ever placed in it is in `user_device_access`. The vendor guide rule "ignore legacy" does not apply: `EM-*`, `MC*` and `AlfaEnergy/*` stay processed.
+- **Store total:** only main panel phases R/S/T/1F count as the store's total consumption (`mainPanelKwh`). Sub-metering sensors are excluded from baselines and reduction percentages so nothing is counted twice.
 - **Sangat Boros:** the list comes from `v_toko_sangat_boros`; `is_demo` rows get the label "Uji coba"; the reduction percentage is compared per day, never a partial month against a full PLN month.
 - **Number format:** `id-ID` locale; energy deltas use two decimals.
 

@@ -128,6 +128,7 @@ export interface Store {
   lastUpdate: string // ISO string or time string
   phases: PhaseData[]
   deviceId?: string
+  members?: { deviceId: string; phase: string; prefix: string }[] // physical SpartaEnergy devices behind a SPARTA-<code> device
   plnPowerVa?: number
   is24Hours?: boolean
   salesAreaM2?: number
@@ -290,6 +291,7 @@ export interface ManagedDevice {
   storeId: string | null
   position: { latitude: number | null; longitude: number | null }
   sensors: ManagedSensor[]
+  location?: { storeCode: string; phase: string } // SpartaEnergy placement now
   capture: CaptureState | null // null when the IoT server did not answer
 }
 

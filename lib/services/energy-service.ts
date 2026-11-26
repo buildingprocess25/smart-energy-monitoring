@@ -2,6 +2,8 @@ import 'server-only'
 import { getTelemetryPool } from '@/lib/db/pools'
 import { readOnlyQuery } from '@/lib/db/read-only'
 import { BUCKET_MS, createEnergyIndex, type BucketRow, type EnergyIndex } from '@/lib/energy-index'
+import { expandBucketRows } from '@/lib/device-topology'
+import { EMPTY_TOPOLOGY, getDeviceTopology } from '@/lib/services/topology-service'
 import { createStaleCache } from '@/lib/stale-cache'
 
 // history holds over 2 million rows, so it is read once and then only past the last id.
@@ -40,6 +42,7 @@ interface EnergyState {
   lastIds: Record<Table, number>
   fullReadAt: number
   replayedAt: string | null
+  topologyVersion: string
 }
 
 async function readBuckets(
@@ -101,13 +104,28 @@ declare global {
 
 async function refresh(): Promise<EnergyIndex> {
   const state = globalThis._energyState
-  const replayedAt = await lastReplay()
+  // The empty version is 'none', so the next successful load changes it and the `moved` path reads everything once.
+  const [replayedAt, topology] = await Promise.all([
+    lastReplay(),
+    getDeviceTopology().catch((error) => {
+      console.error('Error reading device topology:', error)
+      return EMPTY_TOPOLOGY
+    }),
+  ])
   const age = state ? Date.now() - state.fullReadAt : Infinity
   const healed = state !== undefined && replayedAt !== state.replayedAt && age > REPLAY_READ_MS
-  const full = !state || healed || age > FULL_READ_MS
+  // A moved device changes which store its older rows belong to, so everything is read again.
+  const moved = state !== undefined && topology.version !== state.topologyVersion
+  const full = !state || healed || moved || age > FULL_READ_MS
   const next: EnergyState =
     full || !state
-      ? { index: createEnergyIndex(), lastIds: { history: 0, telemetry: 0 }, fullReadAt: Date.now(), replayedAt }
+      ? {
+          index: createEnergyIndex(),
+          lastIds: { history: 0, telemetry: 0 },
+          fullReadAt: Date.now(),
+          replayedAt,
+          topologyVersion: topology.version,
+        }
       : state
 
   // Both tables are read before anything is merged, so a failed read changes nothing.
@@ -118,7 +136,7 @@ async function refresh(): Promise<EnergyIndex> {
     reads.push({ table, upTo, rows: await readBuckets(table, after, upTo) })
   }
   for (const { table, upTo, rows } of reads) {
-    next.index.merge(rows)
+    next.index.merge(expandBucketRows(rows, topology.map))
     next.lastIds[table] = upTo
   }
   globalThis._energyState = next

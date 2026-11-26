@@ -112,3 +112,14 @@ test('hours without records are null, so a chart does not draw them as 0 W', () 
   assert.equal(index.loadProfile('D1', '2026-11-10')[0], 2000)
   assert.equal(index.loadProfile('D1', '2026-11-10')[1], null)
 })
+
+test('a single-phase main panel counts as the store total', () => {
+  const index = createEnergyIndex()
+  index.merge([
+    { deviceId: 'SPARTA-T200', phase: '1F', bucket: 100, min: 10, max: 10, powerSum: 4000, count: 4 },
+    { deviceId: 'SPARTA-T200', phase: '1F', bucket: 101, min: 10.2, max: 10.25, powerSum: 4000, count: 4 },
+  ])
+  const total = index.total('SPARTA-T200')
+  assert.equal(total.hasMain, true)
+  assert.ok(total.main > 0)
+})
