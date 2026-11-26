@@ -9,7 +9,7 @@ export function jakartaDate(epochMs: number): string {
 
 // Epoch bounds [from, to) of the period that holds `date`; a week is the 7 days ending on it.
 export function jakartaRange(
-  range: 'day' | 'week' | 'month' | 'year',
+  range: 'second' | 'minute' | 'day' | 'week' | 'month' | 'year',
   date: string
 ): { from: number; to: number } {
   const [y, m, d] = date.split('-').map(Number)

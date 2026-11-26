@@ -1,7 +1,7 @@
 // Query string checks for the store API routes.
 // No imports, so `node --test` can load this file directly.
 
-export const RANGE_TYPES = ['day', 'week', 'month', 'year', 'session'] as const
+export const RANGE_TYPES = ['second', 'minute', 'day', 'week', 'month', 'year', 'session'] as const
 export type RangeType = (typeof RANGE_TYPES)[number]
 
 export const MAX_PAGE_SIZE = 500

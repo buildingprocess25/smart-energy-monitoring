@@ -357,7 +357,7 @@ export async function getTelemetryHistory(
   let targetDate: string | undefined = undefined
   let targetSessionId: string | undefined = undefined
   let page = 1
-  let pageSize = 96 // Default: 96 intervals = 24 jam @ 15 min
+  let customPageSize: number | undefined = undefined
 
   if (typeof options === 'string') {
     targetSessionId = options
@@ -367,8 +367,12 @@ export async function getTelemetryHistory(
     targetDate = options.date
     targetSessionId = options.sessionId
     page = options.page && options.page > 0 ? options.page : 1
-    pageSize = options.pageSize && options.pageSize > 0 ? options.pageSize : 96
+    customPageSize = options.pageSize && options.pageSize > 0 ? options.pageSize : undefined
   }
+
+  const defaultPageSize = rangeType === 'minute' ? 60 : rangeType === 'second' ? 120 : 96
+  const pageSize = customPageSize ?? defaultPageSize
+  const isPaginatedRange = rangeType === 'session' || rangeType === 'minute' || rangeType === 'second'
 
   // The default request follows the newest recorded date, so it never counts as settled.
   const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
@@ -381,7 +385,7 @@ export async function getTelemetryHistory(
       JSON.stringify([deviceId, rangeType, rangeType === 'session' ? targetSessionId : targetDate]),
       () => loadHistory(deviceId, rangeType, targetDate, targetSessionId)
     )
-    if (rangeType !== 'session') return { sensors, points: allPoints, availableDates }
+    if (!isPaginatedRange) return { sensors, points: allPoints, availableDates }
 
     // Page 1 is the latest window; later pages go back in time.
     const totalPoints = allPoints.length
@@ -559,7 +563,111 @@ async function loadHistory(
     })
 
     function buildPointsQuery(): string {
-    if (rangeType === 'day') {
+    if (rangeType === 'second') {
+      return `
+        WITH raw_second AS (
+          SELECT 
+            epoch, 
+            ${src.phase} as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM history
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          UNION ALL
+          SELECT 
+            epoch, 
+            ${src.phase} as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM telemetry
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+        ),
+        buckets AS (
+          SELECT 
+            (epoch / 1000) as bucket_id,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:MI:SS') as time_str,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI:SS') as full_time,
+            phase,
+            power,
+            voltage,
+            current,
+            energy,
+            power_factor,
+            frequency
+          FROM raw_second
+        )
+        SELECT 
+          bucket_id,
+          time_str,
+          full_time,
+          phase,
+          ROUND(AVG(power)::numeric, 1) as power,
+          ROUND(AVG(voltage)::numeric, 1) as voltage,
+          ROUND(AVG(current)::numeric, 2) as current,
+          ROUND(
+            CASE 
+              WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0 / 3600.0) * 1.8 + 0.01, 0.02) THEN (MAX(energy) - MIN(energy))
+              ELSE GREATEST(0, (AVG(power) / 1000.0 / 3600.0))
+            END::numeric, 
+            2
+          ) as energy,
+          ROUND(AVG(power_factor)::numeric, 2) as power_factor,
+          ROUND(AVG(frequency)::numeric, 1) as frequency
+        FROM buckets
+        GROUP BY bucket_id, time_str, full_time, phase
+        ORDER BY bucket_id ASC
+      `
+    } else if (rangeType === 'minute') {
+      return `
+        WITH raw_minute AS (
+          SELECT 
+            epoch, 
+            ${src.phase} as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM history
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+          UNION ALL
+          SELECT 
+            epoch, 
+            ${src.phase} as phase,
+            power, voltage, current, energy, power_factor, frequency
+          FROM telemetry
+          WHERE ${src.where} AND ${periodWhere} AND ${VALID_SAMPLE_SQL}
+        ),
+        buckets AS (
+          SELECT 
+            (epoch / (1000 * 60)) as bucket_id,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'HH24:MI') as time_str,
+            TO_CHAR(TO_TIMESTAMP(epoch / 1000.0) AT TIME ZONE 'Asia/Jakarta', 'YYYY-MM-DD HH24:MI') as full_time,
+            phase,
+            power,
+            voltage,
+            current,
+            energy,
+            power_factor,
+            frequency
+          FROM raw_minute
+        )
+        SELECT 
+          bucket_id,
+          time_str,
+          full_time,
+          phase,
+          ROUND(AVG(power)::numeric, 1) as power,
+          ROUND(AVG(voltage)::numeric, 1) as voltage,
+          ROUND(AVG(current)::numeric, 2) as current,
+          ROUND(
+            CASE 
+              WHEN (MAX(energy) - MIN(energy)) > 0 AND (MAX(energy) - MIN(energy)) <= GREATEST((AVG(power) / 1000.0 / 60.0) * 1.8 + 0.02, 0.05) THEN (MAX(energy) - MIN(energy))
+              ELSE GREATEST(0, (AVG(power) / 1000.0 / 60.0))
+            END::numeric, 
+            2
+          ) as energy,
+          ROUND(AVG(power_factor)::numeric, 2) as power_factor,
+          ROUND(AVG(frequency)::numeric, 1) as frequency
+        FROM buckets
+        GROUP BY bucket_id, time_str, full_time, phase
+        ORDER BY bucket_id ASC
+      `
+    } else if (rangeType === 'day') {
       // Harian: Rata-rata per 1 jam (24 jam) menggabungkan telemetry + history
       return `
         WITH raw_day AS (

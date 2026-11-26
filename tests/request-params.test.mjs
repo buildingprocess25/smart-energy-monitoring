@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { isIsoDate, parseDateParam, parseHistoryParams, parseSinceParam, parseSessionId } from '../lib/request-params.ts'
+import { jakartaRange } from '../lib/jakarta-range.ts'
 
 const parse = (query) => parseHistoryParams(new URLSearchParams(query))
 
@@ -26,8 +27,28 @@ test('parseHistoryParams keeps what the monitoring page sends', () => {
     page: undefined,
     pageSize: undefined,
   })
+  assert.deepEqual(parse('rangeType=minute&date=2026-11-26&page=3').value, {
+    rangeType: 'minute',
+    date: '2026-11-26',
+    sessionId: undefined,
+    page: 3,
+    pageSize: undefined,
+  })
+  assert.deepEqual(parse('rangeType=second&date=2026-11-26&page=1').value, {
+    rangeType: 'second',
+    date: '2026-11-26',
+    sessionId: undefined,
+    page: 1,
+    pageSize: undefined,
+  })
   assert.equal(parse('rangeType=session&sessionId=sess_123&page=2').value.page, 2)
   assert.equal(parse('').value.rangeType, 'day')
+})
+
+test('jakartaRange uses the full Jakarta day bounds for second, minute and day', () => {
+  const dayBounds = jakartaRange('day', '2026-11-26')
+  assert.deepEqual(jakartaRange('minute', '2026-11-26'), dayBounds)
+  assert.deepEqual(jakartaRange('second', '2026-11-26'), dayBounds)
 })
 
 test('parseHistoryParams rejects bad input', () => {

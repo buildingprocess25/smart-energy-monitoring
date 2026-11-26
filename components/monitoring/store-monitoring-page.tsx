@@ -145,6 +145,9 @@ export function StoreMonitoringPage({
           params.set('page', String(newPage))
         } else {
           if (newDate) params.set('date', newDate)
+          if (newRange === 'minute' || newRange === 'second') {
+            params.set('page', String(newPage))
+          }
         }
 
         const res = await fetch(`/api/stores/${store.id}/history?${params.toString()}`)
@@ -213,13 +216,15 @@ export function StoreMonitoringPage({
     const nextDate = availableDates[nextIndex]
     if (nextDate !== selectedDate) {
       setSelectedDate(nextDate)
-      fetchTelemetry('day', nextDate, sessionId, 1)
+      setSessionPage(1)
+      fetchTelemetry(rangeType, nextDate, sessionId, 1)
     }
   }
 
   // Handle Specific Date Selection
   const handleDateSelect = (dateStr: string) => {
     setSelectedDate(dateStr)
+    setSessionPage(1)
     fetchTelemetry(rangeType, dateStr, sessionId, 1)
   }
 
@@ -230,7 +235,7 @@ export function StoreMonitoringPage({
     fetchTelemetry('session', selectedDate, newSessionId, 1)
   }
 
-  // Handle Session Page Shift (< or >)
+  // Handle Page Shift (< or >) for Session, Minute, or Second mode
   const handleSessionPageShift = (direction: 'prev' | 'next') => {
     if (!pagination) return
     const targetPage =
@@ -240,7 +245,7 @@ export function StoreMonitoringPage({
 
     if (targetPage !== pagination.page) {
       setSessionPage(targetPage)
-      fetchTelemetry('session', selectedDate, sessionId, targetPage)
+      fetchTelemetry(rangeType, selectedDate, sessionId, targetPage)
     }
   }
 
@@ -395,9 +400,11 @@ export function StoreMonitoringPage({
             {/* Left: Time Range Mode (Day / Month / Year / Session) & Date/Session Navigator */}
             <div className="flex flex-wrap items-center gap-3">
               {/* Range Mode Pills with clean, intuitive diksi */}
-              <div className="flex rounded-lg bg-muted/70 p-1 border">
+              <div className="flex flex-wrap rounded-lg bg-muted/70 p-1 border">
                 {(
                   [
+                    { key: 'second', label: 'Detik' },
+                    { key: 'minute', label: 'Menit' },
                     { key: 'day', label: 'Harian' },
                     { key: 'month', label: 'Bulanan' },
                     { key: 'year', label: 'Tahunan' },
@@ -422,25 +429,62 @@ export function StoreMonitoringPage({
                 })}
               </div>
 
-              {/* Date Navigator with Calendar Popover (for Day, Week, & Month mode) */}
+              {/* Date Navigator with Calendar Popover (for Second, Minute, Day, Week, & Month mode) */}
               {rangeType !== 'session' ? (
-                <TelemetryDatePicker
-                  selectedDate={selectedDate}
-                  onDateSelect={handleDateSelect}
-                  availableDates={availableDates}
-                  rangeType={rangeType as 'day' | 'week' | 'month' | 'year'}
-                  onDateShift={handleDateShift}
-                  canShiftPrev={
-                    rangeType === 'day'
-                      ? availableDates.indexOf(selectedDate) < availableDates.length - 1
-                      : true
-                  }
-                  canShiftNext={
-                    rangeType === 'day'
-                      ? availableDates.indexOf(selectedDate) > 0
-                      : true
-                  }
-                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <TelemetryDatePicker
+                    selectedDate={selectedDate}
+                    onDateSelect={handleDateSelect}
+                    availableDates={availableDates}
+                    rangeType={rangeType as 'second' | 'minute' | 'day' | 'week' | 'month' | 'year'}
+                    onDateShift={handleDateShift}
+                    canShiftPrev={
+                      rangeType === 'day' || rangeType === 'minute' || rangeType === 'second'
+                        ? availableDates.indexOf(selectedDate) < availableDates.length - 1
+                        : true
+                    }
+                    canShiftNext={
+                      rangeType === 'day' || rangeType === 'minute' || rangeType === 'second'
+                        ? availableDates.indexOf(selectedDate) > 0
+                        : true
+                    }
+                  />
+
+                  {(rangeType === 'minute' || rangeType === 'second') && pagination && pagination.totalPages > 1 && (
+                    <div className="flex items-center gap-1.5 rounded-lg border bg-background px-2 py-1 shadow-xs">
+                      <button
+                        type="button"
+                        onClick={() => handleSessionPageShift('prev')}
+                        title="Waktu Lebih Baru"
+                        disabled={pagination.page <= 1}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                      >
+                        <ChevronLeft className="size-4" />
+                      </button>
+                      <div className="flex items-center gap-1 text-xs tabular-nums font-semibold px-1 text-foreground">
+                        <span>Hal {pagination.page} / {pagination.totalPages}</span>
+                        {pagination.page === 1 ? (
+                          <span className="text-xs bg-primary/10 text-primary font-bold px-1.5 py-0.5 rounded">
+                            Terbaru
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground font-normal">
+                            (Mundur)
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSessionPageShift('next')}
+                        title="Waktu Sebelumnya (Mundur)"
+                        disabled={pagination.page >= pagination.totalPages}
+                        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none cursor-pointer"
+                      >
+                        <ChevronRight className="size-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 /* Session Selector & Page Navigator (for Session mode) */
                 <div className="flex flex-wrap items-center gap-2">
@@ -716,6 +760,36 @@ export function StoreMonitoringPage({
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {metricMeta.description} &bull;{' '}
                   <span className="font-semibold text-foreground">
+                    {rangeType === 'second' && (
+                      <>
+                        Detik ({formattedDisplayDate}): Data per 1 Detik
+                        {points && points.length > 0 && (
+                          <span className="ml-1.5 text-primary font-medium">
+                            &bull; Rentang: {points[0].timestamp} s/d {points[points.length - 1].timestamp}
+                          </span>
+                        )}
+                        {pagination && (
+                          <span className="ml-1 tabular-nums text-xs text-muted-foreground">
+                            (Hal {pagination.page}/{pagination.totalPages})
+                          </span>
+                        )}
+                      </>
+                    )}
+                    {rangeType === 'minute' && (
+                      <>
+                        Menit ({formattedDisplayDate}): Rata-rata per 1 Menit
+                        {points && points.length > 0 && (
+                          <span className="ml-1.5 text-primary font-medium">
+                            &bull; Rentang: {points[0].timestamp} s/d {points[points.length - 1].timestamp}
+                          </span>
+                        )}
+                        {pagination && (
+                          <span className="ml-1 tabular-nums text-xs text-muted-foreground">
+                            (Hal {pagination.page}/{pagination.totalPages})
+                          </span>
+                        )}
+                      </>
+                    )}
                     {rangeType === 'day' &&
                       `Harian (${formattedDisplayDate}): Rata-rata per 1 Jam (24 Titik)`}
                     {rangeType === 'month' &&
@@ -732,7 +806,7 @@ export function StoreMonitoringPage({
                         )}
                         {pagination && (
                           <span className="ml-1 tabular-nums text-xs text-muted-foreground">
-                            — Hal {pagination.page}/{pagination.totalPages}
+                            (Hal {pagination.page}/{pagination.totalPages})
                           </span>
                         )}
                       </>

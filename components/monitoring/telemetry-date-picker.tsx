@@ -17,7 +17,7 @@ interface TelemetryDatePickerProps {
   selectedDate: string // YYYY-MM-DD
   onDateSelect: (dateStr: string) => void
   availableDates?: string[] // List of YYYY-MM-DD with real data
-  rangeType?: 'day' | 'week' | 'month' | 'year'
+  rangeType?: 'second' | 'minute' | 'day' | 'week' | 'month' | 'year'
   onDateShift?: (direction: 'prev' | 'next') => void
   canShiftPrev?: boolean
   canShiftNext?: boolean
@@ -299,7 +299,7 @@ export function TelemetryDatePicker({
               >
                 <ChevronsLeft className="size-4" />
               </button>
-              {rangeType === 'day' && (
+              {(rangeType === 'day' || rangeType === 'minute' || rangeType === 'second') && (
                 <button
                   type="button"
                   onClick={prevMonth}
@@ -320,7 +320,7 @@ export function TelemetryDatePicker({
             </div>
 
             <div className="flex items-center gap-1">
-              {rangeType === 'day' && (
+              {(rangeType === 'day' || rangeType === 'minute' || rangeType === 'second') && (
                 <button
                   type="button"
                   onClick={nextMonth}
@@ -353,6 +353,10 @@ export function TelemetryDatePicker({
                     ? 'Bulanan (Per Hari dalam Sebulan)'
                     : rangeType === 'week'
                     ? 'Mingguan (7 Hari)'
+                    : rangeType === 'minute'
+                    ? 'Menit (Per 1 Menit)'
+                    : rangeType === 'second'
+                    ? 'Detik (Per 1 Detik)'
                     : 'Harian (24 Jam)'}
                 </strong>
               </span>

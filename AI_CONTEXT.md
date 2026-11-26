@@ -53,10 +53,8 @@ Login dilakukan di `sparta-energy`; portal membaca sesi yang sama (cookie
    - **Daftar Toko**: hanya toko yang sudah punya device IoT, beserta statusnya.
 3. **Detail toko (`/monitoring/[storeId]`)**
    - Hero toko, gauge fase R/S/T live, pemilih sesi rekaman.
-   - Grafik telemetri dengan rentang hari, minggu, bulan, tahun, atau sesi;
-     navigasi `<` / `>` per periode dan pintasan "Data Terbaru".
-   - Kartu sensor per equipment (sub-metering) dengan nama yang sudah
-     dibersihkan.
+   - Grafik telemetri dengan rentang detik, menit, hari (default saat halaman dibuka), minggu, bulan, tahun, atau sesi; navigasi `<` / `>` per periode atau halaman dan pintasan "Data Terbaru".
+   - Kartu sensor per equipment (sub-metering) dengan nama yang sudah dibersihkan.
 
 ## Status Toko
 
