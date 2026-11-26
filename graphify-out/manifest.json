@@ -420,9 +420,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1795511912.8406305,
-    "seen": 1795511930.275318,
-    "ast_hash": "caae244ec702d446b262a9c9f0d0c8ef",
+    "mtime": 1795663649.2326002,
+    "seen": 1795663972.6961474,
+    "ast_hash": "390fd98b89e4882b4b298278a15e3218",
     "semantic_hash": ""
   },
   "AI_RULES.md": {
@@ -432,9 +432,9 @@
     "semantic_hash": ""
   },
   "ARCHITECTURE_PLAN.md": {
-    "mtime": 1795510049.4843006,
-    "seen": 1795511930.275318,
-    "ast_hash": "68e248965ea8c7acb8e7c9bb526a8400",
+    "mtime": 1795663399.0484471,
+    "seen": 1795663972.6961474,
+    "ast_hash": "a1fd5d53a108d7dbeb5ebfc646e4ac89",
     "semantic_hash": ""
   },
   "DESIGN.md": {
@@ -738,15 +738,15 @@
     "semantic_hash": "fba415f0fdf3512e074fc55b28ed42da"
   },
   "AI_CONTEXT.md": {
-    "mtime": 1795427053.3886914,
-    "seen": 1795427772.7838674,
-    "ast_hash": "8a083e0be4896908bf40fe0f71841343",
+    "mtime": 1795663399.0484471,
+    "seen": 1795663972.6961474,
+    "ast_hash": "9663b7b751a09c4409e73a2d2da6f2f6",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1795511912.760541,
-    "seen": 1795511930.275318,
-    "ast_hash": "09488931119cbdd30dbcb3911ff96cfe",
+    "mtime": 1795663403.554329,
+    "seen": 1795663972.6961474,
+    "ast_hash": "9cf9fdc9dd0bc2e36f48db9c776f1f71",
     "semantic_hash": ""
   },
   "GEMINI.md": {
