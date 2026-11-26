@@ -421,9 +421,9 @@
   },
   "AGENTS.md": {
     "mtime": 1795663649.2326002,
-    "seen": 1795663972.6961474,
+    "seen": 1795664253.0724142,
     "ast_hash": "390fd98b89e4882b4b298278a15e3218",
-    "semantic_hash": ""
+    "semantic_hash": "390fd98b89e4882b4b298278a15e3218"
   },
   "AI_RULES.md": {
     "mtime": 1793081778.9977064,
@@ -433,9 +433,9 @@
   },
   "ARCHITECTURE_PLAN.md": {
     "mtime": 1795663399.0484471,
-    "seen": 1795663972.6961474,
+    "seen": 1795664253.0724142,
     "ast_hash": "a1fd5d53a108d7dbeb5ebfc646e4ac89",
-    "semantic_hash": ""
+    "semantic_hash": "a1fd5d53a108d7dbeb5ebfc646e4ac89"
   },
   "DESIGN.md": {
     "mtime": 1795491759.3734806,
@@ -739,15 +739,15 @@
   },
   "AI_CONTEXT.md": {
     "mtime": 1795663399.0484471,
-    "seen": 1795663972.6961474,
+    "seen": 1795664253.0724142,
     "ast_hash": "9663b7b751a09c4409e73a2d2da6f2f6",
-    "semantic_hash": ""
+    "semantic_hash": "9663b7b751a09c4409e73a2d2da6f2f6"
   },
   "CLAUDE.md": {
     "mtime": 1795663403.554329,
-    "seen": 1795663972.6961474,
+    "seen": 1795664253.0724142,
     "ast_hash": "9cf9fdc9dd0bc2e36f48db9c776f1f71",
-    "semantic_hash": ""
+    "semantic_hash": "9cf9fdc9dd0bc2e36f48db9c776f1f71"
   },
   "GEMINI.md": {
     "mtime": 1795510049.4876068,
@@ -1931,10 +1931,10 @@
     "ast_hash": "baf8d85fc01d7127c88b1f575d9af56f",
     "semantic_hash": ""
   },
-  "pnpm-lock.yaml": {
-    "mtime": 1795485889.6850803,
-    "seen": 1795486713.3034046,
-    "ast_hash": "adb3c022cc28d7698759f3f4f3c1221b",
-    "semantic_hash": ""
+  "docs/agent-notes/2026-11-26-1022-topologi-sparta-energy.md": {
+    "mtime": 1795663693.047596,
+    "seen": 1795664253.0724142,
+    "ast_hash": "ddd6176be86df3707b8902eee761bf5a",
+    "semantic_hash": "ddd6176be86df3707b8902eee761bf5a"
   }
 }
